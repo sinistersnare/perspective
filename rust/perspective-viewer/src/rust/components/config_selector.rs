@@ -52,7 +52,6 @@ pub enum ConfigSelectorMsg {
 
 #[derive(Clone)]
 pub struct ConfigSelector {
-    filter_dropdown: FilterDropDownElement,
     _subscriptions: [Rc<Subscription>; 4],
 }
 
@@ -143,12 +142,8 @@ impl Component for ConfigSelector {
         let cb = ctx.link().callback(|_| ConfigSelectorMsg::ViewCreated);
         let view_sub = Rc::new(ctx.props().session.view_created.add_listener(cb));
 
-        let filter_dropdown = FilterDropDownElement::new(ctx.props().session.clone());
         let _subscriptions = [drop_sub, view_sub, drag_sub, dragend_sub];
-        ConfigSelector {
-            filter_dropdown,
-            _subscriptions,
-        }
+        ConfigSelector { _subscriptions }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -197,7 +192,8 @@ impl Component for ConfigSelector {
                 true
             }
             ConfigSelectorMsg::Close(index, DragTarget::Filter) => {
-                self.filter_dropdown.hide().unwrap();
+                // TODO fix me
+                // self.filter_dropdown.hide().unwrap();
                 let mut filter = ctx.props().session.get_view_config().filter.clone();
                 filter.remove(index as usize);
                 let config = ViewConfigUpdate {
@@ -363,7 +359,6 @@ impl Component for ConfigSelector {
                             html_nested! {
                                 <FilterItem
                                     idx={ idx }
-                                    filter_dropdown={ &self.filter_dropdown }
                                     session={ &ctx.props().session }
                                     renderer={ &ctx.props().renderer }
                                     dragdrop={ &ctx.props().dragdrop }

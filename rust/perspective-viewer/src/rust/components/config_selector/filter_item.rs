@@ -13,6 +13,7 @@ use yew::prelude::*;
 
 use crate::components::containers::dragdrop_list::*;
 use crate::components::containers::select::*;
+use crate::components::form::autocomplete_input::{AutocompleteInput, InputType};
 use crate::components::style::LocalStyle;
 use crate::config::*;
 use crate::custom_elements::*;
@@ -31,17 +32,14 @@ pub struct FilterItem {
 
 #[derive(Debug)]
 pub enum FilterItemMsg {
-    FilterInput((usize, String), String),
-    Close,
+    FilterValueSelected((usize, String), String),
     FilterOpSelect(FilterOp),
-    FilterKeyDown(u32),
 }
 
 #[derive(Properties, Clone)]
 pub struct FilterItemProps {
     pub filter: Filter,
     pub idx: usize,
-    pub filter_dropdown: FilterDropDownElement,
     pub on_keydown: Callback<String>,
     pub session: Session,
     pub renderer: Renderer,
@@ -247,65 +245,41 @@ impl Component for FilterItem {
 
     fn update(&mut self, ctx: &Context<Self>, msg: FilterItemMsg) -> bool {
         match msg {
-            FilterItemMsg::FilterInput(column, input) => {
-                let target = self.input_ref.cast::<HtmlInputElement>().unwrap();
-                let input = if let Some(Type::Bool) = ctx.props().get_filter_type() {
-                    if target.checked() {
-                        "true".to_owned()
-                    } else {
-                        "false".to_owned()
-                    }
-                } else {
-                    input
-                };
-
-                if ctx.props().is_suggestable() {
-                    ctx.props().filter_dropdown.autocomplete(
-                        column,
-                        if ctx.props().filter.1 == FilterOp::In {
-                            input.split(',').last().unwrap().to_owned()
-                        } else {
-                            input.clone()
-                        },
-                        target.unchecked_into(),
-                        ctx.props().on_keydown.clone(),
-                    );
-                }
-
+            FilterItemMsg::FilterValueSelected(_column, input) => {
                 ctx.props().update_filter_input(input);
                 false
             }
-            FilterItemMsg::FilterKeyDown(40) => {
-                if ctx.props().is_suggestable() {
-                    ctx.props().filter_dropdown.item_down();
-                    ctx.props().filter_dropdown.item_select();
-                }
-                false
-            }
-            FilterItemMsg::FilterKeyDown(38) => {
-                if ctx.props().is_suggestable() {
-                    ctx.props().filter_dropdown.item_up();
-                    ctx.props().filter_dropdown.item_select();
-                }
-                false
-            }
-            FilterItemMsg::Close => {
-                ctx.props().filter_dropdown.hide().unwrap();
-                false
-            }
-            FilterItemMsg::FilterKeyDown(13) => {
-                if ctx.props().is_suggestable() {
-                    ctx.props().filter_dropdown.item_select();
-                    ctx.props().filter_dropdown.hide().unwrap();
-                }
-                false
-            }
-            FilterItemMsg::FilterKeyDown(_) => {
-                if ctx.props().is_suggestable() {
-                    ctx.props().filter_dropdown.reautocomplete();
-                }
-                false
-            }
+            // FilterItemMsg::FilterKeyDown(40) => {
+            //     if ctx.props().is_suggestable() {
+            //         ctx.props().filter_dropdown.item_down();
+            //         ctx.props().filter_dropdown.item_select();
+            //     }
+            //     false
+            // }
+            // FilterItemMsg::FilterKeyDown(38) => {
+            //     if ctx.props().is_suggestable() {
+            //         ctx.props().filter_dropdown.item_up();
+            //         ctx.props().filter_dropdown.item_select();
+            //     }
+            //     false
+            // }
+            // FilterItemMsg::Close => {
+            //     ctx.props().filter_dropdown.hide().unwrap();
+            //     false
+            // }
+            // FilterItemMsg::FilterKeyDown(13) => {
+            //     if ctx.props().is_suggestable() {
+            //         ctx.props().filter_dropdown.item_select();
+            //         ctx.props().filter_dropdown.hide().unwrap();
+            //     }
+            //     false
+            // }
+            // FilterItemMsg::FilterKeyDown(_) => {
+            //     if ctx.props().is_suggestable() {
+            //         ctx.props().filter_dropdown.reautocomplete();
+            //     }
+            //     false
+            // }
             FilterItemMsg::FilterOpSelect(op) => {
                 ctx.props().update_filter_op(op);
                 true
@@ -334,30 +308,10 @@ impl Component for FilterItem {
 
         let select = ctx.link().callback(FilterItemMsg::FilterOpSelect);
 
-        let noderef = &self.input_ref;
-        let input = ctx.link().callback({
+        let on_value_selected = ctx.link().callback({
             let column = column.clone();
-            move |input: InputEvent| {
-                FilterItemMsg::FilterInput(
-                    (idx, column.clone()),
-                    input
-                        .target()
-                        .unwrap()
-                        .unchecked_into::<HtmlInputElement>()
-                        .value(),
-                )
-            }
+            move |input: String| FilterItemMsg::FilterValueSelected((idx, column.clone()), input)
         });
-
-        let focus = ctx.link().callback({
-            let input = self.input.clone();
-            move |_: FocusEvent| FilterItemMsg::FilterInput((idx, column.clone()), input.clone())
-        });
-
-        let blur = ctx.link().callback(|_| FilterItemMsg::Close);
-        let keydown = ctx
-            .link()
-            .callback(move |event: KeyboardEvent| FilterItemMsg::FilterKeyDown(event.key_code()));
 
         let dragref = NodeRef::default();
         let dragstart = Callback::from({
@@ -376,82 +330,14 @@ impl Component for FilterItem {
             move |_event| dragdrop.drag_end()
         });
 
-        let type_class = match col_type {
-            Some(Type::Float) | Some(Type::Integer) => "num-filter",
-            Some(Type::String) => "string-filter",
-            _ => "",
-        };
-
-        let input_elem = match col_type {
-            Some(Type::Integer) => html! {
-                <input
-                    type="number"
-                    placeholder="Value"
-                    class="num-filter"
-                    step="1"
-                    ref={ noderef.clone() }
-                    onkeydown={ keydown }
-                    value={ self.input.clone() }
-                    oninput={ input }/>
-            },
-            Some(Type::Float) => html! {
-                <input
-                    type="number"
-                    placeholder="Value"
-                    class="num-filter"
-                    ref={ noderef.clone() }
-                    onkeydown={ keydown }
-                    value={ self.input.clone() }
-                    oninput={ input }/>
-            },
-            Some(Type::String) => html! {
-                <input
-                    type="text"
-                    size="4"
-                    placeholder="Value"
-                    class="string-filter"
-                    // TODO This is dirty and it may not work in the future.
-                    onInput="this.parentNode.dataset.value=this.value"
-                    ref={ noderef.clone() }
-                    onkeydown={ keydown }
-                    onfocus={ focus }
-                    onblur={ blur }
-                    value={ self.input.clone() }
-                    oninput={ input }/>
-            },
-            Some(Type::Date) => html! {
-                <input
-                    type="date"
-                    placeholder="Value"
-                    class="date-filter"
-                    ref={ noderef.clone() }
-                    onkeydown={ keydown }
-                    value={ self.input.clone() }
-                    oninput={ input }/>
-            },
-            Some(Type::Datetime) => html! {
-                <input
-                    type="datetime-local"
-                    placeholder="Value"
-                    class="datetime-filter"
-                    step="0.001"
-                    ref={ noderef.clone() }
-                    onkeydown={ keydown }
-                    value={ self.input.clone() }
-                    oninput={ input }/>
-            },
-            Some(Type::Bool) => {
-                html! {
-                    <input
-                        type="checkbox"
-                        ref={ noderef.clone() }
-                        checked={ self.input == "true" }
-                        oninput={ input }/>
-                }
-            }
-            None => {
-                html! {}
-            }
+        let input_elem = html! {
+            <AutocompleteInput
+                initial_val={ self.input.clone() }
+                is_suggest={ ctx.props().filter.1 == FilterOp::EQ
+                    || ctx.props().filter.1 == FilterOp::NE
+                    || ctx.props().filter.1 == FilterOp::In }
+                input_type= { col_type.map(Into::into) }
+                on_value_selected={ on_value_selected } />
         };
 
         let filter_ops = ctx
@@ -480,19 +366,7 @@ impl Component for FilterItem {
             </FilterOpSelector>
 
             if !matches!(&filter.1, FilterOp::IsNotNull | FilterOp::IsNull) {
-                if let Some(Type::Bool) = col_type {
-                    {
-                        input_elem
-                    }
-                } else {
-                    <label
-                        class={ format!("input-sizer {}", type_class) }
-                        data-value={ format!("{}", filter.2) }>
-                        {
-                            input_elem
-                        }
-                    </label>
-                }
+                { input_elem }
             }
         }
     }

@@ -11,6 +11,7 @@
 //! in this module should not be imported from the `components` parent module
 //! directly.
 
+pub mod autocomplete_input;
 pub mod code_editor;
 pub mod color_range_selector;
 pub mod color_selector;

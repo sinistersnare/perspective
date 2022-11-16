@@ -16,7 +16,7 @@
     clippy::await_holding_refcell_ref
 )]
 
-mod components;
+pub mod components;
 pub mod config;
 pub mod custom_elements;
 mod custom_events;
