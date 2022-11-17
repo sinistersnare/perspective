@@ -20,7 +20,6 @@ use self::sort_item::*;
 use super::containers::dragdrop_list::*;
 use super::style::LocalStyle;
 use crate::config::*;
-use crate::custom_elements::FilterDropDownElement;
 use crate::dragdrop::*;
 use crate::model::*;
 use crate::renderer::*;

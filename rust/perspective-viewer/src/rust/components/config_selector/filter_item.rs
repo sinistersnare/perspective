@@ -6,17 +6,17 @@
 // of the Apache License 2.0.  The full license can be found in the LICENSE
 // file.
 
+use std::rc::Rc;
+
 use chrono::{NaiveDate, TimeZone, Utc};
-use wasm_bindgen::JsCast;
 use web_sys::*;
 use yew::prelude::*;
 
 use crate::components::containers::dragdrop_list::*;
 use crate::components::containers::select::*;
-use crate::components::form::autocomplete_input::{AutocompleteInput, InputType};
+use crate::components::form::autocomplete_input::{AutocompleteInput, Completer};
 use crate::components::style::LocalStyle;
 use crate::config::*;
-use crate::custom_elements::*;
 use crate::dragdrop::*;
 use crate::model::*;
 use crate::renderer::*;
@@ -330,6 +330,17 @@ impl Component for FilterItem {
             move |_event| dragdrop.drag_end()
         });
 
+        clone!(ctx.props().session, column);
+        let complete_selection: Completer = Rc::new(move |input: String| {
+            clone!(session, column);
+            Box::pin(async move {
+                // TODO: this can be done in-engine, not in Rust.
+                //       all_values can be memoized there, and overall faster.
+                let all_values = session.get_column_values(column).await?;
+                Ok(filter_values(&input, &all_values))
+            })
+        });
+
         let input_elem = html! {
             <AutocompleteInput
                 initial_val={ self.input.clone() }
@@ -337,6 +348,7 @@ impl Component for FilterItem {
                     || ctx.props().filter.1 == FilterOp::NE
                     || ctx.props().filter.1 == FilterOp::In }
                 input_type= { col_type.map(Into::into) }
+                completer={ complete_selection }
                 on_value_selected={ on_value_selected } />
         };
 
@@ -370,4 +382,14 @@ impl Component for FilterItem {
             }
         }
     }
+}
+
+fn filter_values(input: &str, values: &Vec<String>) -> Vec<String> {
+    let input = input.to_lowercase();
+    values
+        .iter()
+        .filter(|x| x.to_lowercase().contains(&input))
+        .take(10)
+        .cloned()
+        .collect::<Vec<String>>()
 }

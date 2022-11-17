@@ -6,9 +6,9 @@
 // of the Apache License 2.0.  The full license can be found in the LICENSE
 // file.
 
-use std::marker::PhantomData;
+use std::pin::Pin;
+use std::rc::Rc;
 
-use chrono::{NaiveDate, TimeZone, Utc};
 use futures::Future;
 use wasm_bindgen::JsCast;
 use web_sys::*;
@@ -17,19 +17,17 @@ use yew::prelude::*;
 use crate::components::style::LocalStyle;
 use crate::config::*;
 use crate::custom_elements::*;
+use crate::utils::ApiFuture;
 use crate::*;
 
-pub trait Completer {
-    fn get_completions(input: &str) -> Box<dyn Future<Output = Vec<String>>>;
-}
-
 /// A control for a single filter condition.
-pub struct AutocompleteInput<T: Completer> {
+pub struct AutocompleteInput {
     current_val: String,
     input_ref: NodeRef,
     autocomplete_dropdown: Option<FilterDropDownElement>,
-    _completer: PhantomData<T>,
 }
+
+pub type Completer = Rc<dyn Fn(String) -> Pin<Box<dyn Future<Output = ApiResult<Vec<String>>>>>>;
 
 #[derive(Debug)]
 pub enum AutocompleteInputMsg {
@@ -62,30 +60,30 @@ impl From<Type> for InputType {
 }
 
 #[derive(Properties, Clone)]
-pub struct AutocompleteInputProps<T: Completer> {
+pub struct AutocompleteInputProps {
     pub initial_val: String,
     pub input_type: Option<InputType>,
     pub is_suggest: bool,
     pub on_value_selected: Callback<String>,
-    pub completer: T,
+    pub completer: Completer,
 }
 
-impl PartialEq for AutocompleteInputProps<T> {
+impl PartialEq for AutocompleteInputProps {
     fn eq(&self, rhs: &Self) -> bool {
         self.initial_val == rhs.initial_val && self.input_type == rhs.input_type
     }
 }
 
-impl AutocompleteInputProps<T> {
+impl AutocompleteInputProps {
     /// Does this filter item get a "suggestions" auto-complete modal?
     fn is_suggestable(&self) -> bool {
         self.is_suggest && self.input_type == Some(InputType::String)
     }
 }
 
-impl<T: Completer> Component for AutocompleteInput<T> {
+impl Component for AutocompleteInput {
     type Message = AutocompleteInputMsg;
-    type Properties = AutocompleteInputProps<T>;
+    type Properties = AutocompleteInputProps;
 
     fn create(ctx: &Context<Self>) -> Self {
         let input_ref = NodeRef::default();
@@ -93,7 +91,6 @@ impl<T: Completer> Component for AutocompleteInput<T> {
             current_val: ctx.props().initial_val.clone(),
             input_ref,
             autocomplete_dropdown: None,
-            _completer: PhantomData::default(),
         }
     }
 
@@ -111,8 +108,28 @@ impl<T: Completer> Component for AutocompleteInput<T> {
                     input
                 };
 
-                self.current_val = input.clone();
+                self.current_val = input;
                 if ctx.props().is_suggestable() {
+                    self.autocomplete_dropdown = match self.autocomplete_dropdown.clone() {
+                        None => Some(FilterDropDownElement::new(
+                            ctx.props().on_value_selected.clone(),
+                            self.input_ref.cast::<HtmlElement>().unwrap(),
+                        )),
+                        d => d,
+                    };
+
+                    clone!(
+                        ctx.props().completer,
+                        self.current_val,
+                        self.autocomplete_dropdown
+                    );
+                    ApiFuture::spawn(async move {
+                        let results = completer(current_val).await?;
+                        autocomplete_dropdown.unwrap().autocomplete(results);
+                        Ok(())
+                    });
+
+                    // let completed = ;
                     // self.filter_dropdown.autocomplete(
                     //     column,
                     //     if ctx.props().filter.1 == FilterOp::In {
@@ -126,7 +143,7 @@ impl<T: Completer> Component for AutocompleteInput<T> {
                 }
 
                 //ctx.props().update_filter_input(input);
-                ctx.props().on_keydown.emit(input);
+                //  ctx.props().on_keydown.emit(input);
                 false
             }
             AutocompleteInputMsg::AutoKeyDown(40) => {

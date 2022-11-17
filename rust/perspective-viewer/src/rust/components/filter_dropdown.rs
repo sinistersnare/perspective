@@ -17,7 +17,7 @@ static CSS: &str = include_str!("../../../build/css/filter-dropdown.css");
 
 pub enum FilterDropDownMsg {
     SetValues(Vec<String>),
-    SetCallback(Callback<String>),
+    // SetCallback(Callback<String>),
     ItemDown,
     ItemUp,
     ItemSelect,
@@ -26,13 +26,14 @@ pub enum FilterDropDownMsg {
 pub struct FilterDropDown {
     values: Option<Vec<String>>,
     selected: usize,
-    on_select: Option<Callback<String>>,
+    //on_select: Option<Callback<String>>,
 }
 
 #[derive(Properties, PartialEq)]
 pub struct FilterDropDownProps {
     #[prop_or_default]
     pub weak_link: WeakScope<FilterDropDown>,
+    pub on_value_selected: Callback<String>,
 }
 
 impl ModalLink<FilterDropDown> for FilterDropDownProps {
@@ -50,16 +51,16 @@ impl Component for FilterDropDown {
         FilterDropDown {
             values: Some(vec![]),
             selected: 0,
-            on_select: None,
+            //on_select: c,
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            FilterDropDownMsg::SetCallback(callback) => {
-                self.on_select = Some(callback);
-                false
-            }
+            // FilterDropDownMsg::SetCallback(callback) => {
+            //     self.on_select = Some(callback);
+            //     false
+            // }
             FilterDropDownMsg::SetValues(values) => {
                 self.values = Some(values);
                 self.selected = 0;
@@ -73,7 +74,7 @@ impl Component for FilterDropDown {
                             false
                         }
                         Some(x) => {
-                            self.on_select.as_ref().unwrap().emit(x.clone());
+                            ctx.props().on_value_selected.emit(x.clone());
                             false
                         }
                     }
@@ -109,7 +110,7 @@ impl Component for FilterDropDown {
         false
     }
 
-    fn view(&self, _ctx: &Context<Self>) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         let body = html! {
             if let Some(ref values) = self.values {
                 if !values.is_empty() {
@@ -118,7 +119,7 @@ impl Component for FilterDropDown {
                             .iter()
                             .enumerate()
                             .map(|(idx, value)| {
-                                let click = self.on_select.as_ref().unwrap().reform({
+                                let click = ctx.props().on_value_selected.reform({
                                     let value = value.clone();
                                     move |_: MouseEvent| value.clone()
                                 });
