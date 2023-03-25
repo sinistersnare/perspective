@@ -82,8 +82,8 @@ module.exports = SYNC_CLIENT;
 module.exports.sync_module = () => SYNC_SERVER.perspective;
 
 const DEFAULT_ASSETS = [
+    "../../../../tools/perspective-bench/dist",
     "@finos/perspective/dist/cdn",
-    "@finos/perspective-bench/dist",
     "@finos/perspective-workspace/dist/cdn",
     "@finos/perspective-workspace/dist/css",
     "@finos/perspective-viewer/dist/cdn",
