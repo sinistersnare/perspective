@@ -187,7 +187,7 @@ async function view_suite() {
         after,
         async test(perspective, table) {
             const [M, m, _] = perspective.version;
-            if (M === 1 && m >= 2) {
+            if ((M === 1 && m >= 2) || M === 2) {
                 return await table.view({ group_by: ["Product Name"] });
             } else {
                 return await table.view({ row_pivots: ["Product Name"] });
