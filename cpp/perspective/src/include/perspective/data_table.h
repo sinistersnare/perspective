@@ -236,6 +236,8 @@ private:
     t_backing_store m_backing_store;
     bool m_init;
     std::vector<std::shared_ptr<t_column>> m_columns;
+    /// The global vocab shared by the columns.
+    std::shared_ptr<t_vocab> m_vocab;
 };
 
 PERSPECTIVE_EXPORT bool operator==(

@@ -251,6 +251,8 @@ private:
     t_symtable m_symtable;
     std::shared_ptr<t_column> m_pkcol;
     std::shared_ptr<t_column> m_opcol;
+    /// The string interner used for the whole gnode
+    std::shared_ptr<t_vocab> m_vocab;
 };
 
 template <typename FN_T>

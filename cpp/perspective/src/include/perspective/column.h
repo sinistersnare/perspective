@@ -56,6 +56,8 @@ public:
     t_column(t_dtype dtype, bool missing_enabled, const t_lstore_recipe& a);
     t_column(t_dtype dtype, bool missing_enabled, const t_lstore_recipe& a,
         t_uindex row_capacity);
+    t_column(t_dtype dtype, bool missing_enabled, const t_lstore_recipe& a,
+        t_uindex row_capacity, std::shared_ptr<t_vocab> vocab);
     ~t_column();
 
     void column_copy_helper(const t_column& other);

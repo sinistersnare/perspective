@@ -40,7 +40,8 @@ t_data_table::t_data_table(const t_schema& s, t_uindex init_cap)
     , m_schema(s)
     , m_size(0)
     , m_backing_store(BACKING_STORE_MEMORY)
-    , m_init(false) {
+    , m_init(false)
+    , m_vocab(new t_vocab) {
     PSP_TRACE_SENTINEL();
     LOG_CONSTRUCTOR("t_data_table");
     set_capacity(init_cap);
@@ -124,7 +125,8 @@ t_data_table::make_column(
     const std::string& colname, t_dtype dtype, bool status_enabled) {
     t_lstore_recipe a(m_dirname, m_name + std::string("_") + colname,
         m_capacity * get_dtype_size(dtype), m_backing_store);
-    return std::make_shared<t_column>(dtype, status_enabled, a, m_capacity);
+    return std::make_shared<t_column>(
+        dtype, status_enabled, a, m_capacity, m_vocab);
 }
 
 t_uindex

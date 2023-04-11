@@ -66,6 +66,11 @@ t_vocab::string_exists(const char* c, t_uindex& interned) const {
 
 t_uindex
 t_vocab::get_interned(const char* s) {
+    return get_interned(s, strlen(s));
+}
+
+t_uindex
+t_vocab::get_interned(const char* s, size_t s_len) {
 #ifdef PSP_COLUMN_VERIFY
     PSP_VERBOSE_ASSERT(s != 0, "Null string");
 #endif
@@ -73,6 +78,7 @@ t_vocab::get_interned(const char* s) {
     t_sidxmap::iterator iter = m_map.find(s);
 
     t_uindex idx, bidx, eidx;
+    t_uindex len = s_len + 1;
 
     if (iter == m_map.end()) {
         t_uindex len = strlen(s) + 1;
@@ -116,7 +122,7 @@ t_vocab::init(bool from_recipe) {
 
 t_uindex
 t_vocab::get_interned(const std::string& s) {
-    return get_interned(s.c_str());
+    return get_interned(s.data(), s.size());
 }
 
 void

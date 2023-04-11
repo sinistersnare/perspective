@@ -49,6 +49,7 @@ public:
 
     t_uindex get_interned(const std::string& s);
     t_uindex get_interned(const char* s);
+    t_uindex get_interned(const char* s, const size_t len);
     void copy_vocabulary(const t_vocab& other);
     const char* unintern_c(t_uindex idx) const;
 

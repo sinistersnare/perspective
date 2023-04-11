@@ -99,11 +99,19 @@ t_column::t_column(
 
 t_column::t_column(t_dtype dtype, bool missing_enabled,
     const t_lstore_recipe& a, t_uindex row_capacity)
+    : t_column(
+        dtype, missing_enabled, a, row_capacity, std::make_shared<t_vocab>()) {}
+
+t_column::t_column(t_dtype dtype, bool missing_enabled,
+    const t_lstore_recipe& a, t_uindex row_capacity,
+    std::shared_ptr<t_vocab> vocab)
     : m_dtype(dtype)
     , m_init(false)
     , m_size(0)
     , m_status_enabled(missing_enabled)
     , m_from_recipe(false) {
+
+    m_vocab = vocab;
 
     m_data.reset(new t_lstore(a));
     // TODO make sure that capacity from a
@@ -122,9 +130,9 @@ t_column::t_column(t_dtype dtype, bool missing_enabled,
         vlendata_args.m_colname = a.m_colname + std::string("_vlendata");
         extents_args.m_colname = a.m_colname + std::string("_extents");
 
-        m_vocab.reset(new t_vocab(vlendata_args, extents_args));
+        // m_vocab.reset(new t_vocab(vlendata_args, extents_args));
     } else {
-        m_vocab.reset(new t_vocab);
+        // m_vocab.reset(new t_vocab);
     }
 
     if (is_status_enabled()) {
