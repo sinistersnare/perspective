@@ -564,10 +564,11 @@ set(PSP_WASM_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} \
     -s NODEJS_CATCH_REJECTION=0 \
     -s USE_ES6_IMPORT_META=1 \
     -s EXPORT_ES6=1 \
+    -s EXPORTED_FUNCTIONS=_js_poll,_js_new_server,_js_free,_js_alloc,_js_handle_message \
 ")
 
 if(PSP_SANITIZE)
-    set(PSP_SANITIZE_FLAGS 
+    set(PSP_SANITIZE_FLAGS
         -sINITIAL_MEMORY=640mb
         -sTOTAL_MEMORY=640mb
         -sALLOW_MEMORY_GROWTH=1
@@ -687,7 +688,7 @@ elseif(PSP_CPP_BUILD OR PSP_PYTHON_BUILD)
     endif()
 endif()
 
-# TODO this needs to be omitted when built by `cmake-rs`, because 
+# TODO this needs to be omitted when built by `cmake-rs`, because
 #`cargo publish --dry-run` complains when this generate `.clangd` in the Rust
 # root dir instead of teh `target` dir.
 if(NOT DEFINED ENV{PSP_DISABLE_CLANGD})

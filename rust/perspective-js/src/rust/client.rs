@@ -10,28 +10,20 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import perspective from "@finos/perspective/dist/esm/perspective.js";
+pub struct JsClient {
+    pub server: PerspectiveServer,
+}
 
-import "@finos/perspective-viewer/dist/esm/perspective-viewer.js";
-import "@finos/perspective-viewer-datagrid";
-import "@finos/perspective-viewer-d3fc";
-
-import "@finos/perspective-viewer/dist/css/pro-dark.css";
-
-import "./index.css";
-
-import arrow from "superstore-arrow/superstore.lz4.arrow";
-const req = fetch(arrow);
-const worker = await perspective.worker();
-
-window.addEventListener("DOMContentLoaded", async () => {
-    const viewer = document.createElement("perspective-viewer");
-    document.body.append(viewer);
-
-    const resp = await req;
-    const buffer = await resp.arrayBuffer();
-    const table = worker.table(buffer);
-    viewer.load(table);
-
-    window.viewer = viewer;
-});
+impl JsClient {
+    pub fn handle_message<'a>(
+        &self,
+        client_id: u32,
+        data: Vec<u8>,
+        response_cb: JsFunction,
+        //     ProtoApiServer& server,
+        //     const std::uint32_t client_id,
+        //     const emscripten::val& msg,
+        //     const emscripten::val& callback
+    ) -> ApiResult<JsValue> {
+    }
+}

@@ -12,6 +12,7 @@
 
 import load_perspective from "../../dist/pkg/web/perspective-server.js";
 import { load_wasm_stage_0 } from "./decompress";
+import { Srvr, EmscriptenApi } from "./engine.js";
 
 class PspModule {
     modulePromise;
@@ -47,44 +48,41 @@ class PspModule {
 }
 
 let psp = new PspModule();
-let protoServer;
+let protoServer: Srvr;
 let is_polling = false;
+
+const CLIENT_ID = 69; // lol
 
 self.addEventListener("message", async (msg) => {
     const id = msg.data.id;
     if (msg.data.cmd === "init") {
         await init(new Uint8Array(msg.data.args[0]));
-        let mod = await psp.module;
-        protoServer = new mod.ProtoServer();
+        let mod: EmscriptenApi = await psp.module;
+        protoServer = new Srvr(mod, CLIENT_ID);
         self.postMessage({ id });
     } else {
         await psp.module;
-        protoServer.handle_message(
-            69, // lol
-            new Uint8Array(msg.data),
-            (_client_id, resp) => {
-                const f = resp.slice().buffer;
-                self.postMessage(f, { transfer: [f] });
-            }
-        );
-
-        if (!is_polling) {
-            is_polling = true;
-            setTimeout(() => {
-                protoServer.poll((_client_id, resp) => {
-                    const f = resp.slice().buffer;
-                    self.postMessage(f, { transfer: [f] });
-                });
-
-                is_polling = false;
-            });
+        let responses = protoServer.handle_message(new Uint8Array(msg.data));
+        for (const resp of responses) {
+            const f = resp.data.buffer;
+            self.postMessage(f, { transfer: [f] });
         }
+
+        // if (!is_polling) {
+        //     is_polling = true;
+        //     setTimeout(() => {
+        //         protoServer.poll((_client_id, resp) => {
+        //             const f = resp.slice().buffer;
+        //             self.postMessage(f, { transfer: [f] });
+        //         });
+
+        //         is_polling = false;
+        //     });
+        // }
     }
 });
 
-type PerspectiveModule = {
-    init(): void;
-};
+type PerspectiveModule = {};
 
 /**
  * Boilerplate to boot WASM from emscripten.
@@ -102,7 +100,6 @@ async function init(wasmBinary) {
         },
     });
 
-    perspective.init();
     psp.loaded(perspective);
 }
 
