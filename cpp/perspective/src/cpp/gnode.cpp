@@ -1641,7 +1641,7 @@ t_gnode::repr() const {
 
 #ifdef PSP_PARALLEL_FOR
 void
-t_gnode::set_lock(boost::shared_mutex* lock) {
+t_gnode::set_lock(std::shared_mutex* lock) {
     m_lock = lock;
 }
 #endif
