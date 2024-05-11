@@ -191,7 +191,7 @@ export const run_with_scope = async function run_recursive(strings, ...args) {
         }
 
         const cmd = strings[0].split(" ")[0];
-        console.log(`-- Running ${cmd} for ${batch.join(",")}`);
+        // console.log(`-- Running ${cmd} for ${batch.join(",")}`);
         for (const pkgname of batch) {
             const pkg = JSON.parse(
                 fs.readFileSync(_require.resolve(pkgname + "/package.json"))
@@ -230,6 +230,10 @@ export const copy_files_to_python_folder = (link_files) => {
     const dlic = sh.path`${dist}/LICENSE`;
     const readme = sh.path`${__dirname}/../../README.md`;
     const dreadme = sh.path`${dist}/README.md`;
+    const clangd = sh.path`${__dirname}/../../cpp/perspective/.clangd.in`;
+    const dclangd = sh.path`${dist}/.clangd.in`;
+    const protos = sh.path`${__dirname}/../../protos`;
+    const protosd = sh.path`${dist}/protos`;
 
     fse.mkdirpSync(dist);
     const copies = [
@@ -238,6 +242,8 @@ export const copy_files_to_python_folder = (link_files) => {
         [lic, dlic],
         [readme, dreadme],
         [cmake, dcmake],
+        [clangd, dclangd],
+        [protos, protosd],
     ];
     for (let [src, dst] of copies) {
         if (link_files) {

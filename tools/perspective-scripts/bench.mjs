@@ -17,7 +17,7 @@ dotenv.config({ path: "./.perspectiverc" });
 const args = process.argv.slice(2);
 
 if (process.env.PSP_PROJECT === undefined || process.env.PSP_PROJECT === "js") {
-    sh`yarn && nice -n 0 npm run bench`
+    sh`yarn && sudo nice -n -20 npm run bench`
         .cwd("tools/perspective-bench")
         .runSync();
 } else {
