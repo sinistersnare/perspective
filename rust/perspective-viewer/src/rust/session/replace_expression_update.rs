@@ -12,9 +12,10 @@
 
 use std::collections::HashMap;
 
-use crate::config::*;
+use perspective_client::config::*;
 
-impl ViewConfig {
+#[extend::ext]
+pub impl ViewConfig {
     /// Create an update for this `ViewConfig` that replaces an expression
     /// column with a new one, e.g. when a user edits an expression.  This may
     /// changed either the expression alias, the expression itself, or both; as
@@ -22,7 +23,7 @@ impl ViewConfig {
     ///
     /// This method is designed to be called from `crate::session` which can
     /// fill in `old_expression` and `new_alias`.
-    pub(super) fn create_replace_expression_update(
+    fn create_replace_expression_update(
         &self,
         old_expr: &Expression,
         new_expr: &Expression,
@@ -36,6 +37,8 @@ impl ViewConfig {
             sort,
             filter,
             aggregates,
+            filter_op: _,
+            group_by_depth: _,
         } = self.clone();
 
         let expressions = expressions
@@ -121,6 +124,8 @@ impl ViewConfig {
             split_by: Some(split_by),
             sort: Some(sort),
             filter: Some(filter),
+            filter_op: None,
+            group_by_depth: None,
         }
     }
 }

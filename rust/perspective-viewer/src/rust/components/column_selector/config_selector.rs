@@ -13,6 +13,7 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 
+use perspective_client::config::*;
 use yew::prelude::*;
 
 use super::filter_column::*;
@@ -21,7 +22,6 @@ use super::sort_column::*;
 use super::InPlaceColumn;
 use crate::components::containers::dragdrop_list::*;
 use crate::components::style::LocalStyle;
-use crate::config::*;
 use crate::custom_elements::{ColumnDropDownElement, FilterDropDownElement};
 use crate::dragdrop::*;
 use crate::model::*;

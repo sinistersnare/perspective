@@ -15,9 +15,10 @@ use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::rc::Rc;
 
+use perspective_js::utils::global;
+use wasm_bindgen::JsCast;
 use web_sys::HtmlStyleElement;
 
-use crate::utils::*;
 use crate::*;
 
 type CSSResource = (&'static str, &'static str);
@@ -68,7 +69,9 @@ impl StyleCache {
             map.insert(name, style.clone());
             let mut values = map.values();
             if let Some(mut x) = first {
-                while let Some(y) = values.next() && y.get_attribute("name").as_deref() < Some(name) {
+                while let Some(y) = values.next()
+                    && y.get_attribute("name").as_deref() < Some(name)
+                {
                     x = y.clone();
                 }
 

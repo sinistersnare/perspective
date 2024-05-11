@@ -19,7 +19,7 @@ use crate::config::*;
 
 impl CustomNumberFormat {
     pub fn misc_section(&self, ctx: &yew::prelude::Context<Self>) -> yew::prelude::Html {
-        let compact_display_checkbox = if let Some(Notation::Compact(val)) = self.config._notation {
+        let compact_display_checkbox = if let Notation::Compact(val) = self.config._notation {
             let cb = ctx.link().callback(CustomNumberFormatMsg::CompactDisplay);
             Some(html! {
                 <SelectEnumField<CompactDisplay>

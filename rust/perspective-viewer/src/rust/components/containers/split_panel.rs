@@ -12,6 +12,7 @@
 
 use std::cmp::max;
 
+use perspective_js::utils::global;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
@@ -19,6 +20,7 @@ use yew::html::Scope;
 use yew::prelude::*;
 
 use crate::components::style::LocalStyle;
+#[cfg(test)]
 use crate::utils::*;
 use crate::*;
 
@@ -85,18 +87,20 @@ impl ResizingState {
             Orientation::Vertical => first_elem.offset_width(),
         };
 
-        let mouseup = split_panel
-            .callback(|_| SplitPanelMsg::StopResizing)
-            .into_closure();
+        let mouseup = Closure::new({
+            let cb = split_panel.callback(|_| SplitPanelMsg::StopResizing);
+            move |x| cb.emit(x)
+        });
 
-        let mousemove = split_panel
-            .callback(move |event: MouseEvent| {
+        let mousemove = Closure::new({
+            let cb = split_panel.callback(move |event: MouseEvent| {
                 SplitPanelMsg::MoveResizing(match orientation {
                     Orientation::Horizontal => event.client_x(),
                     Orientation::Vertical => event.client_y(),
                 })
-            })
-            .into_closure();
+            });
+            move |x| cb.emit(x)
+        });
 
         let mut state = Self {
             index,
@@ -306,7 +310,7 @@ impl Component for SplitPanel {
         match msg {
             SplitPanelMsg::Reset(index) => {
                 self.styles[index] = None;
-                self.on_reset = ctx.props().on_reset.clone();
+                self.on_reset.clone_from(&ctx.props().on_reset);
             },
             SplitPanelMsg::StartResizing(index, client_offset, pointer_id, pointer_elem) => {
                 let elem = self.refs[index].cast::<HtmlElement>().unwrap();

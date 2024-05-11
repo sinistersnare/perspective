@@ -38,7 +38,7 @@ pub trait HasDragDrop {
 }
 
 pub trait HasCustomEvents {
-    fn custom_events(&self) -> &'_ CustomEvents;
+    fn _custom_events(&self) -> &'_ CustomEvents;
 }
 
 #[macro_export]
@@ -73,7 +73,7 @@ macro_rules! derive_model {
     };
     (CustomEvents for $key:ty) => {
         impl $crate::model::HasCustomEvents for $key {
-            fn custom_events(&self) -> &'_ CustomEvents {
+            fn _custom_events(&self) -> &'_ CustomEvents {
                 &self.custom_events
             }
         }

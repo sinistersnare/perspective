@@ -10,14 +10,16 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-use crate::config::*;
+use perspective_client::config::*;
+
 use crate::dragdrop::{DragEffect, DragTarget};
 use crate::js::plugin::ViewConfigRequirements;
 
-impl ViewConfig {
+#[extend::ext]
+pub impl ViewConfig {
     /// Create an update for this `ViewConfig` which applies a drag/drop action.
     /// This method is designed to be called from `crate::session`.
-    pub(super) fn create_drag_drop_update(
+    fn create_drag_drop_update(
         &self,
         column: String,
         index: usize,

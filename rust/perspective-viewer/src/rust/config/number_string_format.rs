@@ -11,22 +11,31 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 mod enums;
+
 pub use enums::*;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use strum::{Display, EnumIter};
+use ts_rs::TS;
 
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, TS)]
 #[serde(rename_all = "camelCase", tag = "style")]
 pub enum NumberFormatStyle {
     #[default]
+    None,
     Decimal,
     Currency(CurrencyNumberFormatStyle),
     Percent,
     Unit(UnitNumberFormatStyle),
 }
 
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone, Copy, EnumIter, Display)]
+impl NumberFormatStyle {
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::None)
+    }
+}
+
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone, Copy, EnumIter, Display, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum CurrencyDisplay {
     Code,
@@ -36,7 +45,7 @@ pub enum CurrencyDisplay {
     Name,
 }
 
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone, Copy, EnumIter, Display)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone, Copy, EnumIter, Display, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum CurrencySign {
     #[default]
@@ -45,7 +54,7 @@ pub enum CurrencySign {
 }
 
 #[skip_serializing_none]
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CurrencyNumberFormatStyle {
     #[serde(default)]
@@ -54,7 +63,7 @@ pub struct CurrencyNumberFormatStyle {
     pub currency_sign: Option<CurrencySign>,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum UnitDisplay {
     #[default]
@@ -64,7 +73,7 @@ pub enum UnitDisplay {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct UnitNumberFormatStyle {
     #[serde(default)]
@@ -72,7 +81,7 @@ pub struct UnitNumberFormatStyle {
     pub unit_display: Option<UnitDisplay>,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum RoundingPriority {
     #[default]
@@ -81,7 +90,7 @@ pub enum RoundingPriority {
     LessPrecision,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum RoundingMode {
     Ceil,
@@ -96,7 +105,7 @@ pub enum RoundingMode {
     HalfEven,
 }
 
-#[derive(Default, Debug, PartialEq, Clone)]
+#[derive(Default, Debug, PartialEq, Clone, TS)]
 pub enum RoundingIncrement {
     #[default]
     Auto,
@@ -115,7 +124,7 @@ pub const ROUNDING_INCREMENTS: [f64; 15] = [
     1., 2., 5., 10., 20., 25., 50., 100., 200., 250., 500., 1000., 2000., 2500., 5000.,
 ];
 
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum TrailingZeroDisplay {
     #[default]
@@ -123,17 +132,24 @@ pub enum TrailingZeroDisplay {
     StripIfInteger,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, TS)]
 #[serde(rename_all = "camelCase", tag = "notation")]
 pub enum Notation {
     #[default]
+    None,
     Standard,
     Scientific,
     Engineering,
     Compact(CompactDisplay),
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display)]
+impl Notation {
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::None)
+    }
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display, TS)]
 #[serde(rename_all = "camelCase", tag = "compactDisplay")]
 pub enum CompactDisplay {
     #[default]
@@ -141,7 +157,7 @@ pub enum CompactDisplay {
     Long,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum UseGrouping {
     Always,
@@ -154,7 +170,7 @@ pub enum UseGrouping {
     False(bool),
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, EnumIter, Display, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum SignDisplay {
     #[default]
@@ -166,11 +182,13 @@ pub enum SignDisplay {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomNumberFormatConfig {
     #[serde(flatten)]
-    pub _style: Option<NumberFormatStyle>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "NumberFormatStyle::is_none")]
+    pub style: NumberFormatStyle,
 
     // see Digit Options
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat#minimumintegerdigits
@@ -190,8 +208,11 @@ pub struct CustomNumberFormatConfig {
     pub rounding_mode: Option<RoundingMode>,
     pub trailing_zero_display: Option<TrailingZeroDisplay>,
 
+    // #[serde(flatten)]
     #[serde(flatten)]
-    pub _notation: Option<Notation>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Notation::is_none")]
+    pub _notation: Notation,
     pub use_grouping: Option<UseGrouping>,
     pub sign_display: Option<SignDisplay>,
 }
@@ -215,10 +236,10 @@ impl CustomNumberFormatConfig {
                 || maximum_fraction_digits.is_some()
                 || use_grouping.is_some()
                 || matches!(
-                    self._style,
-                    Some(NumberFormatStyle::Percent | NumberFormatStyle::Unit(_))
+                    self.style,
+                    NumberFormatStyle::Percent | NumberFormatStyle::Unit(_)
                 ))
-            || !is_float && matches!(self._style, Some(NumberFormatStyle::Currency(_)));
+            || !is_float && matches!(self.style, NumberFormatStyle::Currency(_));
 
         // Rounding increment does not work unless `minimum_fraction_digits`
         // and `maximum_fraction_digits` are set to 0.
@@ -232,9 +253,7 @@ impl CustomNumberFormatConfig {
         let maximum_significant_digits = self.maximum_significant_digits.filter(|val| *val != 21.);
         let show_sig = minimum_significant_digits.is_some() || maximum_significant_digits.is_some();
         Self {
-            _style: self
-                ._style
-                .filter(|style| !matches!(style, NumberFormatStyle::Decimal)),
+            style: self.style,
             minimum_integer_digits: self.minimum_integer_digits.filter(|val| *val != 1.),
             minimum_fraction_digits: show_frac
                 .then_some(minimum_fraction_digits.unwrap_or(frac_min)),
@@ -254,9 +273,7 @@ impl CustomNumberFormatConfig {
             trailing_zero_display: self
                 .trailing_zero_display
                 .filter(|val| *val != TrailingZeroDisplay::default()),
-            _notation: self
-                ._notation
-                .filter(|notation| !matches!(notation, Notation::Standard)),
+            _notation: self._notation,
             use_grouping,
             sign_display: self
                 .sign_display

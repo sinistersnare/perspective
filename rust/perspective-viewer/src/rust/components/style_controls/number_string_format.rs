@@ -15,6 +15,7 @@ mod misc_section;
 mod style_section;
 mod types;
 
+use perspective_client::ColumnType;
 pub use types::*;
 use yew::{html, Callback, Component, Properties};
 
@@ -26,7 +27,7 @@ use crate::{css, max, min};
 pub struct CustomNumberFormatProps {
     pub restored_config: CustomNumberFormatConfig,
     pub on_change: Callback<ColumnConfigValueUpdate>,
-    pub view_type: Type,
+    pub view_type: ColumnType,
     // just for rerendering
     pub column_name: String,
 }
@@ -82,16 +83,13 @@ impl CustomNumberFormat {
         //     );
         // let disable_rounding_priority = !(show_frac && show_sig);
         Self {
-            style: config
-                ._style
-                .as_ref()
-                .map(|style| match style {
-                    NumberFormatStyle::Decimal => NumberStyle::Decimal,
-                    NumberFormatStyle::Currency(_) => NumberStyle::Currency,
-                    NumberFormatStyle::Percent => NumberStyle::Percent,
-                    NumberFormatStyle::Unit(_) => NumberStyle::Unit,
-                })
-                .unwrap_or_default(),
+            style: match config.style {
+                NumberFormatStyle::Decimal => NumberStyle::Decimal,
+                NumberFormatStyle::Currency(_) => NumberStyle::Currency,
+                NumberFormatStyle::Percent => NumberStyle::Percent,
+                NumberFormatStyle::Unit(_) => NumberStyle::Unit,
+                NumberFormatStyle::None => NumberStyle::Decimal,
+            },
             config,
             // show_frac,
             // show_sig,
@@ -122,48 +120,52 @@ impl Component for CustomNumberFormat {
     fn update(&mut self, ctx: &yew::prelude::Context<Self>, msg: Self::Message) -> bool {
         match msg {
             CustomNumberFormatMsg::StyleChanged(style) => {
-                let style = style.unwrap_or_default();
+                // let style = style.unwrap_or_default();
                 let new_style = match style {
-                    NumberStyle::Decimal => NumberFormatStyle::Decimal,
-                    NumberStyle::Percent => NumberFormatStyle::Percent,
-                    NumberStyle::Currency => {
+                    Some(NumberStyle::Decimal) => NumberFormatStyle::Decimal,
+                    Some(NumberStyle::Percent) => NumberFormatStyle::Percent,
+                    Some(NumberStyle::Currency) => {
                         NumberFormatStyle::Currency(CurrencyNumberFormatStyle::default())
                     },
-                    NumberStyle::Unit => NumberFormatStyle::Unit(UnitNumberFormatStyle {
+                    Some(NumberStyle::Unit) => NumberFormatStyle::Unit(UnitNumberFormatStyle {
                         unit: Unit::default(),
                         unit_display: None,
                     }),
+                    None => NumberFormatStyle::None,
                 };
-                self.config._style = Some(new_style);
-                self.style = style;
+
+                self.config.style = new_style;
+                self.style = style.unwrap_or_default();
             },
             CustomNumberFormatMsg::NotationChanged(notation) => {
                 self.notation = notation;
-                let new_notation = notation.map(|notation| match notation {
-                    NotationName::Standard => Notation::Standard,
-                    NotationName::Scientific => Notation::Scientific,
-                    NotationName::Engineering => Notation::Engineering,
-                    NotationName::Compact => Notation::Compact(CompactDisplay::default()),
-                });
+                let new_notation = notation
+                    .map(|notation| match notation {
+                        NotationName::Standard => Notation::Standard,
+                        NotationName::Scientific => Notation::Scientific,
+                        NotationName::Engineering => Notation::Engineering,
+                        NotationName::Compact => Notation::Compact(CompactDisplay::default()),
+                    })
+                    .unwrap_or(Notation::None);
                 self.config._notation = new_notation;
             },
             CustomNumberFormatMsg::CurrencyCode(val) => {
-                if let Some(NumberFormatStyle::Currency(currency)) = &mut self.config._style {
+                if let NumberFormatStyle::Currency(currency) = &mut self.config.style {
                     currency.currency = val.unwrap_or_default();
                 }
             },
             CustomNumberFormatMsg::CurrencyDisplay(val) => {
-                if let Some(NumberFormatStyle::Currency(currency)) = &mut self.config._style {
+                if let NumberFormatStyle::Currency(currency) = &mut self.config.style {
                     currency.currency_display = val;
                 }
             },
             CustomNumberFormatMsg::CurrencySign(val) => {
-                if let Some(NumberFormatStyle::Currency(currency)) = &mut self.config._style {
+                if let NumberFormatStyle::Currency(currency) = &mut self.config.style {
                     currency.currency_sign = val;
                 }
             },
             CustomNumberFormatMsg::CompactDisplay(val) => {
-                if let Some(Notation::Compact(old)) = &mut self.config._notation {
+                if let Notation::Compact(old) = &mut self.config._notation {
                     if let Some(val) = val {
                         *old = val;
                     }
@@ -178,12 +180,12 @@ impl Component for CustomNumberFormat {
                 self.config.sign_display = val;
             },
             CustomNumberFormatMsg::Unit(val) => {
-                if let Some(NumberFormatStyle::Unit(style)) = &mut self.config._style {
+                if let NumberFormatStyle::Unit(style) = &mut self.config.style {
                     style.unit = val.unwrap_or_default();
                 }
             },
             CustomNumberFormatMsg::UnitDisplay(val) => {
-                if let Some(NumberFormatStyle::Unit(style)) = &mut self.config._style {
+                if let NumberFormatStyle::Unit(style) = &mut self.config.style {
                     style.unit_display = val;
                 }
             },
@@ -235,7 +237,7 @@ impl Component for CustomNumberFormat {
             },
         };
 
-        let is_float = ctx.props().view_type == Type::Float;
+        let is_float = ctx.props().view_type == ColumnType::Float;
         let filtered_config = self.config.clone().filter_default(is_float);
         let value =
             (filtered_config != CustomNumberFormatConfig::default()).then_some(filtered_config);
