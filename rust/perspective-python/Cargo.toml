@@ -12,7 +12,7 @@
 
 [package]
 name = "perspective-python"
-version = "2.10.0"
+version = "3.0.0-alpha.1"
 edition = "2021"
 description = "A data visualization and analytics component, especially well-suited for large and/or streaming datasets."
 repository = "https://github.com/finos/perspective"
@@ -48,8 +48,8 @@ pyo3-build-config = "0.20.2"
 python-config-rs = "0.1.2"
 
 [dependencies]
-perspective-client = { version = "2.10.0", path = "../perspective-client" }
-perspective-server = { version = "2.10.0", path = "../perspective-server" }
+perspective-client = { version = "3.0.0-alpha.1", path = "../perspective-client" }
+perspective-server = { version = "3.0.0-alpha.1", path = "../perspective-server" }
 extend = "1.1.2"
 futures = "0.3.28"
 pyo3 = { version = "0.20", features = ["extension-module", "serde"] }

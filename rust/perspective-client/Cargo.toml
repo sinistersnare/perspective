@@ -12,7 +12,7 @@
 
 [package]
 name = "perspective-client"
-version = "2.10.0"
+version = "3.0.0-alpha.1"
 authors = ["Andrew Stein <steinlink@gmail.com>"]
 edition = "2021"
 description = "A data visualization and analytics component, especially well-suited for large and/or streaming datasets."
@@ -20,7 +20,18 @@ repository = "https://github.com/finos/perspective"
 license = "Apache-2.0"
 homepage = "https://perspective.finos.org"
 keywords = []
-include = ["src/**/*", "Cargo.toml", "package.json", "build.rs", "docs/**/*"]
+include = [
+    "src/**/*",
+    "Cargo.toml",
+    "package.json",
+    "build.rs",
+    "docs/**/*",
+    "perspective.proto",
+]
+
+[features]
+default = []
+external-proto = []
 
 [lib]
 crate-type = ["cdylib", "rlib"]

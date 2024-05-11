@@ -240,3 +240,8 @@ rust/perspective-js/build
 rust/perspective-js/src/ts/ts-rs
 rust/perspective-server/cpp
 rust/perspective-server/cmake
+rust/perspective-client/perspective.proto
+rust/perspective/docs
+rust/perspective-js/docs
+rust/perspective-python/docs
+

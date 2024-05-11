@@ -1,6 +1,6 @@
 {
     "name": "@finos/perspective",
-    "version": "2.10.0",
+    "version": "3.0.0-alpha.1",
     "description": "",
     "repository": {
         "type": "git",
@@ -42,8 +42,8 @@
         "stoppable": "^1.1.0"
     },
     "devDependencies": {
-        "@finos/perspective-esbuild-plugin": "^2.10.0",
-        "@finos/perspective-test": "^2.10.0",
+        "@finos/perspective-esbuild-plugin": "^3.0.0-alpha.1",
+        "@finos/perspective-test": "^3.0.0-alpha.1",
         "@types/stoppable": "^1.1.0",
         "react": "^16.14.0",
         "cpy": "^9.0.1"

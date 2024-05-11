@@ -16,7 +16,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-perspective = { version = "2.10.0", path = "../../rust/perspective" }
+perspective = { version = "3.0.0-alpha.1", path = "../../rust/perspective" }
 anyhow = "1.0.66"
 axum = { version = "=0.7.4", features = ["ws"] }
 axum-extra = { version = "0.9", features = ["typed-header"] }
