@@ -10,31 +10,70 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import perspective from "/node_modules/@finos/perspective/dist/cdn/perspective.js";
+#![feature(lazy_cell)]
 
-async function load() {
-    let resp = await fetch(
-        "/node_modules/@finos/perspective-test/assets/superstore.csv"
-    );
+use std::fs;
+use std::io::Write;
+use std::path::Path;
+use std::process::{exit, Command};
 
-    let csv = await resp.text();
-    const viewer = document.querySelector("perspective-viewer");
-    const worker = await perspective.worker();
-    const table = worker.table(csv);
-    await viewer.load(table);
-    const config = {
-        plugin: "datagrid",
-        group_by: ["Region", "State"],
-        split_by: ["Category", "Sub-Category"],
-        columns: ["Sales", "Profit"],
-        master: false,
-        name: "Sales Report",
-        table: "superstore",
-        linked: false,
-        title: "Sales Report 2",
-    };
-    await viewer.restore(config);
+use clap::*;
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
+use wasm_opt::OptimizationOptions;
+
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct BundleArgs {
+    /// Input path
+    input: String,
+
+    /// Output path
+    #[arg(short, long)]
+    output: Option<String>,
 }
 
-await load();
-window.__TEST_PERSPECTIVE_READY__ = true;
+fn zip(outpath: &Path) {
+    let input = std::fs::read(outpath).unwrap();
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
+    encoder.write_all(&input).unwrap();
+    let encoded = encoder.finish().unwrap();
+    std::fs::write(outpath, encoded).unwrap();
+}
+
+fn main() {
+    let args = BundleArgs::parse();
+    zip(Path::new(&args.input));
+    Command::new("cargo")
+        .args(["build"])
+        .args(["-p", "perspective-bootstrap-runtime"])
+        .args(["--target", "wasm32-unknown-unknown"])
+        .args(["--features", "env_target"])
+        .args(["-Z", "build-std=std,panic_abort"])
+        .args(["-Z", "build-std-features=panic_immediate_abort"])
+        .args(["--release"])
+        .env("TARGET", &fs::canonicalize(args.input.clone()).unwrap())
+        .execute();
+
+    let inpath = Path::new("../target/wasm32-unknown-unknown/release")
+        .join("perspective_bootstrap_runtime.wasm");
+
+    OptimizationOptions::new_optimize_for_size()
+        .one_caller_inline_max_size(19306)
+        .run(inpath.clone(), args.output.unwrap_or(args.input))
+        .unwrap();
+}
+
+trait SimpleCommand {
+    fn execute(&mut self);
+}
+
+impl SimpleCommand for Command {
+    fn execute(&mut self) {
+        match self.status().ok().and_then(|x| x.code()) {
+            Some(0) => (),
+            Some(x) => exit(x),
+            None => exit(1),
+        }
+    }
+}

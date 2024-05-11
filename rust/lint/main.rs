@@ -10,31 +10,39 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import perspective from "/node_modules/@finos/perspective/dist/cdn/perspective.js";
+fn check_edition(val: String, edition: &mut bool) -> String {
+    if val == "--edition" {
+        *edition = false;
+    }
 
-async function load() {
-    let resp = await fetch(
-        "/node_modules/@finos/perspective-test/assets/superstore.csv"
-    );
-
-    let csv = await resp.text();
-    const viewer = document.querySelector("perspective-viewer");
-    const worker = await perspective.worker();
-    const table = worker.table(csv);
-    await viewer.load(table);
-    const config = {
-        plugin: "datagrid",
-        group_by: ["Region", "State"],
-        split_by: ["Category", "Sub-Category"],
-        columns: ["Sales", "Profit"],
-        master: false,
-        name: "Sales Report",
-        table: "superstore",
-        linked: false,
-        title: "Sales Report 2",
-    };
-    await viewer.restore(config);
+    val
 }
 
-await load();
-window.__TEST_PERSPECTIVE_READY__ = true;
+pub fn main() {
+    let mut needs_edition = true;
+    let args = std::env::args()
+        .skip(1)
+        .map(|x| check_edition(x, &mut needs_edition))
+        .collect::<Vec<String>>();
+
+    let edition_args = if needs_edition {
+        vec!["--edition", "2021"]
+    } else {
+        vec![]
+    };
+
+    let yewfmt_args = edition_args
+        .into_iter()
+        .map(|x| x.into())
+        .chain(args)
+        .collect::<Vec<_>>();
+
+    let exit_code = std::process::Command::new(env!("CARGO_BIN_FILE_YEW_FMT"))
+        .args(yewfmt_args)
+        .spawn()
+        .expect("Could not spawn process")
+        .wait()
+        .expect("Process did not start");
+
+    std::process::exit(exit_code.code().unwrap())
+}

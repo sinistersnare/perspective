@@ -3,11 +3,13 @@
     "version": "2.10.0",
     "description": "Test utility based on perspective",
     "private": true,
-    "main": "src/js/index",
-    "module": "src/js/index",
+    "main": "src/js/index.ts",
+    "module": "src/js/index.ts",
+    "type": "module",
     "files": [
         "src/**/*"
     ],
+    "type": "module",
     "repository": {
         "type": "git",
         "url": "https://github.com/finos/perspective/tools/perspective-test"
@@ -19,7 +21,6 @@
     "author": "",
     "license": "Apache-2.0",
     "dependencies": {
-        "@finos/perspective": "^2.10.0",
         "xml-formatter": "2.4.0"
     }
 }
