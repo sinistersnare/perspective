@@ -50,6 +50,7 @@ impl DerefMut for SessionMetadata {
 /// populated within an async lock
 #[derive(Default)]
 pub struct SessionMetadataState {
+    features: perspective_client::Features,
     column_names: Vec<String>,
     table_schema: HashMap<String, ColumnType>,
     edit_port: f64,
@@ -60,10 +61,12 @@ pub struct SessionMetadataState {
 impl SessionMetadata {
     /// Creates a new `SessionMetadata` from a `JsPerspectiveTable`.
     pub(super) async fn from_table(table: &perspective_client::Table) -> ApiResult<Self> {
+        let features = table.get_features()?.clone();
         let column_names = table.columns().await?;
         let table_schema = table.schema().await?;
         let edit_port = table.make_port().await? as f64;
         Ok(Self(Some(SessionMetadataState {
+            features,
             column_names,
             table_schema,
             edit_port,
@@ -102,6 +105,11 @@ impl SessionMetadata {
         });
 
         Ok(valid_recs.expression_schema.keys().cloned().collect())
+    }
+
+    /// Get the `Table`'s supported features.
+    pub fn get_features(&self) -> Option<&'_ perspective_client::Features> {
+        Some(&self.as_ref()?.features)
     }
 
     /// Returns the unique column names in this session that are expression

@@ -175,7 +175,6 @@ impl PerspectiveViewerElement {
                 }
 
                 let table = unsafe_set_model(jstable.unsafe_get_model());
-
                 tracing::debug!(
                     "Successfully loaded {:.0} rows from Table",
                     table.size().await?

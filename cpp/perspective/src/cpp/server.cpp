@@ -17,7 +17,6 @@
 #include "perspective/computed_expression.h"
 #include "perspective/exception.h"
 #include "perspective/raw_types.h"
-// #include "perspective/regex.h"
 #include "perspective/scalar.h"
 #include "perspective/sparse_tree.h"
 #include "perspective/table.h"
@@ -227,45 +226,6 @@ re_bool_to_str(std::string&& expression) {
     return std::move(expression);
 }
 
-// parsed_expression_string = parsed_expression_string.replace(
-//     /\"(.*?[^\\])\"/g,
-//     (_, cname) => {
-//         // If the column name contains escaped double quotes, replace
-//         // them and assume that they escape one double quote. If there
-//         // are multiple double quotes being escaped, i.e. \""...well?
-//         cname = cname.replace(/\\"/g, '"');
-
-//         if (column_name_map[cname] === undefined) {
-//             let column_id = `COLUMN${running_cidx}`;
-//             column_name_map[cname] = column_id;
-//             column_id_map[column_id] = cname;
-//         }
-
-//         running_cidx++;
-//         return column_name_map[cname];
-//     }
-// );
-
-// template <typename Lambda>
-// static std::string
-// replace_with_re2(
-//     const std::string& input, const re2::RE2& pattern, Lambda replacer) {
-//     std::string output;
-//     re2::StringPiece input_piece(input);
-
-//     std::string match;
-//     int64_t start = 0;
-//     while (RE2::FindAndConsume(&input_piece, pattern, &match)) {
-//         int64_t end = input_piece.data() - input.data();
-//         output += input.substr(start, end - start - match.size());
-//         output += replacer(match);
-//         start = end;
-//     }
-//     output += input.substr(start);
-
-//     return output;
-// }
-
 template <typename Lambda>
 static std::string
 replace_with_re2(
@@ -302,12 +262,10 @@ replace_with_re2(
 
         // Apply the lambda function to the match and append the result
         output += replacer(outer_match, match);
-
         previous_end = input_piece.data();
     }
 
     output.append(previous_end, input.end().base() - previous_end);
-
     return output;
 }
 
@@ -633,12 +591,12 @@ std::vector<ProtoServerResp<std::string>>
 ProtoServer::handle_message(
     std::uint32_t client_id, const std::string_view& data
 ) {
-    proto::RequestEnvelope req_env;
+    proto::Request req_env;
     req_env.ParseFromString(data);
     std::vector<ProtoServerResp<std::string>> serialized_responses;
     std::vector<proto::Response> responses;
     try {
-        auto resp_msg = _handle_message(client_id, req_env.payload(), req_env);
+        auto resp_msg = _handle_message(client_id, req_env);
         for (auto& resp : resp_msg) {
             ProtoServerResp<std::string> str_resp;
             str_resp.data = resp.data.SerializeAsString();
@@ -663,16 +621,14 @@ ProtoServer::handle_message(
         responses.emplace_back(std::move(resp));
     }
 
-    proto::ResponseEnvelope resp_env;
-    resp_env.set_msg_id(req_env.msg_id());
-    resp_env.set_entity_id(req_env.entity_id());
-    resp_env.set_entity_type(req_env.entity_type());
-
+    // proto::Response resp_env;
     serialized_responses.reserve(responses.size());
     for (auto& resp : responses) {
-        *resp_env.mutable_payload() = resp;
+        resp.set_msg_id(req_env.msg_id());
+        resp.set_entity_id(req_env.entity_id());
+
         ProtoServerResp<std::string> str_resp;
-        str_resp.data = resp_env.SerializeAsString();
+        str_resp.data = resp.SerializeAsString();
         str_resp.client_id = client_id;
         serialized_responses.emplace_back(str_resp);
     }
@@ -830,6 +786,53 @@ needs_poll(const proto::Request::ClientReqCase proto_case) {
         case ReqCase::kViewExpressionSchemaReq:
         case ReqCase::kViewRemoveOnUpdateReq:
         case ReqCase::kServerSystemInfoReq:
+        case ReqCase::kGetFeaturesReq:
+            return false;
+        case proto::Request::CLIENT_REQ_NOT_SET:
+            throw std::runtime_error("Unhandled request type 2");
+    }
+    throw std::runtime_error("Unhandled request type");
+}
+
+static constexpr bool
+entity_type_is_table(const proto::Request::ClientReqCase proto_case) {
+    using ReqCase = proto::Request::ClientReqCase;
+
+    switch (proto_case) {
+        case ReqCase::kTableSizeReq:
+        case ReqCase::kTableSchemaReq:
+        case ReqCase::kTableMakePortReq:
+        case ReqCase::kTableValidateExprReq:
+        case ReqCase::kMakeTableReq:
+        case ReqCase::kTableOnDeleteReq:
+        case ReqCase::kTableRemoveReq:
+        case ReqCase::kTableUpdateReq:
+        case ReqCase::kTableRemoveDeleteReq:
+        case ReqCase::kGetHostedTablesReq:
+        case ReqCase::kServerSystemInfoReq:
+        case ReqCase::kGetFeaturesReq:
+        case ReqCase::kTableReplaceReq:
+        case ReqCase::kTableDeleteReq:
+        case ReqCase::kTableMakeViewReq:
+            return true;
+        case ReqCase::kViewOnDeleteReq:
+        case ReqCase::kViewRemoveDeleteReq:
+        case ReqCase::kViewDimensionsReq:
+        case ReqCase::kViewToColumnsStringReq:
+        case ReqCase::kViewToCsvReq:
+        case ReqCase::kViewToRowsStringReq:
+        case ReqCase::kViewToArrowReq:
+        case ReqCase::kViewSchemaReq:
+        case ReqCase::kViewGetMinMaxReq:
+        case ReqCase::kViewOnUpdateReq:
+        case ReqCase::kViewCollapseReq:
+        case ReqCase::kViewExpandReq:
+        case ReqCase::kViewSetDepthReq:
+        case ReqCase::kViewGetConfigReq:
+        case ReqCase::kViewColumnPathsReq:
+        case ReqCase::kViewDeleteReq:
+        case ReqCase::kViewExpressionSchemaReq:
+        case ReqCase::kViewRemoveOnUpdateReq:
             return false;
         case proto::Request::CLIENT_REQ_NOT_SET:
             throw std::runtime_error("Unhandled request type 2");
@@ -839,31 +842,22 @@ needs_poll(const proto::Request::ClientReqCase proto_case) {
 
 void
 ProtoServer::handle_process_table(
-    const Req& req,
-    const RequestEnvelope& env,
-    std::vector<ProtoServerResp<ProtoServer::ResponseEnvelope>>& proto_resp
+    const Request& req,
+    std::vector<ProtoServerResp<ProtoServer::Response>>& proto_resp
 ) {
     if (needs_poll(req.client_req_case())) {
-        switch (env.entity_type()) {
-            case proto::EntityType::TABLE: {
-                if (m_resources.is_table_dirty(env.entity_id())) {
-                    auto table = m_resources.get_table(env.entity_id());
-                    const auto& table_id = env.entity_id();
-                    _process_table(table, table_id, proto_resp);
-                }
-                break;
+        if (entity_type_is_table(req.client_req_case())) {
+            if (m_resources.is_table_dirty(req.entity_id())) {
+                auto table = m_resources.get_table(req.entity_id());
+                const auto& table_id = req.entity_id();
+                _process_table(table, table_id, proto_resp);
             }
-            case proto::EntityType::VIEW: {
-                auto table_id =
-                    m_resources.get_table_id_for_view(env.entity_id());
-                if (m_resources.is_table_dirty(table_id)) {
-                    auto table = m_resources.get_table(table_id);
-                    _process_table(table, table_id, proto_resp);
-                }
-                break;
+        } else {
+            auto table_id = m_resources.get_table_id_for_view(req.entity_id());
+            if (m_resources.is_table_dirty(table_id)) {
+                auto table = m_resources.get_table(table_id);
+                _process_table(table, table_id, proto_resp);
             }
-            default:
-                PSP_COMPLAIN_AND_ABORT("Entity type not set");
         }
     }
 }
@@ -1015,31 +1009,79 @@ coerce_to(const t_dtype dtype, const A& val) {
     }
 }
 
-std::vector<ProtoServerResp<ProtoServer::ResponseEnvelope>>
-ProtoServer::_handle_message(
-    std::uint32_t client_id, const Req& req, const RequestEnvelope& env
-) {
+std::vector<ProtoServerResp<ProtoServer::Response>>
+ProtoServer::_handle_message(std::uint32_t client_id, const Request& req) {
     static bool is_init_expr = false;
     if (!is_init_expr) {
         t_computed_expression_parser::init();
         is_init_expr = true;
     }
 
-    std::vector<ProtoServerResp<ProtoServer::ResponseEnvelope>> proto_resp;
-    proto::ResponseEnvelope resp_env;
-    auto push_resp = [&](Resp&& resp) {
-        resp_env.set_msg_id(env.msg_id());
-        resp_env.set_entity_id(env.entity_id());
-        resp_env.set_entity_type(env.entity_type());
-        *resp_env.mutable_payload() = std::move(resp);
-        ProtoServerResp<ProtoServer::ResponseEnvelope> resp2;
-        resp2.data = resp_env;
+    std::vector<ProtoServerResp<ProtoServer::Response>> proto_resp;
+    // proto::Response resp_env;
+    auto push_resp = [&](Response&& resp) {
+        resp.set_msg_id(req.msg_id());
+        resp.set_entity_id(req.entity_id());
+        ProtoServerResp<ProtoServer::Response> resp2;
+        resp2.data = std::move(resp);
         resp2.client_id = client_id;
         proto_resp.emplace_back(std::move(resp2));
     };
 
-    handle_process_table(req, env, proto_resp);
+    handle_process_table(req, proto_resp);
     switch (req.client_req_case()) {
+        case proto::Request::kGetFeaturesReq: {
+            proto::Response resp;
+            const auto& features = resp.mutable_get_features_resp();
+            features->set_group_by(true);
+            features->set_split_by(true);
+            features->set_expressions(true);
+            proto::GetFeaturesResp_ColumnTypeOptions opts;
+            opts.add_options("==");
+            opts.add_options("!=");
+            opts.add_options(">");
+            opts.add_options(">=");
+            opts.add_options("<");
+            opts.add_options("<=");
+            opts.add_options("begins with");
+            opts.add_options("contains");
+            opts.add_options("ends with");
+            opts.add_options("in");
+            opts.add_options("not in");
+            opts.add_options("is not null");
+            opts.add_options("is null");
+            (*features->mutable_filter_ops())[proto::ColumnType::STRING] =
+                std::move(opts);
+
+            proto::GetFeaturesResp_ColumnTypeOptions opts2;
+            opts2.add_options("==");
+            opts2.add_options("!=");
+            opts2.add_options(">");
+            opts2.add_options(">=");
+            opts2.add_options("<");
+            opts2.add_options("<=");
+            opts2.add_options("is not null");
+            opts2.add_options("is null");
+            (*features->mutable_filter_ops())[proto::ColumnType::INTEGER] =
+                opts2;
+            (*features->mutable_filter_ops())[proto::ColumnType::FLOAT] = opts2;
+            (*features->mutable_filter_ops())[proto::ColumnType::DATE] = opts2;
+            (*features->mutable_filter_ops())[proto::ColumnType::DATETIME] =
+                opts2;
+            (*features->mutable_filter_ops())[proto::ColumnType::INTEGER] =
+                std::move(opts2);
+
+            proto::GetFeaturesResp_ColumnTypeOptions opts3;
+            opts3.add_options("==");
+            // opts3.add_options("!=");
+            opts.add_options("is not null");
+            opts.add_options("is null");
+            (*features->mutable_filter_ops())[proto::ColumnType::BOOLEAN] =
+                opts2;
+
+            push_resp(std::move(resp));
+            break;
+        }
         case proto::Request::kGetHostedTablesReq: {
             proto::Response resp;
             const auto& tables = resp.mutable_get_hosted_tables_resp();
@@ -1056,15 +1098,16 @@ ProtoServer::_handle_message(
             std::uint32_t limit = std::numeric_limits<int>::max();
             std::shared_ptr<Table> table;
             switch (r.options().make_table_type_case()) {
-                case proto::MakeTableOptions::kMakeLimitTable: {
-                    limit = r.options().make_limit_table().limit();
+                case proto::MakeTableReq_MakeTableOptions::kMakeLimitTable: {
+                    limit = r.options().make_limit_table();
                     break;
                 }
-                case proto::MakeTableOptions::kMakeIndexTable: {
-                    index = r.options().make_index_table().index();
+                case proto::MakeTableReq_MakeTableOptions::kMakeIndexTable: {
+                    index = r.options().make_index_table();
                     break;
                 }
-                case proto::MakeTableOptions::MAKE_TABLE_TYPE_NOT_SET:
+                case proto::MakeTableReq_MakeTableOptions::
+                    MAKE_TABLE_TYPE_NOT_SET:
                     break;
             }
 
@@ -1128,14 +1171,14 @@ ProtoServer::_handle_message(
                 }
             }
 
-            m_resources.host_table(env.entity_id(), table);
+            m_resources.host_table(req.entity_id(), table);
             proto::Response resp;
             resp.mutable_make_table_resp();
             push_resp(std::move(resp));
             break;
         }
         case proto::Request::kTableSizeReq: {
-            auto table = m_resources.get_table(env.entity_id());
+            auto table = m_resources.get_table(req.entity_id());
             proto::Response resp;
             auto* tbl_size = resp.mutable_table_size_resp();
             tbl_size->set_size(table->size());
@@ -1143,7 +1186,7 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kTableSchemaReq: {
-            auto table = m_resources.get_table(env.entity_id());
+            auto table = m_resources.get_table(req.entity_id());
 
             proto::Response resp;
             auto* output_schema =
@@ -1161,7 +1204,7 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kTableMakePortReq: {
-            auto table = m_resources.get_table(env.entity_id());
+            auto table = m_resources.get_table(req.entity_id());
             proto::Response resp;
             auto* make_port = resp.mutable_table_make_port_resp();
             make_port->set_port_id(table->make_port());
@@ -1170,7 +1213,7 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kTableValidateExprReq: {
-            auto table = m_resources.get_table(env.entity_id());
+            auto table = m_resources.get_table(req.entity_id());
             const auto& r = req.table_validate_expr_req();
 
             const auto& col_with_expr = r.column_to_expr();
@@ -1213,10 +1256,12 @@ ProtoServer::_handle_message(
                     col_type;
             }
 
-            std::vector<std::pair<std::string, proto::ExprValidationError>>
+            std::vector<std::pair<
+                std::string,
+                proto::TableValidateExprResp_ExprValidationError>>
                 errors;
             for (const auto& [col_name, err] : res.get_expression_errors()) {
-                proto::ExprValidationError proto_err;
+                proto::TableValidateExprResp_ExprValidationError proto_err;
                 *proto_err.mutable_error_message() = err.m_error_message;
                 proto_err.set_column(err.m_column);
                 proto_err.set_line(err.m_line);
@@ -1233,7 +1278,7 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kTableReplaceReq: {
-            auto table = m_resources.get_table(env.entity_id());
+            auto table = m_resources.get_table(req.entity_id());
             table->clear();
             const auto& r = req.table_replace_req();
             switch (r.data().data_case()) {
@@ -1259,8 +1304,8 @@ ProtoServer::_handle_message(
                     break;
                 }
             }
-            //  proto_resp.should_poll = true;
-            m_resources.mark_table_dirty(env.entity_id());
+
+            m_resources.mark_table_dirty(req.entity_id());
             proto::Response resp;
             resp.mutable_table_replace_resp();
             push_resp(std::move(resp));
@@ -1268,7 +1313,7 @@ ProtoServer::_handle_message(
         }
         case proto::Request::kTableRemoveReq: {
             const auto& r = req.table_remove_req();
-            auto table = m_resources.get_table(env.entity_id());
+            auto table = m_resources.get_table(req.entity_id());
             switch (r.data().data_case()) {
                 case proto::MakeTableData::kFromCols: {
                     table->remove_cols(r.data().from_cols());
@@ -1289,7 +1334,7 @@ ProtoServer::_handle_message(
             }
 
             //  proto_resp.should_poll = true;
-            m_resources.mark_table_dirty(env.entity_id());
+            m_resources.mark_table_dirty(req.entity_id());
             proto::Response resp;
             resp.mutable_table_remove_resp();
             push_resp(std::move(resp));
@@ -1297,7 +1342,7 @@ ProtoServer::_handle_message(
         }
         case proto::Request::kTableUpdateReq: {
             const auto& r = req.table_update_req();
-            auto table = m_resources.get_table(env.entity_id());
+            auto table = m_resources.get_table(req.entity_id());
             switch (r.data().data_case()) {
                 case proto::MakeTableData::kFromArrow: {
                     table->update_arrow(r.data().from_arrow(), r.port_id());
@@ -1322,16 +1367,15 @@ ProtoServer::_handle_message(
                     break;
                 }
             }
-            //  proto_resp.should_poll = true;
-            m_resources.mark_table_dirty(env.entity_id());
-            // m_resources.host_table(env.entity_id(), table);
+
+            m_resources.mark_table_dirty(req.entity_id());
             proto::Response resp;
             resp.mutable_table_update_resp();
             push_resp(std::move(resp));
             break;
         }
         case proto::Request::kTableMakeViewReq: {
-            auto table = m_resources.get_table(env.entity_id());
+            auto table = m_resources.get_table(req.entity_id());
             auto schema = std::make_shared<t_schema>(
                 table->get_gnode()->get_output_schema()
             );
@@ -1525,11 +1569,7 @@ ProtoServer::_handle_message(
                     }
                 }
 
-                filter.emplace_back(
-                    f.column(),
-                    filter_op_to_str(perspective::filter_op_from_proto(f.op())),
-                    args
-                );
+                filter.emplace_back(f.column(), f.op(), args);
             }
 
             const auto& cols = cfg.columns();
@@ -1562,10 +1602,12 @@ ProtoServer::_handle_message(
 
             std::string filter_op;
             switch (cfg.filter_op()) {
-                case proto::FilterReducer::OR:
+                case proto::ViewConfig_FilterReducer::
+                    ViewConfig_FilterReducer_OR:
                     filter_op = "or";
                     break;
-                case proto::FilterReducer::AND:
+                case proto::ViewConfig_FilterReducer::
+                    ViewConfig_FilterReducer_AND:
                 default:
                     filter_op = "and";
                     break;
@@ -1641,7 +1683,7 @@ ProtoServer::_handle_message(
                 PSP_COMPLAIN_AND_ABORT("Invalid number of sides");
             }
 
-            m_resources.host_view(r.view_id(), env.entity_id(), erased_view);
+            m_resources.host_view(r.view_id(), req.entity_id(), erased_view);
             proto::Response resp;
             auto* make_view = resp.mutable_table_make_view_resp();
             make_view->set_view_id(r.view_id());
@@ -1649,14 +1691,14 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kTableOnDeleteReq: {
-            Subscription sub_info{.id = env.msg_id(), .client_id = client_id};
-            m_resources.create_table_on_delete_sub(env.entity_id(), sub_info);
+            Subscription sub_info{.id = req.msg_id(), .client_id = client_id};
+            m_resources.create_table_on_delete_sub(req.entity_id(), sub_info);
             break;
         }
         case proto::Request::kTableRemoveDeleteReq: {
             auto sub_id = req.table_remove_delete_req().id();
             m_resources.drop_table_on_delete_sub(
-                env.entity_id(), sub_id, client_id
+                req.entity_id(), sub_id, client_id
             );
             proto::Response resp;
             resp.mutable_table_remove_delete_resp();
@@ -1665,14 +1707,14 @@ ProtoServer::_handle_message(
         }
 
         case proto::Request::kViewOnDeleteReq: {
-            Subscription sub_info{.id = env.msg_id(), .client_id = client_id};
-            m_resources.create_view_on_delete_sub(env.entity_id(), sub_info);
+            Subscription sub_info{.id = req.msg_id(), .client_id = client_id};
+            m_resources.create_view_on_delete_sub(req.entity_id(), sub_info);
             break;
         }
         case proto::Request::kViewRemoveDeleteReq: {
             auto sub_id = req.view_remove_delete_req().id();
             m_resources.drop_view_on_delete_sub(
-                env.entity_id(), sub_id, client_id
+                req.entity_id(), sub_id, client_id
             );
             proto::Response resp;
             resp.mutable_view_remove_delete_resp();
@@ -1681,7 +1723,7 @@ ProtoServer::_handle_message(
         }
 
         case proto::Request::kViewSchemaReq: {
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
             proto::Response resp;
             auto* view_schema =
                 resp.mutable_view_schema_resp()->mutable_schema();
@@ -1694,8 +1736,8 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kViewDimensionsReq: {
-            auto view = m_resources.get_view(env.entity_id());
-            auto table = m_resources.get_table_for_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
+            auto table = m_resources.get_table_for_view(req.entity_id());
 
             proto::Response resp;
             auto* view_dims = resp.mutable_view_dimensions_resp();
@@ -1716,7 +1758,7 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kViewGetConfigReq: {
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
             auto view_config = view->get_view_config();
 
             proto::Response resp;
@@ -1753,7 +1795,7 @@ ProtoServer::_handle_message(
                 auto* proto_filter = view_config_proto->mutable_filter();
                 auto* f = proto_filter->Add();
                 f->set_column(filter.m_colname);
-                f->set_op(filter_op_to_proto(filter.m_op));
+                f->set_op(filter_op_to_str(filter.m_op));
                 auto vals = std::vector<t_tscalar>(filter.m_bag.size() + 1);
                 if (filter.m_op != FILTER_OP_NOT_IN
                     && filter.m_op != FILTER_OP_IN) {
@@ -1803,11 +1845,17 @@ ProtoServer::_handle_message(
 
             switch (view_config->get_filter_op()) {
                 case FILTER_OP_OR:
-                    view_config_proto->set_filter_op(proto::FilterReducer::OR);
+                    view_config_proto->set_filter_op(
+                        proto::ViewConfig_FilterReducer::
+                            ViewConfig_FilterReducer_OR
+                    );
                     break;
                 case FILTER_OP_AND:
                 default:
-                    view_config_proto->set_filter_op(proto::FilterReducer::AND);
+                    view_config_proto->set_filter_op(
+                        proto::ViewConfig_FilterReducer::
+                            ViewConfig_FilterReducer_AND
+                    );
                     break;
             }
 
@@ -1827,7 +1875,7 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kViewColumnPathsReq: {
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
 
             proto::Response resp;
             auto* view_col_paths =
@@ -1863,7 +1911,7 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kViewToRowsStringReq: {
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
             const auto& r = req.view_to_rows_string_req();
             auto config = view->get_view_config();
             std::string nidx{view_sides_to_string(*view)};
@@ -1902,7 +1950,7 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kViewToColumnsStringReq: {
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
             const auto& r = req.view_to_columns_string_req();
             auto config = view->get_view_config();
             std::string nidx{view_sides_to_string(*view)};
@@ -1942,18 +1990,16 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kTableDeleteReq: {
-            m_resources.delete_table(env.entity_id());
-            proto::ResponseEnvelope resp_env;
+            m_resources.delete_table(req.entity_id());
+
             for (const auto& sub :
-                 m_resources.get_table_on_delete_sub(env.entity_id())) {
+                 m_resources.get_table_on_delete_sub(req.entity_id())) {
                 proto::Response resp;
                 resp.mutable_table_on_delete_resp();
-                resp_env.set_msg_id(sub.id);
-                resp_env.set_entity_id(env.entity_id());
-                resp_env.set_entity_type(env.entity_type());
-                *resp_env.mutable_payload() = std::move(resp);
-                ProtoServerResp<proto::ResponseEnvelope> resp2;
-                resp2.data = resp_env;
+                resp.set_msg_id(sub.id);
+                resp.set_entity_id(req.entity_id());
+                ProtoServerResp<proto::Response> resp2;
+                resp2.data = std::move(resp);
                 resp2.client_id = sub.client_id;
                 proto_resp.emplace_back(std::move(resp2));
             }
@@ -1964,18 +2010,15 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kViewDeleteReq: {
-            m_resources.delete_view(env.entity_id());
-            proto::ResponseEnvelope resp_env;
+            m_resources.delete_view(req.entity_id());
             for (const auto& sub :
-                 m_resources.get_view_on_delete_sub(env.entity_id())) {
+                 m_resources.get_view_on_delete_sub(req.entity_id())) {
                 proto::Response resp;
                 resp.mutable_view_on_delete_resp();
-                resp_env.set_msg_id(sub.id);
-                resp_env.set_entity_id(env.entity_id());
-                resp_env.set_entity_type(env.entity_type());
-                *resp_env.mutable_payload() = std::move(resp);
-                ProtoServerResp<proto::ResponseEnvelope> resp2;
-                resp2.data = resp_env;
+                resp.set_msg_id(sub.id);
+                resp.set_entity_id(req.entity_id());
+                ProtoServerResp<proto::Response> resp2;
+                resp2.data = std::move(resp);
                 resp2.client_id = sub.client_id;
                 proto_resp.emplace_back(std::move(resp2));
             }
@@ -1988,15 +2031,16 @@ ProtoServer::_handle_message(
         case proto::Request::kViewRemoveOnUpdateReq: {
             auto sub_id = req.view_remove_on_update_req().id();
             m_resources.remove_update_subscription(
-                env.entity_id(), sub_id, client_id
+                req.entity_id(), sub_id, client_id
             );
+
             proto::Response resp;
             resp.mutable_view_remove_on_update_resp();
             push_resp(std::move(resp));
             break;
         }
         case proto::Request::kViewExpressionSchemaReq: {
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
 
             proto::Response resp;
             auto* view_expr_schema =
@@ -2010,7 +2054,7 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kViewToArrowReq: {
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
             const auto& r = req.view_to_arrow_req();
             auto config = view->get_view_config();
             auto num_hidden = calculate_num_hidden(*view, *config);
@@ -2039,7 +2083,7 @@ ProtoServer::_handle_message(
         }
         case proto::Request::kViewToCsvReq: {
             LOG_DEBUG("Handling ViewToCsvReq");
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
             const auto& r = req.view_to_csv_req();
             auto config = view->get_view_config();
             auto num_hidden = calculate_num_hidden(*view, *config);
@@ -2062,19 +2106,19 @@ ProtoServer::_handle_message(
             break;
         }
         case proto::Request::kViewOnUpdateReq: {
-            Subscription sub_info{.id = env.msg_id(), .client_id = client_id};
-            m_resources.create_view_on_update_sub(env.entity_id(), sub_info);
+            Subscription sub_info{.id = req.msg_id(), .client_id = client_id};
+            m_resources.create_view_on_update_sub(req.entity_id(), sub_info);
             if (req.view_on_update_req().has_mode()
                 && req.view_on_update_req().mode()
                     == proto::ViewOnUpdateReq_Mode::ViewOnUpdateReq_Mode_ROW) {
-                auto view = m_resources.get_view(env.entity_id());
+                auto view = m_resources.get_view(req.entity_id());
                 view->set_deltas_enabled(true);
             }
             break;
         }
         case proto::Request::kViewGetMinMaxReq: {
             const auto& col = req.view_get_min_max_req().column_name();
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
             const auto min_max = view->get_min_max(col);
             proto::Response resp;
             auto* pair = resp.mutable_view_get_min_max_resp();
@@ -2091,7 +2135,7 @@ ProtoServer::_handle_message(
         }
         case proto::Request::kViewCollapseReq: {
             const auto& r = req.view_collapse_req();
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
             auto num_changed = view->collapse(r.row_index());
             proto::Response resp;
             auto* collapse_resp = resp.mutable_view_collapse_resp();
@@ -2101,7 +2145,7 @@ ProtoServer::_handle_message(
         }
         case proto::Request::kViewExpandReq: {
             const auto& r = req.view_expand_req();
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
             auto num_changed = view->expand(r.row_index());
             proto::Response resp;
             auto* expand_resp = resp.mutable_view_expand_resp();
@@ -2111,7 +2155,7 @@ ProtoServer::_handle_message(
         }
         case proto::Request::kViewSetDepthReq: {
             const auto& r = req.view_set_depth_req();
-            auto view = m_resources.get_view(env.entity_id());
+            auto view = m_resources.get_view(req.entity_id());
             view->set_depth(r.depth());
             proto::Response resp;
             resp.mutable_view_set_depth_resp();
@@ -2142,9 +2186,9 @@ ProtoServer::_handle_message(
     return proto_resp;
 }
 
-std::vector<ProtoServerResp<ProtoServer::ResponseEnvelope>>
+std::vector<ProtoServerResp<ProtoServer::Response>>
 ProtoServer::_poll() {
-    std::vector<ProtoServerResp<ResponseEnvelope>> resp_envs;
+    std::vector<ProtoServerResp<Response>> resp_envs;
     auto tables = m_resources.get_dirty_tables();
     for (auto& [table, table_id] : tables) {
         _process_table_unchecked(table, table_id, resp_envs);
@@ -2158,7 +2202,7 @@ void
 ProtoServer::_process_table_unchecked(
     std::shared_ptr<Table>& table,
     const ServerResources::t_id& table_id,
-    std::vector<ProtoServerResp<ProtoServer::ResponseEnvelope>>& outs
+    std::vector<ProtoServerResp<ProtoServer::Response>>& outs
 ) {
     table->get_pool()->_process([this, table_id, &outs](auto port_id) {
         // record changes per port.
@@ -2167,12 +2211,10 @@ ProtoServer::_process_table_unchecked(
             auto view = m_resources.get_view(view_id);
             auto subscriptions = m_resources.get_view_on_update_sub(view_id);
             for (auto& subscription : subscriptions) {
-                proto::ResponseEnvelope resp_env;
-                resp_env.set_msg_id(subscription.id);
-                resp_env.set_entity_id(view_id);
-                resp_env.set_entity_type(proto::VIEW);
 
-                Resp out;
+                Response out;
+                out.set_msg_id(subscription.id);
+                out.set_entity_id(view_id);
                 auto* r = out.mutable_view_on_update_resp();
                 r->set_port_id(port_id);
                 if (view->get_deltas_enabled()) {
@@ -2184,9 +2226,9 @@ ProtoServer::_process_table_unchecked(
                     // `perspective.Table(undefined)`
                     *r->mutable_arrow() = "";
                 }
-                *resp_env.mutable_payload() = out;
-                ProtoServerResp<proto::ResponseEnvelope> resp2;
-                resp2.data = resp_env;
+
+                ProtoServerResp<proto::Response> resp2;
+                resp2.data = std::move(out);
                 resp2.client_id = subscription.client_id;
                 outs.emplace_back(std::move(resp2));
             }
@@ -2198,7 +2240,7 @@ void
 ProtoServer::_process_table(
     std::shared_ptr<Table>& table,
     const ServerResources::t_id& table_id,
-    std::vector<ProtoServerResp<ProtoServer::ResponseEnvelope>>& outs
+    std::vector<ProtoServerResp<ProtoServer::Response>>& outs
 ) {
     if (!m_resources.is_table_dirty(table_id)) {
         return;
@@ -2270,84 +2312,4 @@ perspective::sort_op_to_proto(perspective::t_sorttype sort_op) {
             return perspective::proto::SORT_DESC_ABS;
     }
     PSP_COMPLAIN_AND_ABORT("Invalid sort op");
-}
-
-perspective::proto::FilterOp
-perspective::filter_op_to_proto(t_filter_op t_filter_op) {
-    switch (t_filter_op) {
-        case FILTER_OP_LT:
-            return proto::FilterOp::FILTER_LT;
-        case FILTER_OP_LTEQ:
-            return proto::FilterOp::FILTER_LTEQ;
-        case FILTER_OP_GT:
-            return proto::FilterOp::FILTER_GT;
-        case FILTER_OP_GTEQ:
-            return proto::FilterOp::FILTER_GTEQ;
-        case FILTER_OP_EQ:
-            return proto::FilterOp::FILTER_EQ;
-        case FILTER_OP_NE:
-            return proto::FilterOp::FILTER_NE;
-        case FILTER_OP_BEGINS_WITH:
-            return proto::FilterOp::FILTER_BEGINS_WITH;
-        case FILTER_OP_ENDS_WITH:
-            return proto::FilterOp::FILTER_ENDS_WITH;
-        case FILTER_OP_CONTAINS:
-            return proto::FilterOp::FILTER_CONTAINS;
-        case FILTER_OP_OR:
-            return proto::FilterOp::FILTER_OR;
-        case FILTER_OP_IN:
-            return proto::FilterOp::FILTER_IN;
-        case FILTER_OP_NOT_IN:
-            return proto::FilterOp::FILTER_NOT_IN;
-        case FILTER_OP_AND:
-            return proto::FilterOp::FILTER_AND;
-        case FILTER_OP_IS_NULL:
-            return proto::FilterOp::FILTER_IS_NULL;
-        case FILTER_OP_IS_NOT_NULL:
-            return proto::FilterOp::FILTER_IS_NOT_NULL;
-        default:
-            PSP_COMPLAIN_AND_ABORT("Invalid filter op");
-            return proto::FilterOp::FILTER_IS_NULL;
-    }
-}
-
-perspective::t_filter_op
-perspective::filter_op_from_proto(proto::FilterOp filter_op) {
-    switch (filter_op) {
-        case proto::FILTER_UNKNOWN:
-            PSP_COMPLAIN_AND_ABORT("Invalid filter op");
-        case proto::FILTER_LT:
-            return FILTER_OP_LT;
-        case proto::FILTER_LTEQ:
-            return FILTER_OP_LTEQ;
-        case proto::FILTER_GT:
-            return FILTER_OP_GT;
-        case proto::FILTER_GTEQ:
-            return FILTER_OP_GTEQ;
-        case proto::FILTER_EQ:
-            return FILTER_OP_EQ;
-        case proto::FILTER_NE:
-            return FILTER_OP_NE;
-        case proto::FILTER_BEGINS_WITH:
-            return FILTER_OP_BEGINS_WITH;
-        case proto::FILTER_ENDS_WITH:
-            return FILTER_OP_ENDS_WITH;
-        case proto::FILTER_IN:
-            return FILTER_OP_IN;
-        case proto::FILTER_CONTAINS:
-            return FILTER_OP_CONTAINS;
-        case proto::FILTER_NOT_IN:
-            return FILTER_OP_NOT_IN;
-        case proto::FILTER_AND:
-            return FILTER_OP_AND;
-        case proto::FILTER_OR:
-            return FILTER_OP_OR;
-        case proto::FILTER_IS_NULL:
-            return FILTER_OP_IS_NULL;
-        case proto::FILTER_IS_NOT_NULL:
-            return FILTER_OP_IS_NOT_NULL;
-        default:
-            PSP_COMPLAIN_AND_ABORT("Invalid filter op");
-            return FILTER_OP_IS_NULL;
-    }
 }

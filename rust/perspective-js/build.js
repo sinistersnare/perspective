@@ -88,7 +88,7 @@ function build_metadata() {
 function build_rust() {
     const release_flag = IS_DEBUG ? "" : "--release";
     execSync(
-        `cargo bundle --target=${get_host()} -- perspective_js ${release_flag} --features=export-init,external-cpp`,
+        `PSP_ROOT_DIR=../.. cargo bundle --target=${get_host()} -- perspective_js ${release_flag} --features=export-init,external-cpp`,
         INHERIT
     );
 }

@@ -111,8 +111,6 @@ public:
     }
 };
 
-proto::FilterOp filter_op_to_proto(t_filter_op t_filter_op);
-t_filter_op filter_op_from_proto(proto::FilterOp filter_op);
 const char* sort_op_str_from_proto(proto::SortOp sort_op);
 proto::SortOp sort_op_to_proto(t_sorttype sort_op);
 
@@ -550,40 +548,33 @@ namespace server {
 
     class PERSPECTIVE_EXPORT ProtoServer {
     public:
-        using Req = perspective::proto::Request;
-        using Resp = perspective::proto::Response;
-        using RequestEnvelope = perspective::proto::RequestEnvelope;
-        using ResponseEnvelope = perspective::proto::ResponseEnvelope;
-
+        using Request = perspective::proto::Request;
+        using Response = perspective::proto::Response;
         std::vector<ProtoServerResp<std::string>>
         handle_message(std::uint32_t client_id, const std::string_view& data);
-
         std::vector<ProtoServerResp<std::string>> poll();
 
     private:
         void handle_process_table(
-            const Req& req,
-            const RequestEnvelope& env,
-            std::vector<ProtoServerResp<ProtoServer::ResponseEnvelope>>&
-                proto_resp
+            const Request& req,
+            std::vector<ProtoServerResp<ProtoServer::Response>>& proto_resp
         );
 
-        std::vector<ProtoServerResp<ResponseEnvelope>> _handle_message(
-            std::uint32_t client_id, const Req& req, const RequestEnvelope& env
-        );
+        std::vector<ProtoServerResp<Response>>
+        _handle_message(std::uint32_t client_id, const Request& req);
 
-        std::vector<ProtoServerResp<ResponseEnvelope>> _poll();
+        std::vector<ProtoServerResp<Response>> _poll();
 
         void _process_table(
             std::shared_ptr<Table>& table,
             const ServerResources::t_id& table_id,
-            std::vector<ProtoServerResp<ResponseEnvelope>>& outs
+            std::vector<ProtoServerResp<Response>>& outs
         );
 
         void _process_table_unchecked(
             std::shared_ptr<Table>& table,
             const ServerResources::t_id& table_id,
-            std::vector<ProtoServerResp<ResponseEnvelope>>& outs
+            std::vector<ProtoServerResp<Response>>& outs
         );
 
         ServerResources m_resources;

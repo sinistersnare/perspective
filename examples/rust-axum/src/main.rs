@@ -38,7 +38,7 @@ fn init_tracing() {
 async fn main() -> anyhow::Result<()> {
     init_tracing();
     let server = PerspectiveServer::new();
-    let client = perspective::create_local_client(&server);
+    let client = perspective::create_local_client(&server).await?;
 
     const FILENAME: &str = "../../node_modules/superstore-arrow/superstore.lz4.arrow";
     let mut f = File::open(FILENAME).expect("no file found");

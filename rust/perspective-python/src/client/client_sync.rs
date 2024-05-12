@@ -42,7 +42,7 @@ impl PySyncClient {
 /// Create a new `Client` instance with a _synchronous_, _blocking_ API.
 #[pyfunction]
 pub fn create_sync_client() -> PySyncClient {
-    PySyncClient(block_on(PyClient::new(None)))
+    PySyncClient(PyClient::new(None))
 }
 
 #[pyclass]
@@ -66,7 +66,7 @@ impl PySyncTable {
     }
 
     #[doc = include_str!("../../docs/table/columns.md")]
-    fn columns(&self) -> Vec<String> {
+    fn columns(&self) -> PyResult<Vec<String>> {
         block_on(self.0.columns())
     }
 
@@ -112,7 +112,7 @@ impl PySyncTable {
     }
 
     #[doc = include_str!("../../docs/table/size.md")]
-    fn size(&self) -> usize {
+    fn size(&self) -> PyResult<usize> {
         block_on(self.0.size())
     }
 

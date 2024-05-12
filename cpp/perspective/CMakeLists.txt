@@ -227,8 +227,6 @@ if(PSP_WASM_BUILD)
         set(OPT_FLAGS " \
             -O0 \
             -g3 \
-            -gseparate-dwarf \
-            --profiling \
             -Wcast-align \
             -fwasm-exceptions \
             -Wover-aligned \
@@ -689,8 +687,10 @@ elseif(PSP_CPP_BUILD OR PSP_PYTHON_BUILD)
     endif()
 endif()
 
-# TODO this needs to be omitted when built by `cmake-rs`
-if(DEFINED ENV{PSP_DEBUG})
+# TODO this needs to be omitted when built by `cmake-rs`, because 
+#`cargo publish --dry-run` complains when this generate `.clangd` in the Rust
+# root dir instead of teh `target` dir.
+if(NOT DEFINED ENV{PSP_DISABLE_CLANGD})
     include(SetupClangd)
 endif()
 

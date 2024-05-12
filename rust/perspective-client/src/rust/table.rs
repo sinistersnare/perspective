@@ -16,9 +16,10 @@ use nanoid::*;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::client::{Client, TableData};
+use crate::client::{Client, Features, TableData};
 use crate::config::{Expressions, ViewConfigUpdate};
-use crate::proto::make_table_options::MakeTableType;
+use crate::proto::make_table_req::make_table_options::MakeTableType;
+use crate::proto::make_table_req::MakeTableOptions;
 use crate::proto::request::ClientReq;
 use crate::proto::response::ClientResp;
 use crate::proto::*;
@@ -54,7 +55,7 @@ pub struct TableInitOptions {
     pub limit: Option<u32>,
 }
 
-impl TryFrom<TableInitOptions> for proto::MakeTableOptions {
+impl TryFrom<TableInitOptions> for MakeTableOptions {
     type Error = ClientError;
 
     fn try_from(value: TableInitOptions) -> Result<Self, Self::Error> {
@@ -67,10 +68,10 @@ impl TryFrom<TableInitOptions> for proto::MakeTableOptions {
                 } => Err(ClientError::BadTableOptions)?,
                 TableInitOptions {
                     index: Some(index), ..
-                } => Some(MakeTableType::MakeIndexTable(MakeIndexTable { index })),
+                } => Some(MakeTableType::MakeIndexTable(index)),
                 TableInitOptions {
                     limit: Some(limit), ..
-                } => Some(MakeTableType::MakeLimitTable(MakeLimitTable { limit })),
+                } => Some(MakeTableType::MakeLimitTable(limit)),
                 _ => None,
             },
         })
@@ -86,7 +87,7 @@ pub struct UpdateOptions {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ValidateExpressionsData {
     pub expression_schema: HashMap<String, ColumnType>,
-    pub errors: HashMap<String, ExprValidationError>,
+    pub errors: HashMap<String, table_validate_expr_resp::ExprValidationError>,
     pub expression_alias: HashMap<String, String>,
 }
 
@@ -122,13 +123,16 @@ impl Table {
         }
     }
 
-    fn client_message(&self, req: ClientReq) -> RequestEnvelope {
-        RequestEnvelope {
+    fn client_message(&self, req: ClientReq) -> Request {
+        Request {
             msg_id: self.client.gen_id(),
             entity_id: self.name.clone(),
-            entity_type: EntityType::Table as i32,
-            payload: Some(req.into()),
+            client_req: Some(req),
         }
+    }
+
+    pub fn get_features(&self) -> ClientResult<Features> {
+        self.client.get_features()
     }
 
     #[doc = include_str!("../../docs/table/get_index.md")]
@@ -150,7 +154,7 @@ impl Table {
     pub async fn delete(&self) -> ClientResult<()> {
         let msg = self.client_message(ClientReq::TableDeleteReq(TableDeleteReq {}));
         match self.client.oneshot(&msg).await {
-            ClientResp::TableDeleteResp(TableDeleteResp {}) => Ok(()),
+            ClientResp::TableDeleteResp(_) => Ok(()),
             resp => Err(resp.into()),
         }
     }
@@ -206,7 +210,7 @@ impl Table {
         on_delete: Box<dyn Fn() + Send + Sync + 'static>,
     ) -> ClientResult<u32> {
         let callback = move |resp| match resp {
-            ClientResp::TableOnDeleteResp(TableOnDeleteResp {}) => {
+            ClientResp::TableOnDeleteResp(_) => {
                 on_delete();
                 Ok(())
             },
@@ -225,7 +229,7 @@ impl Table {
         }));
 
         match self.client.oneshot(&msg).await {
-            ClientResp::TableRemoveDeleteResp(TableRemoveDeleteResp {}) => Ok(()),
+            ClientResp::TableRemoveDeleteResp(_) => Ok(()),
             resp => Err(resp.into()),
         }
     }
@@ -332,17 +336,14 @@ impl Table {
     #[doc = include_str!("../../docs/table/view.md")]
     pub async fn view(&self, config: Option<ViewConfigUpdate>) -> ClientResult<View> {
         let view_name = nanoid!();
-        let msg = RequestEnvelope {
+        let msg = Request {
             msg_id: self.client.gen_id(),
             entity_id: self.name.clone(),
-            entity_type: EntityType::Table as i32,
-            payload: Some(
-                ClientReq::TableMakeViewReq(TableMakeViewReq {
-                    view_id: view_name.clone(),
-                    config: config.map(|x| x.into()),
-                })
-                .into(),
-            ),
+            client_req: ClientReq::TableMakeViewReq(TableMakeViewReq {
+                view_id: view_name.clone(),
+                config: config.map(|x| x.into()),
+            })
+            .into(),
         };
 
         match self.client.oneshot(&msg).await {

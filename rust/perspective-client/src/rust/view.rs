@@ -117,12 +117,11 @@ impl View {
         View { name, client }
     }
 
-    fn client_message(&self, req: ClientReq) -> RequestEnvelope {
-        crate::proto::RequestEnvelope {
+    fn client_message(&self, req: ClientReq) -> Request {
+        crate::proto::Request {
             msg_id: self.client.gen_id(),
             entity_id: self.name.clone(),
-            entity_type: EntityType::View as i32,
-            payload: Some(req.into()),
+            client_req: Some(req),
         }
     }
 
@@ -273,7 +272,7 @@ impl View {
     pub async fn delete(&self) -> ClientResult<()> {
         let msg = self.client_message(ClientReq::ViewDeleteReq(ViewDeleteReq {}));
         match self.client.oneshot(&msg).await {
-            ClientResp::ViewDeleteResp(ViewDeleteResp {}) => Ok(()),
+            ClientResp::ViewDeleteResp(_) => Ok(()),
             resp => Err(resp.into()),
         }
     }
@@ -322,7 +321,7 @@ impl View {
         }));
         self.client.unsubscribe(update_id)?;
         match self.client.oneshot(&msg).await {
-            ClientResp::ViewRemoveOnUpdateResp(ViewRemoveOnUpdateResp {}) => Ok(()),
+            ClientResp::ViewRemoveOnUpdateResp(_) => Ok(()),
             resp => Err(resp.into()),
         }
     }
@@ -333,7 +332,7 @@ impl View {
         on_delete: Box<dyn Fn() + Send + Sync + 'static>,
     ) -> ClientResult<u32> {
         let callback = move |resp| match resp {
-            ClientResp::ViewOnDeleteResp(ViewOnDeleteResp {}) => {
+            ClientResp::ViewOnDeleteResp(_) => {
                 on_delete();
                 Ok(())
             },
@@ -379,7 +378,7 @@ impl View {
     pub async fn set_depth(&self, depth: i32) -> ClientResult<()> {
         let msg = self.client_message(ClientReq::ViewSetDepthReq(ViewSetDepthReq { depth }));
         match self.client.oneshot(&msg).await {
-            ClientResp::ViewSetDepthResp(ViewSetDepthResp {}) => Ok(()),
+            ClientResp::ViewSetDepthResp(_) => Ok(()),
             resp => Err(resp.into()),
         }
     }

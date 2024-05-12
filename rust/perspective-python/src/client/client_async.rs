@@ -22,7 +22,6 @@ use pyo3_asyncio::tokio::future_into_py;
 use super::python::*;
 
 fn get_arrow_table_cls() -> Option<Py<PyAny>> {
-    // static TABLE_CLASS: LazyLock<Option<Py<PyAny>>> = LazyLock::new(|| {
     let res: PyResult<Py<PyAny>> = Python::with_gil(|py| {
         let pyarrow = PyModule::import(py, "pyarrow")?;
         Ok(pyarrow.getattr("Table")?.to_object(py))
@@ -34,8 +33,6 @@ fn get_arrow_table_cls() -> Option<Py<PyAny>> {
             None
         },
     }
-    // });
-    // TABLE_CLASS.as_ref().cloned()
 }
 
 fn is_arrow_table(py: Python, table: &PyAny) -> PyResult<bool> {
@@ -62,7 +59,6 @@ fn to_arrow_bytes(py: Python, table: &PyAny) -> PyResult<Py<PyBytes>> {
             pyarrow.call_method1("RecordBatchFileWriter", (sink, table.getattr("schema")?))?;
 
         writer.call_method1("write_table", (table,))?;
-
         writer.call_method0("close")?;
     }
 
@@ -175,9 +171,11 @@ impl PyAsyncServer {
                 }
                 Ok(outs)
             });
+
             for out in res? {
                 out.await.expect("Failed joining future")?;
             }
+
             Ok(())
         })
     }
@@ -223,22 +221,16 @@ impl PyAsyncClient {
 
 #[pyfunction]
 #[pyo3(name = "create_async_client", signature = (server = None))]
-pub fn create_async_client(
-    py: Python<'_>,
-    server: Option<Py<PyAsyncServer>>,
-) -> PyResult<&'_ PyAny> {
+pub fn create_async_client(py: Python<'_>, server: Option<Py<PyAsyncServer>>) -> PyAsyncClient {
     let server = server.and_then(|x| {
         x.extract::<PyAsyncServer>(py)
             .map_err(|e| {
                 tracing::error!("Failed to extract PyAsyncServer: {:?}", e);
-                ()
             })
             .ok()
     });
-    future_into_py(
-        py,
-        async move { Ok(PyAsyncClient(PyClient::new(server).await)) },
-    )
+
+    PyAsyncClient(PyClient::new(server))
 }
 
 #[pyclass]
@@ -252,7 +244,7 @@ impl PyAsyncTable {
     #[doc = include_str!("../../docs/table/columns.md")]
     pub fn columns<'a>(&self, py: Python<'a>) -> PyResult<&'a PyAny> {
         let table = self.0.clone();
-        future_into_py(py, async move { Ok(table.columns().await) })
+        future_into_py(py, async move { table.columns().await })
     }
 
     #[doc = include_str!("../../docs/table/schema.md")]
@@ -264,7 +256,7 @@ impl PyAsyncTable {
     #[doc = include_str!("../../docs/table/size.md")]
     pub fn size<'a>(&self, py: Python<'a>) -> PyResult<&'a PyAny> {
         let table = self.0.clone();
-        future_into_py(py, async move { Ok(table.size().await) })
+        future_into_py(py, async move { table.size().await })
     }
 
     #[doc = include_str!("../../docs/table/update.md")]

@@ -52,6 +52,10 @@ fn cmake_build() -> Result<(), std::io::Error> {
     dst.define("CMAKE_BUILD_TYPE", profile.as_str());
     dst.define("PSP_WASM_BUILD", "0");
     dst.define("PSP_PYTHON_BUILD", "1");
+    if std::env::var("CARGO_FEATURE_EXTERNAL_CPP").is_err() {
+        dst.env("PSP_DISABLE_CLANGD", "1");
+    }
+
     dst.build_arg(format!("-j{}", num_cpus::get()));
     println!("cargo:warning=MESSAGE Building cmake {}", profile);
     let artifact = dst.build();

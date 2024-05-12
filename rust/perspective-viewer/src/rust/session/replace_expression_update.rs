@@ -108,8 +108,12 @@ pub impl ViewConfig {
         let filter = filter
             .into_iter()
             .map(|x| {
-                if x.0 == old_expr.name {
-                    Filter(new_expr.name.as_ref().to_owned(), x.1, x.2)
+                if x.column() == old_expr.name {
+                    Filter::new(
+                        new_expr.name.as_ref().to_owned(),
+                        x.op().to_string(),
+                        x.term().clone(),
+                    )
                 } else {
                     x
                 }

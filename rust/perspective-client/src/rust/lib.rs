@@ -26,8 +26,9 @@ pub mod config;
 pub mod proto;
 pub mod utils;
 
-pub use crate::client::{Client, TableData};
-pub use crate::proto::{ColumnType, ExprValidationError};
+pub use crate::client::{Client, Features, TableData};
+pub use crate::proto::table_validate_expr_resp::ExprValidationError;
+pub use crate::proto::ColumnType;
 pub use crate::table::{Schema, Table, TableInitOptions, UpdateOptions, ValidateExpressionsData};
 pub use crate::utils::*;
 pub use crate::view::{OnUpdateArgs, OnUpdateMode, OnUpdateOptions, View, ViewWindow};

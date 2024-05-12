@@ -36,8 +36,6 @@ if (!globalThis.crypto) {
     globalThis.crypto = webcrypto as Crypto;
 }
 
-Error.stackTraceLimit = 100;
-
 const __filename = url.fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -76,7 +74,7 @@ export function make_client(
     callback: (buffer: Uint8Array) => void,
     close?: Function
 ) {
-    return perspective_client.make_client(callback, close);
+    return new perspective_client.JsClient(callback, close);
 }
 
 function invert_promise<T>(): [(t: T) => void, Promise<T>] {
@@ -330,6 +328,8 @@ SYNC_CLIENT = make_client((req) => {
     SYNC_SERVER.handle_message(req);
 });
 
+await SYNC_CLIENT.init();
+
 export function get_hosted_table_names() {
     return SYNC_CLIENT.get_hosted_table_names();
 }
@@ -384,6 +384,7 @@ export async function websocket(
         client.handle_message(msg.data);
     };
 
+    await client.init();
     return client;
 }
 

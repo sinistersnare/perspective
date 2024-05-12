@@ -25,6 +25,9 @@ pub enum ClientError {
     #[error("Abort(): {0}")]
     Internal(String),
 
+    #[error("Client not yet initialized")]
+    NotInitialized,
+
     #[error("Unknown error: {0}")]
     Unknown(String),
 
@@ -54,14 +57,6 @@ impl From<proto::response::ClientResp> for ClientError {
         match value {
             proto::response::ClientResp::ServerError(x) => ClientError::Internal(x.message),
             x => ClientError::ResponseFailed(Box::new(x)),
-        }
-    }
-}
-
-impl From<proto::request::ClientReq> for proto::Request {
-    fn from(value: proto::request::ClientReq) -> Self {
-        proto::Request {
-            client_req: Some(value),
         }
     }
 }

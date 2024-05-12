@@ -127,17 +127,17 @@ impl From<proto::SortOp> for SortDir {
     }
 }
 
-impl From<Sort> for proto::Sort {
+impl From<Sort> for proto::view_config::Sort {
     fn from(value: Sort) -> Self {
-        proto::Sort {
+        proto::view_config::Sort {
             column: value.0,
             op: proto::SortOp::from(value.1).into(),
         }
     }
 }
 
-impl From<proto::Sort> for Sort {
-    fn from(value: proto::Sort) -> Self {
+impl From<proto::view_config::Sort> for Sort {
+    fn from(value: proto::view_config::Sort) -> Self {
         Sort(
             value.column,
             proto::SortOp::try_from(value.op).unwrap().into(),

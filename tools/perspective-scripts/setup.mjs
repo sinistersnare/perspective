@@ -112,8 +112,8 @@ async function focus_package() {
                 },
                 {
                     key: "p",
-                    name: "perspective-js",
-                    value: "perspective-js",
+                    name: "perspective (perspective-js)",
+                    value: "perspective",
                 },
                 {
                     key: "y",

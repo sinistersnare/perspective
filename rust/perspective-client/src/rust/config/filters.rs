@@ -11,7 +11,6 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 use std::fmt::Display;
-use std::str::FromStr;
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -51,138 +50,6 @@ impl Display for Scalar {
     }
 }
 
-#[allow(clippy::upper_case_acronyms)]
-#[derive(Clone, Copy, Deserialize, Debug, Eq, PartialEq, Serialize, TS)]
-#[serde()]
-pub enum FilterOp {
-    #[serde(rename = "contains")]
-    Contains,
-
-    #[serde(rename = "not in")]
-    NotIn,
-
-    #[serde(rename = "in")]
-    In,
-
-    #[serde(rename = "begins with")]
-    BeginsWith,
-
-    #[serde(rename = "ends with")]
-    EndsWith,
-
-    #[serde(rename = "is null")]
-    IsNull,
-
-    #[serde(rename = "is not null")]
-    IsNotNull,
-
-    #[serde(rename = ">")]
-    GT,
-
-    #[serde(rename = "<")]
-    LT,
-
-    #[serde(rename = "==")]
-    EQ,
-
-    #[serde(rename = ">=")]
-    GTE,
-
-    #[serde(rename = "<=")]
-    LTE,
-
-    #[serde(rename = "!=")]
-    NE,
-}
-
-impl From<FilterOp> for proto::FilterOp {
-    fn from(value: FilterOp) -> Self {
-        match value {
-            FilterOp::Contains => proto::FilterOp::FilterContains,
-            FilterOp::NotIn => proto::FilterOp::FilterNotIn,
-            FilterOp::In => proto::FilterOp::FilterIn,
-            FilterOp::BeginsWith => proto::FilterOp::FilterBeginsWith,
-            FilterOp::EndsWith => proto::FilterOp::FilterEndsWith,
-            FilterOp::IsNull => proto::FilterOp::FilterIsNull,
-            FilterOp::IsNotNull => proto::FilterOp::FilterIsNotNull,
-            FilterOp::GT => proto::FilterOp::FilterGt,
-            FilterOp::LT => proto::FilterOp::FilterLt,
-            FilterOp::EQ => proto::FilterOp::FilterEq,
-            FilterOp::GTE => proto::FilterOp::FilterGteq,
-            FilterOp::LTE => proto::FilterOp::FilterLteq,
-            FilterOp::NE => proto::FilterOp::FilterNe,
-        }
-    }
-}
-
-impl From<proto::FilterOp> for FilterOp {
-    fn from(value: proto::FilterOp) -> Self {
-        match value {
-            proto::FilterOp::FilterContains => FilterOp::Contains,
-            proto::FilterOp::FilterNotIn => FilterOp::NotIn,
-            proto::FilterOp::FilterIn => FilterOp::In,
-            proto::FilterOp::FilterBeginsWith => FilterOp::BeginsWith,
-            proto::FilterOp::FilterEndsWith => FilterOp::EndsWith,
-            proto::FilterOp::FilterIsNull => FilterOp::IsNull,
-            proto::FilterOp::FilterIsNotNull => FilterOp::IsNotNull,
-            proto::FilterOp::FilterGt => FilterOp::GT,
-            proto::FilterOp::FilterLt => FilterOp::LT,
-            proto::FilterOp::FilterEq => FilterOp::EQ,
-            proto::FilterOp::FilterGteq => FilterOp::GTE,
-            proto::FilterOp::FilterLteq => FilterOp::LTE,
-            proto::FilterOp::FilterNe => FilterOp::NE,
-            proto::FilterOp::FilterUnknown => todo!(),
-            proto::FilterOp::FilterAnd => todo!(),
-            proto::FilterOp::FilterOr => todo!(),
-        }
-    }
-}
-
-impl Display for FilterOp {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        let op = match self {
-            Self::Contains => "contains",
-            Self::In => "in",
-            Self::NotIn => "not in",
-            Self::BeginsWith => "begins with",
-            Self::EndsWith => "ends with",
-            Self::IsNull => "is null",
-            Self::IsNotNull => "is not null",
-            Self::GT => ">",
-            Self::LT => "<",
-            Self::EQ => "==",
-            Self::GTE => ">=",
-            Self::LTE => "<=",
-            Self::NE => "!=",
-        };
-
-        write!(fmt, "{}", op)
-    }
-}
-
-impl FromStr for FilterOp {
-    type Err = String;
-
-    fn from_str(input: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
-        match input {
-            "contains" => Ok(Self::Contains),
-            "in" => Ok(Self::In),
-            "not in" => Ok(Self::NotIn),
-            "begins with" => Ok(Self::BeginsWith),
-            "ends with" => Ok(Self::EndsWith),
-            "is null" => Ok(Self::IsNull),
-            "is not null" => Ok(Self::IsNotNull),
-            ">" => Ok(Self::GT),
-            "<" => Ok(Self::LT),
-            "==" => Ok(Self::EQ),
-            ">=" => Ok(Self::GTE),
-            "<=" => Ok(Self::LTE),
-            "!=" => Ok(Self::NE),
-            x => Err(format!("Unknown filter operator {}", x)),
-        }
-    }
-}
-
 #[derive(Clone, Deserialize, Debug, PartialEq, Serialize, TS)]
 #[serde(untagged)]
 pub enum FilterTerm {
@@ -216,7 +83,37 @@ impl Display for FilterTerm {
 
 #[derive(Clone, Deserialize, Debug, PartialEq, Serialize, TS)]
 #[serde()]
-pub struct Filter(pub String, pub FilterOp, #[serde(default)] pub FilterTerm);
+pub struct Filter(String, String, #[serde(default)] FilterTerm);
+
+impl Filter {
+    pub fn new(column: String, op: String, term: FilterTerm) -> Self {
+        Filter(column, op, term)
+    }
+
+    pub fn column(&self) -> &str {
+        self.0.as_str()
+    }
+
+    pub fn op(&self) -> &str {
+        self.1.as_str()
+    }
+
+    pub fn term(&self) -> &FilterTerm {
+        &self.2
+    }
+
+    pub fn column_mut(&mut self) -> &mut String {
+        &mut self.0
+    }
+
+    pub fn op_mut(&mut self) -> &mut String {
+        &mut self.1
+    }
+
+    pub fn term_mut(&mut self) -> &mut FilterTerm {
+        &mut self.2
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
 pub enum FilterReducer {
@@ -270,11 +167,11 @@ impl From<proto::Scalar> for Scalar {
     }
 }
 
-impl From<Filter> for proto::Filter {
+impl From<Filter> for proto::view_config::Filter {
     fn from(value: Filter) -> Self {
-        proto::Filter {
+        proto::view_config::Filter {
             column: value.0,
-            op: proto::FilterOp::from(value.1) as i32,
+            op: value.1,
             value: match value.2 {
                 FilterTerm::Scalar(x) => vec![x.into()],
                 FilterTerm::Array(x) => x.into_iter().map(|x| x.into()).collect(),
@@ -283,11 +180,11 @@ impl From<Filter> for proto::Filter {
     }
 }
 
-impl From<proto::Filter> for Filter {
-    fn from(value: proto::Filter) -> Self {
+impl From<proto::view_config::Filter> for Filter {
+    fn from(value: proto::view_config::Filter) -> Self {
         Filter(
             value.column,
-            FilterOp::from(proto::FilterOp::try_from(value.op).unwrap()),
+            value.op,
             if value.value.len() == 1 {
                 FilterTerm::Scalar(value.value.into_iter().next().unwrap().into())
             } else {

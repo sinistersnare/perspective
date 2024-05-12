@@ -21,6 +21,8 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: "./.perspectiverc" });
 
+Error.stackTraceLimit = Infinity;
+
 // TODO Don't hardcode this. AFAICT this can only be accomplished by choosing
 // the port before calling the playwright CLI, via env var.
 const TEST_SERVER_PORT = 6598;
@@ -86,11 +88,11 @@ const BROWSER_PACKAGES = [
 const NODE_PACKAGES = [
     {
         packageName: "perspective",
-        testDir: "rust/perspective/test/js",
+        testDir: "rust/perspective-js/test/js",
     },
     {
         packageName: "perspective-tz",
-        testDir: "rust/perspective/test/tz",
+        testDir: "rust/perspective-js/test/tz",
     },
 ];
 

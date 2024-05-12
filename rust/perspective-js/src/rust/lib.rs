@@ -67,7 +67,6 @@ pub fn init() {
 #[doc = include_str!("../../docs/client.md")]
 #[wasm_bindgen]
 pub struct JsClient {
-    // handler: Rc<RefCell<Option<Sender<()>>>>,
     close: Option<Function>,
     client: Client,
 }
@@ -81,6 +80,35 @@ extern "C" {
 
 #[wasm_bindgen]
 impl JsClient {
+    #[wasm_bindgen(constructor)]
+    pub fn new(send: Function, close: Option<Function>) -> Self {
+        let send1 = send.clone();
+        let send_loop = LocalPollLoop::new(move |mut buff: Vec<u8>| {
+            let buff2 = unsafe { js_sys::Uint8Array::view_mut_raw(buff.as_mut_ptr(), buff.len()) };
+            send1.call1(&JsValue::UNDEFINED, &buff2)
+        });
+
+        JsClient {
+            close: close.clone(),
+            client: Client::new(move |_client, msg| Box::pin(send_loop.poll(msg.clone()))),
+        }
+    }
+
+    #[wasm_bindgen]
+    pub async fn init(&self) -> ApiResult<()> {
+        self.client.clone().init().await?;
+        Ok(())
+    }
+
+    #[doc(hidden)]
+    #[wasm_bindgen]
+    pub fn handle_message(&self, value: &JsValue) -> ApiResult<()> {
+        let uint8array = Uint8Array::new(value);
+        let slice = uint8array.to_vec();
+        self.client.receive(&slice)?;
+        Ok(())
+    }
+
     #[doc = include_str!("../../docs/table.md")]
     #[wasm_bindgen]
     pub async fn table(
@@ -125,41 +153,5 @@ impl JsClient {
     pub async fn system_info(&self) -> ApiResult<JsValue> {
         let info = self.client.system_info().await?;
         Ok(JsValue::from_serde_ext(&info)?)
-    }
-
-    #[doc(hidden)]
-    #[wasm_bindgen]
-    pub fn handle_message(&self, value: &JsValue) -> ApiResult<()> {
-        let uint8array = Uint8Array::new(value);
-        let slice = uint8array.to_vec();
-        // let msg = ResponseEnvelope::decode(&slice[..])?;
-        // tracing::debug!("RECV {:?}", msg);
-        // if msg.msg_id == 0 {
-        //     tracing::info!("Init response received, ignored");
-        //     self.handler
-        //         .borrow_mut()
-        //         .take()
-        //         .ok_or_else(|| ApiError::new("Non-init response received"))?
-        //         .send(())
-        //         .map_err(|()| ApiError::new("Leaked handler"))?;
-        // } else {
-        self.client.receive(&slice)?;
-        // }
-
-        Ok(())
-    }
-}
-
-#[wasm_bindgen]
-pub fn make_client(send: Function, close: Option<Function>) -> JsClient {
-    let send1 = send.clone();
-    let send_loop = LocalPollLoop::new(move |mut buff: Vec<u8>| {
-        let buff2 = unsafe { js_sys::Uint8Array::view_mut_raw(buff.as_mut_ptr(), buff.len()) };
-        send1.call1(&JsValue::UNDEFINED, &buff2)
-    });
-
-    JsClient {
-        close: close.clone(),
-        client: Client::new(move |_client, msg| Box::pin(send_loop.poll(msg.clone()))),
     }
 }

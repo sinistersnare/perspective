@@ -47,11 +47,24 @@ impl PartialEq for ConfigSelectorProps {
     }
 }
 
+impl ConfigSelectorProps {
+    fn default_op(&self, column: &str) -> Option<String> {
+        tracing::error!("Calcing filter default");
+        let metadata = self.session.metadata();
+        let features = metadata.get_features()?;
+        let col_type = metadata.get_column_table_type(column)?;
+        let first = features.default_op(col_type)?;
+
+        tracing::error!("Found op {first} for {column}");
+        Some(first.to_string())
+    }
+}
+
 derive_model!(Renderer, Session for ConfigSelectorProps);
 
 #[derive(Debug)]
 pub enum ConfigSelectorMsg {
-    DragStart(DragEffect),
+    DragStart,
     DragEnd,
     DragOver(usize, DragTarget),
     DragLeave(DragTarget),
@@ -173,7 +186,7 @@ impl Component for ConfigSelector {
     type Properties = ConfigSelectorProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let cb = ctx.link().callback(ConfigSelectorMsg::DragStart);
+        let cb = ctx.link().callback(|_| ConfigSelectorMsg::DragStart);
         let drag_sub = Rc::new(ctx.props().dragdrop.dragstart_received.add_listener(cb));
 
         let cb = ctx.link().callback(|_| ConfigSelectorMsg::DragEnd);
@@ -201,7 +214,7 @@ impl Component for ConfigSelector {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            ConfigSelectorMsg::DragStart(_) | ConfigSelectorMsg::ViewCreated => true,
+            ConfigSelectorMsg::DragStart | ConfigSelectorMsg::ViewCreated => true,
             ConfigSelectorMsg::DragEnd => true,
             ConfigSelectorMsg::DragOver(index, action) => {
                 let should_render = ctx.props().dragdrop.notify_drag_enter(action, index);
@@ -301,12 +314,15 @@ impl Component for ConfigSelector {
             },
             ConfigSelectorMsg::SetFilterValue(index, input) => {
                 let mut filter = ctx.props().session.get_view_config().filter.clone();
-                let update = if matches!(filter[index].1, FilterOp::In | FilterOp::NotIn) {
-                    let current = filter[index].2.to_string();
+
+                // TODO Can't special case these - need to make this part of the
+                // Features API.
+                let update = if filter[index].op() == "in" || filter[index].op() == "not in" {
+                    let current = filter[index].term().to_string();
                     let mut tokens = current.split(',').collect::<Vec<_>>();
                     tokens.pop();
                     tokens.push(&input);
-                    filter[index].2 = FilterTerm::Array(
+                    *filter[index].term_mut() = FilterTerm::Array(
                         tokens
                             .iter()
                             .map(|x| Scalar::String(x.trim().to_owned()))
@@ -319,7 +335,7 @@ impl Component for ConfigSelector {
                         ..ViewConfigUpdate::default()
                     }
                 } else {
-                    filter[index].2 = FilterTerm::Scalar(Scalar::String(input));
+                    *filter[index].term_mut() = FilterTerm::Scalar(Scalar::String(input));
                     let filter = Some(filter);
                     ViewConfigUpdate {
                         filter,
@@ -354,13 +370,12 @@ impl Component for ConfigSelector {
                 ctx.props().onselect.emit(());
                 false
             },
-            ConfigSelectorMsg::New(DragTarget::Filter, InPlaceColumn::Column(col)) => {
+            ConfigSelectorMsg::New(DragTarget::Filter, InPlaceColumn::Column(column)) => {
                 let mut view_config = ctx.props().session.get_view_config().clone();
-                view_config.filter.push(Filter(
-                    col,
-                    FilterOp::EQ,
-                    FilterTerm::Scalar(Scalar::Null),
-                ));
+                let op = ctx.props().default_op(column.as_str()).unwrap_or_default();
+                view_config
+                    .filter
+                    .push(Filter::new(column, op, FilterTerm::Scalar(Scalar::Null)));
 
                 let update = ViewConfigUpdate {
                     filter: Some(view_config.filter),
@@ -413,11 +428,15 @@ impl Component for ConfigSelector {
             },
             ConfigSelectorMsg::New(DragTarget::Filter, InPlaceColumn::Expression(col)) => {
                 let mut view_config = ctx.props().session.get_view_config().clone();
-                view_config.filter.push(Filter(
-                    col.name.as_ref().to_owned(),
-                    FilterOp::EQ,
+                let column = col.name.as_ref().to_owned();
+                view_config.filter.push(Filter::new(
+                    column,
+                    ctx.props()
+                        .default_op(col.name.as_ref())
+                        .unwrap_or_default(),
                     FilterTerm::Scalar(Scalar::Null),
                 ));
+
                 view_config.expressions.insert(&col);
                 let update = ViewConfigUpdate {
                     filter: Some(view_config.filter),
@@ -553,10 +572,10 @@ impl Component for ConfigSelector {
                     allow_duplicates=true
                     parent={ctx.link().clone()}
                     {column_dropdown}
-                    exclude={config.filter.iter().map(|x| x.0.clone()).collect::<HashSet<_>>()}
+                    exclude={config.filter.iter().map(|x| x.column().to_string()).collect::<HashSet<_>>()}
                     dragdrop={&ctx.props().dragdrop}
                     is_dragover={ctx.props().dragdrop.is_dragover(DragTarget::Filter).map(|(index, name)| {
-                        (index, Filter(name, FilterOp::EQ, FilterTerm::Scalar(Scalar::Null)))
+                        (index, Filter::new(name, "".to_string(),  FilterTerm::Scalar(Scalar::Null )))
                     })}
                 >
                     { for config.filter.iter().enumerate().map(|(idx, filter)| {

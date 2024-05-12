@@ -14,9 +14,9 @@ use perspective_client::*;
 use perspective_server::*;
 pub use {perspective_client as client, perspective_server as server};
 
-pub fn create_local_client(server: &PerspectiveServer) -> Client {
+pub async fn create_local_client(server: &PerspectiveServer) -> ClientResult<Client> {
     let server = server.clone();
-    Client::new_sync({
+    let client = Client::new_sync({
         move |client, req| {
             for (_client_id, resp) in server.handle_message(0, req) {
                 client
@@ -30,5 +30,8 @@ pub fn create_local_client(server: &PerspectiveServer) -> Client {
                     .unwrap_or_else(|e| tracing::error!("Unknown server message: {}", e));
             }
         }
-    })
+    });
+
+    client.init().await?;
+    Ok(client)
 }

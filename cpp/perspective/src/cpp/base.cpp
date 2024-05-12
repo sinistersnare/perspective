@@ -409,7 +409,7 @@ str_to_filter_op(const std::string& str) {
     }
 
     std::stringstream ss;
-    ss << "Unknown filter operator string: `" << str << std::endl;
+    ss << "Unknown filter operator string: `" << str << "`" << std::endl;
     PSP_COMPLAIN_AND_ABORT(ss.str());
     return t_filter_op::FILTER_OP_AND;
 }

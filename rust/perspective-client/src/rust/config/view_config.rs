@@ -114,9 +114,11 @@ impl From<ViewConfigUpdate> for proto::ViewConfig {
             group_by: value.group_by.unwrap_or_default(),
             split_by: value.split_by.unwrap_or_default(),
             columns: value.columns.map(|x| proto::ColumnsUpdate {
-                opt_columns: Some(columns_update::OptColumns::Columns(proto::Columns {
-                    columns: x.into_iter().flatten().collect(),
-                })),
+                opt_columns: Some(columns_update::OptColumns::Columns(
+                    proto::columns_update::Columns {
+                        columns: x.into_iter().flatten().collect(),
+                    },
+                )),
             }),
             filter: value
                 .filter
@@ -126,7 +128,7 @@ impl From<ViewConfigUpdate> for proto::ViewConfig {
                 .collect(),
             filter_op: value
                 .filter_op
-                .map(proto::FilterReducer::from)
+                .map(proto::view_config::FilterReducer::from)
                 .unwrap_or_default() as i32,
             sort: value
                 .sort
@@ -146,20 +148,20 @@ impl From<ViewConfigUpdate> for proto::ViewConfig {
     }
 }
 
-impl From<FilterReducer> for proto::FilterReducer {
+impl From<FilterReducer> for proto::view_config::FilterReducer {
     fn from(value: FilterReducer) -> Self {
         match value {
-            FilterReducer::And => proto::FilterReducer::And,
-            FilterReducer::Or => proto::FilterReducer::Or,
+            FilterReducer::And => proto::view_config::FilterReducer::And,
+            FilterReducer::Or => proto::view_config::FilterReducer::Or,
         }
     }
 }
 
-impl From<proto::FilterReducer> for FilterReducer {
-    fn from(value: proto::FilterReducer) -> Self {
+impl From<proto::view_config::FilterReducer> for FilterReducer {
+    fn from(value: proto::view_config::FilterReducer) -> Self {
         match value {
-            proto::FilterReducer::And => FilterReducer::And,
-            proto::FilterReducer::Or => FilterReducer::Or,
+            proto::view_config::FilterReducer::And => FilterReducer::And,
+            proto::view_config::FilterReducer::Or => FilterReducer::Or,
         }
     }
 }
@@ -194,7 +196,7 @@ impl From<proto::ViewConfig> for ViewConfig {
                 },
             },
             filter: value.filter.into_iter().map(|x| x.into()).collect(),
-            filter_op: proto::FilterReducer::try_from(value.filter_op)
+            filter_op: proto::view_config::FilterReducer::try_from(value.filter_op)
                 .unwrap_or_default()
                 .into(),
             sort: value.sort.into_iter().map(|x| x.into()).collect(),
@@ -251,7 +253,7 @@ impl ViewConfig {
         self.group_by.contains(&name)
             || self.split_by.contains(&name)
             || self.sort.iter().any(|x| x.0 == name)
-            || self.filter.iter().any(|x| x.0 == name)
+            || self.filter.iter().any(|x| x.column() == name)
             || self.columns.contains(&Some(name))
     }
 }

@@ -121,7 +121,7 @@ impl TableData {
 const PSP_CALLBACK_ID: &str = "__PSP_CALLBACK_ID__";
 
 impl PyClient {
-    pub async fn new(server: Option<PyAsyncServer>) -> Self {
+    pub fn new(server: Option<PyAsyncServer>) -> Self {
         let server = server
             .map(|x| x.server)
             .unwrap_or_else(PerspectiveServer::new);
@@ -134,6 +134,10 @@ impl PyClient {
         });
 
         PyClient { client }
+    }
+
+    pub async fn init(&self) -> PyResult<()> {
+        self.client.init().await.into_pyerr()
     }
 
     pub async fn table(
@@ -194,12 +198,12 @@ impl PyTable {
         self.table.lock().await.get_limit()
     }
 
-    pub async fn size(&self) -> usize {
-        self.table.lock().await.size().await.unwrap()
+    pub async fn size(&self) -> PyResult<usize> {
+        self.table.lock().await.size().await.into_pyerr()
     }
 
-    pub async fn columns(&self) -> Vec<String> {
-        self.table.lock().await.columns().await.unwrap()
+    pub async fn columns(&self) -> PyResult<Vec<String>> {
+        self.table.lock().await.columns().await.into_pyerr()
     }
 
     pub async fn clear(&self) -> PyResult<()> {
@@ -230,6 +234,7 @@ impl PyTable {
             .on_delete(callback)
             .await
             .into_pyerr()?;
+
         Python::with_gil(move |py| callback_py.setattr(py, PSP_CALLBACK_ID, callback_id))?;
         Ok(callback_id)
     }

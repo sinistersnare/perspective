@@ -190,7 +190,7 @@ impl Session {
                 .unwrap_or_default()
         }) || config.group_by.iter().any(|col| col == name)
             || config.split_by.iter().any(|col| col == name)
-            || config.filter.iter().any(|col| col.0 == name)
+            || config.filter.iter().any(|col| col.column() == name)
             || config.sort.iter().any(|col| col.0 == name)
     }
 
@@ -203,8 +203,20 @@ impl Session {
         requirements: &ViewConfigRequirements,
     ) -> ViewConfigUpdate {
         use self::drag_drop_update::*;
-        self.get_view_config()
-            .create_drag_drop_update(column, index, drop, drag, requirements)
+        let col_type = self
+            .metadata()
+            .get_column_table_type(column.as_str())
+            .unwrap();
+
+        self.get_view_config().create_drag_drop_update(
+            column,
+            col_type,
+            index,
+            drop,
+            drag,
+            requirements,
+            self.metadata().get_features().unwrap(),
+        )
     }
 
     /// An async task which replaces a `column` aliased expression with another.
@@ -503,10 +515,11 @@ impl Session {
         }
 
         for filter in config.filter.iter() {
-            if all_columns.contains(&filter.0) || expression_names.contains(&filter.0) {
-                let _existed = view_columns.insert(&filter.0);
+            // TODO check filter op
+            if all_columns.contains(filter.column()) || expression_names.contains(filter.column()) {
+                let _existed = view_columns.insert(filter.column());
             } else {
-                return Err(format!("Unknown \"{}\" in `filter`", &filter.0).into());
+                return Err(format!("Unknown \"{}\" in `filter`", filter.column()).into());
             }
         }
 

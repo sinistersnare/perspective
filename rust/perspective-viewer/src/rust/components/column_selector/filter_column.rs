@@ -41,7 +41,7 @@ pub struct FilterColumn {
 pub enum FilterColumnMsg {
     FilterInput((usize, String), String),
     Close,
-    FilterOpSelect(FilterOp),
+    FilterOpSelect(String),
     FilterKeyDown(u32),
 }
 
@@ -75,9 +75,12 @@ impl DragDropListItemProps for FilterColumnProps {
 impl FilterColumnProps {
     /// Does this filter item get a "suggestions" auto-complete modal?
     fn is_suggestable(&self) -> bool {
-        (self.filter.1 == FilterOp::EQ
-            || self.filter.1 == FilterOp::NE
-            || self.filter.1 == FilterOp::In)
+        // TODO This needs to be moved to Features API. Or ... we just do this
+        // all string column type filters, or otherwise "fix" this in the UI?
+        (self.filter.op() == "=="
+            || self.filter.op() == "!="
+            || self.filter.op() == "in"
+            || self.filter.op() == "not in")
             && self.get_filter_type() == Some(ColumnType::String)
     }
 
@@ -85,14 +88,14 @@ impl FilterColumnProps {
     fn get_filter_type(&self) -> Option<ColumnType> {
         self.session
             .metadata()
-            .get_column_table_type(&self.filter.0)
+            .get_column_table_type(self.filter.column())
     }
 
     // Get the string value, suitable for the `value` field of a `FilterColumns`'s
     // `<input>`.
     fn get_filter_input(&self) -> Option<String> {
         let filter_type = self.get_filter_type()?;
-        match (&filter_type, &self.filter.2) {
+        match (&filter_type, &self.filter.term()) {
             (ColumnType::Date, FilterTerm::Scalar(Scalar::Float(x)))
             | (ColumnType::Date, FilterTerm::Scalar(Scalar::DateTime(x))) => {
                 if *x > 0_f64 {
@@ -118,48 +121,21 @@ impl FilterColumnProps {
     }
 
     /// Get the allowed `FilterOp`s for this filter.
-    fn get_filter_ops(&self) -> Vec<FilterOp> {
-        match self.get_filter_type() {
-            Some(ColumnType::String) => vec![
-                FilterOp::EQ,
-                FilterOp::NE,
-                FilterOp::GT,
-                FilterOp::GTE,
-                FilterOp::LT,
-                FilterOp::LTE,
-                FilterOp::BeginsWith,
-                FilterOp::Contains,
-                FilterOp::EndsWith,
-                FilterOp::In,
-                FilterOp::NotIn,
-                FilterOp::IsNotNull,
-                FilterOp::IsNull,
-            ],
-            Some(ColumnType::Boolean) => {
-                vec![FilterOp::EQ, FilterOp::IsNull, FilterOp::IsNotNull]
-            },
-            Some(_) => vec![
-                FilterOp::EQ,
-                FilterOp::NE,
-                FilterOp::GT,
-                FilterOp::GTE,
-                FilterOp::LT,
-                FilterOp::LTE,
-                FilterOp::IsNotNull,
-                FilterOp::IsNull,
-            ],
-            _ => vec![],
-        }
+    fn get_filter_ops(&self, col_type: ColumnType) -> Option<Vec<String>> {
+        let metadata = self.session.metadata();
+        let features = metadata.get_features()?;
+        // let col_type = metadata.get_column_table_type(column)?;
+        Some(features.filter_ops.get(&(col_type as u32))?.options.clone())
     }
 
     /// Update the filter comparison operator.
     ///
     /// # Arguments
     /// - `op` The new `FilterOp`.
-    fn update_filter_op(&self, op: FilterOp) {
+    fn update_filter_op(&self, op: String) {
         let mut filter = self.session.get_view_config().filter.clone();
         let filter_column = &mut filter.get_mut(self.idx).expect("Filter on no column");
-        filter_column.1 = op;
+        *filter_column.op_mut() = op;
         let update = ViewConfigUpdate {
             filter: Some(filter),
             ..ViewConfigUpdate::default()
@@ -175,13 +151,16 @@ impl FilterColumnProps {
     fn update_filter_input(&self, val: String) {
         let mut filter = self.session.get_view_config().filter.clone();
         let filter_column = &mut filter.get_mut(self.idx).expect("Filter on no column");
-        let filter_input = match filter_column.1 {
-            FilterOp::NotIn | FilterOp::In => Some(FilterTerm::Array(
+
+        // TODO This belongs in the Features API.
+        let filter_input = if filter_column.op() == "in" || filter_column.op() == "not in" {
+            Some(FilterTerm::Array(
                 val.split(',')
                     .map(|x| Scalar::String(x.trim().to_owned()))
                     .collect(),
-            )),
-            _ => match self.get_filter_type() {
+            ))
+        } else {
+            match self.get_filter_type() {
                 Some(ColumnType::String) => Some(FilterTerm::Scalar(Scalar::String(val))),
                 Some(ColumnType::Integer) => {
                     if val.is_empty() {
@@ -218,12 +197,12 @@ impl FilterColumnProps {
 
                 // shouldn't be reachable ..
                 _ => None,
-            },
+            }
         };
 
         if let Some(input) = filter_input {
-            if input != filter_column.2 {
-                filter_column.2 = input;
+            if &input != filter_column.term() {
+                *filter_column.term_mut() = input;
                 let update = ViewConfigUpdate {
                     filter: Some(filter),
                     ..ViewConfigUpdate::default()
@@ -235,7 +214,7 @@ impl FilterColumnProps {
     }
 }
 
-type FilterOpSelector = Select<FilterOp>;
+type FilterOpSelector = Select<String>;
 
 impl Component for FilterColumn {
     type Message = FilterColumnMsg;
@@ -269,10 +248,11 @@ impl Component for FilterColumn {
                     input
                 };
 
+                // TODO This belongs in the Features API.
                 if ctx.props().is_suggestable() {
                     ctx.props().filter_dropdown.autocomplete(
                         column,
-                        if ctx.props().filter.1 == FilterOp::In {
+                        if ctx.props().filter.op() == "in" || ctx.props().filter.op() == "not in" {
                             input.split(',').last().unwrap().to_owned()
                         } else {
                             input.clone()
@@ -331,7 +311,7 @@ impl Component for FilterColumn {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let idx = ctx.props().idx;
         let filter = ctx.props().filter.clone();
-        let column = filter.0.to_owned();
+        let column = filter.column().to_owned();
         let col_type = ctx
             .props()
             .session
@@ -366,7 +346,7 @@ impl Component for FilterColumn {
             .callback(move |event: KeyboardEvent| FilterColumnMsg::FilterKeyDown(event.key_code()));
 
         let dragstart = Callback::from({
-            let event_name = ctx.props().filter.0.to_owned();
+            let event_name = ctx.props().filter.column().to_owned();
             let dragdrop = ctx.props().dragdrop.clone();
             move |event: DragEvent| {
                 dragdrop.set_drag_image(&event).unwrap();
@@ -466,12 +446,15 @@ impl Component for FilterColumn {
             },
         };
 
-        let filter_ops = ctx
-            .props()
-            .get_filter_ops()
-            .into_iter()
-            .map(SelectItem::Option)
-            .collect::<Vec<_>>();
+        let filter_ops = maybe! {
+            Some(ctx
+                .props()
+                .get_filter_ops(col_type?)?
+                .into_iter()
+                .map(SelectItem::Option)
+                .collect::<Vec<_>>())
+        }
+        .unwrap_or_default();
 
         html! {
             <div
@@ -483,19 +466,20 @@ impl Component for FilterColumn {
                 <LocalStyle href={css!("filter-item")} />
                 <div class="pivot-column-border">
                     <TypeIcon ty={ColumnType::String} />
-                    <span class="column_name">{ filter.0.to_owned() }</span>
+                    <span class="column_name">{ filter.column().to_owned() }</span>
                     <FilterOpSelector
                         class="filterop-selector"
                         is_autosize=true
                         values={filter_ops}
-                        selected={filter.1}
+                        selected={filter.op().to_string()}
                         on_select={select}
                     />
-                    if !matches!(&filter.1, FilterOp::IsNotNull | FilterOp::IsNull) {
+                    // TODO: Move this to the Features API.
+                    if filter.op() != "is not null" && filter.op() != "is null" {
                         if col_type == Some(ColumnType::Boolean) { { input_elem } } else {
                             <label
                                 class={format!("input-sizer {}", type_class)}
-                                data-value={format!("{}", filter.2)}
+                                data-value={format!("{}", filter.term())}
                             >
                                 { input_elem }
                             </label>
