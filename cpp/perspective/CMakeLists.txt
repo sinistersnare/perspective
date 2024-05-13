@@ -543,7 +543,6 @@ message("${BUILD_MESSAGE}\n")
 # Common flags for WASM/JS build and Pyodide
 set(PSP_WASM_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} \
     --bind \
-    --embind-emit-tsd perspective-server.d.ts \
     --source-map-base \"\" \
     --memory-init-file 0 \
     --no-entry \

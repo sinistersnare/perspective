@@ -36,9 +36,9 @@
 #include <perspective/raw_types.h>
 #include <sstream>
 #include <stdlib.h>
-#if defined(PSP_DEBUG) && defined(PSP_ENABLE_WASM)
-#include <emscripten.h>
-#endif
+// #if defined(PSP_DEBUG) && defined(PSP_ENABLE_WASM)
+// #include <emscripten.h>
+// #endif
 
 namespace perspective {
 

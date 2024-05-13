@@ -64,6 +64,4 @@ if (
 }
 
 await run_with_scope`clean`;
-console.log("CLEANED!!??");
 clean("docs/build", "docs/python", "docs/obj");
-console.log("FULLY DONE");

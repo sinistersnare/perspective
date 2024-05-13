@@ -14,10 +14,10 @@
 import perspective_server_wasm from "../../dist/pkg/node/perspective-server.wasm";
 
 // @ts-ignore
-import perspective_client_wasm from "../../dist/pkg/perspective.wasm";
+import perspective_client_wasm from "../../dist/pkg/perspective-js.wasm";
 
 import * as perspective_server from "../../dist/pkg/node/perspective-server.js";
-import * as perspective_client from "../../dist/pkg/perspective.js";
+import * as perspective_client from "../../dist/pkg/perspective-js.js";
 import { load_wasm_stage_0 } from "./decompress.js";
 import { EmscriptenApi, Srvr } from "./engine.js";
 import WebSocket from "ws";

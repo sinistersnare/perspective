@@ -16,14 +16,14 @@
 #include <perspective/raw_types.h>
 #include <perspective/schema.h>
 
-#ifdef PSP_ENABLE_WASM
-#include <emscripten.h>
-#include <emscripten/val.h>
-typedef emscripten::val t_kernel;
-namespace em = emscripten;
-#else
-typedef perspective::t_str t_kernel;
-#endif
+// #ifdef PSP_ENABLE_WASM
+// #include <emscripten.h>
+// #include <emscripten/val.h>
+// typedef emscripten::val t_kernel;
+// namespace em = emscripten;
+// #else
+// typedef perspective::t_str t_kernel;
+// #endif
 
 namespace perspective {
 
