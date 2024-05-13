@@ -20,6 +20,8 @@
 #include <perspective/tracing.h>
 #include <perspective/utils.h>
 
+#include <string>
+#include <fstream>
 #include <sstream>
 #include <utility>
 namespace perspective {

@@ -53,6 +53,7 @@ app.ws("/subscribe", (ws) => {
 
 app.use("/", (x, y) => cwd_static_file_handler(x, y, ["dist/"]));
 
+console.log("LISTENING???");
 const server = app.listen(8080, () =>
     console.log(`Listening on port ${server.address().port}`)
 );

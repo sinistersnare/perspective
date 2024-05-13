@@ -16,42 +16,43 @@
 
 class ProtoApiServer::ProtoApiServerImpl {
 public:
-  std::unique_ptr<perspective::server::ProtoServer> m_server;
-  ProtoApiServerImpl();
-  ~ProtoApiServerImpl();
+    std::unique_ptr<perspective::server::ProtoServer> m_server;
+    ProtoApiServerImpl();
+    ~ProtoApiServerImpl();
 };
 
-ProtoApiServer::ProtoApiServer()
-    : m_impl(std::make_unique<ProtoApiServer::ProtoApiServerImpl>()) {}
+ProtoApiServer::ProtoApiServer() :
+    m_impl(std::make_unique<ProtoApiServer::ProtoApiServerImpl>()) {}
 ProtoApiServer::~ProtoApiServer() = default;
 
-ProtoApiServer::ProtoApiServerImpl::ProtoApiServerImpl()
-    : m_server(std::make_unique<perspective::server::ProtoServer>()) {}
+ProtoApiServer::ProtoApiServerImpl::ProtoApiServerImpl() :
+    m_server(std::make_unique<perspective::server::ProtoServer>()) {}
 ProtoApiServer::ProtoApiServerImpl::~ProtoApiServerImpl() = default;
 
 std::vector<ProtoApiResponse>
-ProtoApiServer::handle_message(std::uint32_t client_id,
-                               const std::string &data) const {
-  auto responses = m_impl->m_server->handle_message(client_id, data);
-  std::vector<ProtoApiResponse> results;
-  for (const auto &msg : responses) {
-    ProtoApiResponse resp;
-    resp.client_id = msg.client_id;
-    resp.data = msg.data;
-    results.push_back(resp);
-  }
+ProtoApiServer::handle_message(std::uint32_t client_id, const std::string& data)
+    const {
+    auto responses = m_impl->m_server->handle_message(client_id, data);
+    std::vector<ProtoApiResponse> results;
+    for (const auto& msg : responses) {
+        ProtoApiResponse resp;
+        resp.client_id = msg.client_id;
+        resp.data = msg.data;
+        results.push_back(resp);
+    }
 
-  return results;
+    return results;
 }
 
-std::vector<ProtoApiResponse> ProtoApiServer::poll() {
-  std::vector<ProtoApiResponse> results;
-  for (const auto &msg : m_impl->m_server->poll()) {
-    ProtoApiResponse resp;
-    resp.client_id = msg.client_id;
-    resp.data = msg.data;
-    results.push_back(resp);
-  }
+std::vector<ProtoApiResponse>
+ProtoApiServer::poll() {
+    std::vector<ProtoApiResponse> results;
+    for (const auto& msg : m_impl->m_server->poll()) {
+        ProtoApiResponse resp;
+        resp.client_id = msg.client_id;
+        resp.data = msg.data;
+        results.push_back(resp);
+    }
 
-  return results;
+    return results;
 }

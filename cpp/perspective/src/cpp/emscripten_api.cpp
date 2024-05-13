@@ -10,13 +10,9 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-#include "absl/meta/type_traits.h"
 #include "perspective/exports.h"
 #include <algorithm>
 #include <cstdint>
-// #include <perspective/emscripten.h>
-// #include <perspective/emscripten_api_utils.h>
-#include <array>
 #include <perspective/proto_api.h>
 #include <string>
 #include <tsl/hopscotch_map.h>
@@ -24,34 +20,37 @@
 // TODO: use uintptr_t instead of size_t.
 
 /// places a 32 bit number at the first 4 bytes of the given address
-void place_number(std::uint32_t num, std::uint8_t *addr) {
-  addr[0] = num & 0x000000ff;
-  addr[1] = (num & 0x0000ff00) >> 8;
-  addr[2] = (num & 0x00ff0000) >> 16;
-  addr[3] = (num & 0xff000000) >> 24;
-  //   std::copy(reinterpret_cast<std::uint8_t *>(num),
-  //             reinterpret_cast<std::uint8_t *>(num + sizeof(num)), addr);
+void
+place_number(std::uint32_t num, std::uint8_t* addr) {
+    addr[0] = num & 0x000000ff;
+    addr[1] = (num & 0x0000ff00) >> 8;
+    addr[2] = (num & 0x00ff0000) >> 16;
+    addr[3] = (num & 0xff000000) >> 24;
+    //   std::copy(reinterpret_cast<std::uint8_t *>(num),
+    //             reinterpret_cast<std::uint8_t *>(num + sizeof(num)), addr);
 }
 
 /// copies the given vector into a new memory region that is encoded
 /// for easy reading
-size_t encode_vec(std::vector<std::uint8_t> vec) {
-  // TODO: this is 32-bit only! wasm64 beware
-  auto *new_ptr = (std::uint32_t *)malloc(vec.size() + sizeof(std::uint32_t));
-  *new_ptr = vec.size();
-  // place_number(size, new_ptr);
-  std::copy(vec.begin(), vec.end(), (std::uint8_t *)(new_ptr + 1));
-  return (size_t)new_ptr;
+size_t
+encode_vec(std::vector<std::uint8_t> vec) {
+    // TODO: this is 32-bit only! wasm64 beware
+    auto* new_ptr = (std::uint32_t*)malloc(vec.size() + sizeof(std::uint32_t));
+    *new_ptr = vec.size();
+    // place_number(size, new_ptr);
+    std::copy(vec.begin(), vec.end(), (std::uint8_t*)(new_ptr + 1));
+    return (size_t)new_ptr;
 }
 
-size_t encode_string(std::string s) {
-  std::vector<uint8_t> vec(s.begin(), s.end());
-  return encode_vec(vec);
+size_t
+encode_string(std::string s) {
+    std::vector<uint8_t> vec(s.begin(), s.end());
+    return encode_vec(vec);
 }
 
 struct EncodedApiResp {
-  size_t data;
-  std::uint32_t client_id;
+    size_t data;
+    std::uint32_t client_id;
 };
 
 /// The size_t is a pointer that points to an object:
@@ -59,56 +58,73 @@ struct EncodedApiResp {
 /// The string (data) is a (len,data) tuple.
 /// The string is copied and leaked and so is the pointer here.
 /// TODO: we need to make a lot of complex `free`ing procedures.
-EncodedApiResp *encode_api_response(const ProtoApiResponse &msg) {
-  size_t data = encode_string(msg.data);
-  auto *encoded = (EncodedApiResp *)malloc(sizeof(EncodedApiResp));
-  encoded->data = data;
-  encoded->client_id = msg.client_id;
+EncodedApiResp*
+encode_api_response(const ProtoApiResponse& msg) {
+    size_t data = encode_string(msg.data);
+    auto* encoded = (EncodedApiResp*)malloc(sizeof(EncodedApiResp));
+    encoded->data = data;
+    encoded->client_id = msg.client_id;
 
-  return encoded;
+    return encoded;
 }
 
-size_t encode_api_responses(const std::vector<ProtoApiResponse> &msgs) {
-  auto *encoded = (std::uint32_t *)malloc(msgs.size() + sizeof(std::uint32_t));
-  *encoded = msgs.size();
-  auto *encoded_mem = (std::size_t *)(encoded + 1);
-  for (int i = 0; i < *encoded; i++) {
-    encoded_mem[i] = (size_t)encode_api_response(msgs[i]);
-  }
-  return (size_t)encoded;
+size_t
+encode_api_responses(const std::vector<ProtoApiResponse>& msgs) {
+    auto* encoded = (std::uint32_t*)malloc(msgs.size() + sizeof(std::uint32_t));
+    *encoded = msgs.size();
+    auto* encoded_mem = (std::size_t*)(encoded + 1);
+    for (int i = 0; i < *encoded; i++) {
+        encoded_mem[i] = (size_t)encode_api_response(msgs[i]);
+    }
+    return (size_t)encoded;
 }
 
 extern "C" {
 
 PERSPECTIVE_EXPORT
-ProtoApiServer *js_new_server() {
-  auto *server = new ProtoApiServer;
-  return server;
+ProtoApiServer*
+js_new_server() {
+    auto* server = new ProtoApiServer;
+    return server;
 }
 
 PERSPECTIVE_EXPORT
-size_t js_handle_message(ProtoApiServer *server, std::uint32_t client_id,
-                         char *msg_ptr, std::size_t msg_len) {
-  std::string msg(msg_ptr, msg_len);
-  auto msgs = server->handle_message(client_id, msg);
-  return encode_api_responses(msgs);
+size_t
+js_handle_message(
+    ProtoApiServer* server,
+    std::uint32_t client_id,
+    char* msg_ptr,
+    std::size_t msg_len
+) {
+    std::string msg(msg_ptr, msg_len);
+    auto msgs = server->handle_message(client_id, msg);
+    return encode_api_responses(msgs);
 }
 
 PERSPECTIVE_EXPORT
-void js_poll() {}
-
-PERSPECTIVE_EXPORT
-std::size_t js_alloc(std::size_t size) {
-  auto *mem = (char *)malloc(size);
-  return (size_t)mem;
+size_t
+js_poll(ProtoApiServer* server) {
+    auto responses = server->poll();
+    return encode_api_responses(responses);
 }
 
 PERSPECTIVE_EXPORT
-void js_free(void *ptr) { free(ptr); }
+std::size_t
+js_alloc(std::size_t size) {
+    auto* mem = (char*)malloc(size);
+    return (size_t)mem;
+}
+
+PERSPECTIVE_EXPORT
+void
+js_free(void* ptr) {
+    free(ptr);
+}
 
 } // end extern "C"
 
-void js_delete_server(void *proto_server) {
-  auto *server = (ProtoApiServer *)proto_server;
-  delete server;
+void
+js_delete_server(void* proto_server) {
+    auto* server = (ProtoApiServer*)proto_server;
+    delete server;
 }

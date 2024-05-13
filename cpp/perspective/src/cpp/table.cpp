@@ -1040,7 +1040,6 @@ Table::from_cols(
         for (const auto& cell : col.value.GetArray()) {
             auto col = data_table.get_column(col_name);
             auto promote = fill_column_json(col, ii, cell, false);
-            LOG_DEBUG("PROMOTE_RESPONSE: " << promote.value_or(DTYPE_NONE));
             if (promote) {
                 LOG_DEBUG(
                     "Promoting column " << col_name << " from "
@@ -1295,7 +1294,6 @@ Table::from_rows(
             const auto* col_name = it.name.GetString();
             const auto& cell = it.value;
             auto promote = fill_column_json(col, ii, cell, false);
-            LOG_DEBUG("PROMOTE_RESPONSE: " << promote.value_or(DTYPE_NONE));
             if (promote) {
                 LOG_DEBUG(
                     "Promoting column " << col_name << " from "

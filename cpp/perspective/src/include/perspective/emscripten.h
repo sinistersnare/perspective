@@ -26,38 +26,43 @@ typedef emscripten::val t_val;
 
 namespace perspective {
 namespace binding {
-/**
- * @brief Helper function for creating `std::vector`s for use in Javascript.
- *
- * @tparam T
- * @return std::vector<T>
- */
-template <typename T> std::vector<T> make_vector();
+    /**
+     * @brief Helper function for creating `std::vector`s for use in Javascript.
+     *
+     * @tparam T
+     * @return std::vector<T>
+     */
+    template <typename T>
+    std::vector<T> make_vector();
 
-/**
- * @brief namespace `js_typed_array` contains utility bindings that
- * initialize typed arrays using Emscripten.
- *
- */
-namespace js_typed_array {} // namespace js_typed_array
+    /**
+     * @brief namespace `js_typed_array` contains utility bindings that
+     * initialize typed arrays using Emscripten.
+     *
+     */
+    namespace js_typed_array {} // namespace js_typed_array
 
-/**
- * @brief Given a vector of scalar data objects, write it into a typed
- * array.
- *
- * @tparam T
- * @tparam T
- * @tparam T
- */
-template <typename T, typename F = T, typename O = T>
-t_val col_to_typed_array(const std::vector<t_tscalar> &data);
+    /**
+     * @brief Given a vector of scalar data objects, write it into a typed
+     * array.
+     *
+     * @tparam T
+     * @tparam T
+     * @tparam T
+     */
+    template <typename T, typename F = T, typename O = T>
+    t_val col_to_typed_array(const std::vector<t_tscalar>& data);
 
-// Date parsing
-t_date jsdate_to_t_date(t_val date);
-t_val t_date_to_jsdate(t_date date);
+    // Date parsing
+    t_date jsdate_to_t_date(t_val date);
+    t_val t_date_to_jsdate(t_date date);
 
-template <> t_val scalar_to(const t_tscalar &scalar);
-t_val scalar_to_val(const t_tscalar &scalar, bool cast_double = false,
-                    bool cast_string = false);
+    template <>
+    t_val scalar_to(const t_tscalar& scalar);
+    t_val scalar_to_val(
+        const t_tscalar& scalar,
+        bool cast_double = false,
+        bool cast_string = false
+    );
 } // namespace binding
 } // namespace perspective

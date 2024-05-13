@@ -57,7 +57,7 @@ self.addEventListener("message", async (msg) => {
     const id = msg.data.id;
     if (msg.data.cmd === "init") {
         await init(new Uint8Array(msg.data.args[0]));
-        let mod: EmscriptenApi = await psp.module;
+        let mod = (await psp.module) as EmscriptenApi;
         protoServer = new Srvr(mod, CLIENT_ID);
         self.postMessage({ id });
     } else {
@@ -100,6 +100,7 @@ async function init(wasmBinary) {
         },
     });
 
+    await perspective.init();
     psp.loaded(perspective);
 }
 

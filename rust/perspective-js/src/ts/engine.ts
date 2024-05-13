@@ -22,7 +22,7 @@ export interface EmscriptenApi {
     _js_alloc(size: number): number;
     _js_free(ptr: number): void;
     _js_new_server(): RawServer;
-    _js_delete_server(server: RawServer);
+    _js_delete_server(server: RawServer): void;
     _js_handle_message(
         server: RawServer,
         client_id: number,
@@ -44,6 +44,7 @@ export class Srvr {
     constructor(raw: EmscriptenApi, client_id: number) {
         this.mod = raw;
         this.server = this.mod._js_new_server();
+        this.client_id = client_id;
     }
 
     handle_message(view: Uint8Array): ApiResponse[] {
@@ -63,8 +64,9 @@ export class Srvr {
         return decode_api_responses(this.mod, ptr);
     }
 
-    poll() {
-        this.mod._js_poll(this.server);
+    poll(): ApiResponse[] {
+        const polled = this.mod._js_poll(this.server);
+        return decode_api_responses(this.mod, polled);
     }
 
     delete() {

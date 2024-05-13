@@ -29,12 +29,12 @@ namespace perspective {
 
 class t_kernel_evaluator {
 public:
-  t_kernel_evaluator();
-  //   template <typename T>
-  // T reduce(const t_kernel& fn, t_uindex lvl_depth, std::vector<T> data);
+    t_kernel_evaluator();
+    //   template <typename T>
+    // T reduce(const t_kernel& fn, t_uindex lvl_depth, std::vector<T> data);
 
 private:
-  std::vector<uint8_t> m_kernels;
+    std::vector<uint8_t> m_kernels;
 };
 
 // #ifdef PSP_ENABLE_WASM
@@ -58,6 +58,6 @@ private:
 // }
 // #endif
 
-t_kernel_evaluator *get_evaluator();
+t_kernel_evaluator* get_evaluator();
 
 } // namespace perspective
