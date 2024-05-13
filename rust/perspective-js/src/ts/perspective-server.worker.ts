@@ -11,7 +11,7 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 import load_perspective from "../../dist/pkg/web/perspective-server.js";
-import { load_wasm_stage_0 } from "./decompress";
+import { load_wasm_stage_0 } from "./decompress.js";
 import { Srvr, EmscriptenApi } from "./engine.js";
 
 class PspModule {

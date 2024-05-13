@@ -31,7 +31,7 @@ import { webcrypto } from "node:crypto";
 import type * as net from "node:net";
 import type { TableInitOptions } from "./ts-rs/TableInitOptions.js";
 
-export type * from "../../dist/pkg/perspective.d.ts";
+// export type * from "../../dist/pkg/perspective.d.ts";
 
 if (!globalThis.crypto) {
     globalThis.crypto = webcrypto as Crypto;
