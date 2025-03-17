@@ -87,6 +87,7 @@ impl CopyDropDownMenuElement {
             move |x: ExportFile| {
                 let model = model.clone();
                 let modal = modal_rc.borrow().clone().unwrap();
+                // TODO clean me up
                 spawn_local(async move {
                     let mime = x.method.mimetype(x.is_chart);
                     let task = model.export_method_to_jsvalue(x.method);

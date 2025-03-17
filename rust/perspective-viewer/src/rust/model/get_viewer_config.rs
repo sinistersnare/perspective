@@ -51,6 +51,7 @@ pub trait GetViewerConfigModel: HasSession + HasRenderer + HasPresentation {
         let plugin_config: serde_json::Value = js_plugin.save()?.into_serde_ext()?;
         let theme = self.presentation().get_selected_theme_name().await;
         let title = self.presentation().get_title();
+        let table = self.session().get_table().map(|x| x.get_name().to_owned());
         let columns_config = self.presentation().all_columns_configs();
         Ok(ViewerConfig {
             version,
@@ -59,6 +60,7 @@ pub trait GetViewerConfigModel: HasSession + HasRenderer + HasPresentation {
             plugin_config,
             columns_config,
             settings,
+            table,
             view_config,
             theme,
         })

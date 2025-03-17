@@ -101,55 +101,68 @@ pub trait CopyExportModel:
         let viewport = self.renderer().get_selection();
 
         match method {
-            ExportMethod::Csv => self.session().csv_as_jsvalue(false, None).await?.as_blob(),
-            ExportMethod::CsvSelected => self
-                .session()
-                .csv_as_jsvalue(false, viewport)
-                .await?
-                .as_blob(),
-            ExportMethod::CsvAll => self.session().csv_as_jsvalue(true, None).await?.as_blob(),
-            ExportMethod::Json => self.session().json_as_jsvalue(false, None).await?.as_blob(),
-            ExportMethod::JsonSelected => self
-                .session()
-                .json_as_jsvalue(false, viewport)
-                .await?
-                .as_blob(),
-            ExportMethod::JsonAll => self.session().json_as_jsvalue(true, None).await?.as_blob(),
-            ExportMethod::Ndjson => self
-                .session()
-                .ndjson_as_jsvalue(false, None)
-                .await?
-                .as_blob(),
-            ExportMethod::NdjsonSelected => self
-                .session()
-                .ndjson_as_jsvalue(false, viewport)
-                .await?
-                .as_blob(),
-            ExportMethod::NdjsonAll => self
-                .session()
-                .ndjson_as_jsvalue(true, None)
-                .await?
-                .as_blob(),
-            ExportMethod::Arrow => self
-                .session()
-                .arrow_as_jsvalue(false, None)
-                .await?
-                .as_blob(),
-            ExportMethod::ArrowSelected => self
-                .session()
-                .arrow_as_jsvalue(false, viewport)
-                .await?
-                .as_blob(),
-            ExportMethod::ArrowAll => self.session().arrow_as_jsvalue(true, None).await?.as_blob(),
+            ExportMethod::Csv => {
+                let session = self.session().clone();
+                session.csv_as_jsvalue(false, None).await?.as_blob()
+            },
+            ExportMethod::CsvSelected => {
+                let session = self.session().clone();
+                session.csv_as_jsvalue(false, viewport).await?.as_blob()
+            },
+            ExportMethod::CsvAll => {
+                let session = self.session().clone();
+                session.csv_as_jsvalue(true, None).await?.as_blob()
+            },
+            ExportMethod::Json => {
+                let session = self.session().clone();
+                session.json_as_jsvalue(false, None).await?.as_blob()
+            },
+            ExportMethod::JsonSelected => {
+                let session = self.session().clone();
+                session.json_as_jsvalue(false, viewport).await?.as_blob()
+            },
+            ExportMethod::JsonAll => {
+                let session = self.session().clone();
+                session.json_as_jsvalue(true, None).await?.as_blob()
+            },
+            ExportMethod::Ndjson => {
+                let session = self.session().clone();
+                session.ndjson_as_jsvalue(false, None).await?.as_blob()
+            },
+            ExportMethod::NdjsonSelected => {
+                let session = self.session().clone();
+
+                session.ndjson_as_jsvalue(false, viewport).await?.as_blob()
+            },
+            ExportMethod::NdjsonAll => {
+                let session = self.session().clone();
+                session.ndjson_as_jsvalue(true, None).await?.as_blob()
+            },
+            ExportMethod::Arrow => {
+                let session = self.session().clone();
+                session.arrow_as_jsvalue(false, None).await?.as_blob()
+            },
+            ExportMethod::ArrowSelected => {
+                let session = self.session().clone();
+                session.arrow_as_jsvalue(false, viewport).await?.as_blob()
+            },
+            ExportMethod::ArrowAll => {
+                let session = self.session().clone();
+                session.arrow_as_jsvalue(true, None).await?.as_blob()
+            },
             ExportMethod::Html => self.html_as_jsvalue().await,
+            ExportMethod::Png => self.png_as_jsvalue().await,
+            ExportMethod::JsonConfig => {
+                let config_task = self.get_viewer_config();
+
+                config_task
+                    .await?
+                    .encode(&Some(ViewerConfigEncoding::JSONString))?
+                    .dyn_into::<js_sys::JsString>()?
+                    .as_blob()
+            },
             ExportMethod::Plugin if self.renderer().is_chart() => self.png_as_jsvalue().await,
             ExportMethod::Plugin => self.txt_as_jsvalue(viewport).await,
-            ExportMethod::JsonConfig => self
-                .get_viewer_config()
-                .await?
-                .encode(&Some(ViewerConfigEncoding::JSONString))?
-                .dyn_into::<js_sys::JsString>()?
-                .as_blob(),
         }
     }
 }

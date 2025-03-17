@@ -73,6 +73,7 @@ pub trait RestoreAndRender: HasRenderer + HasSession + HasPresentation {
                 session.set_update_column_defaults(&mut view_config, &metadata);
             }
 
+            let is_visible = presentation.is_visible();
             session.update_view_config(view_config)?;
             let draw_task = renderer.draw(async {
                 task.await?;
@@ -87,13 +88,16 @@ pub trait RestoreAndRender: HasRenderer + HasSession + HasPresentation {
                 presentation.update_columns_configs(columns_config);
                 let columns_config = presentation.all_columns_configs();
                 plugin.restore(&plugin_update, Some(&columns_config))?;
-
                 // The previous call which acquired the lock errored, so skip this render
                 if let Some(error) = session.get_error() {
                     return Err(error);
                 }
-
-                session.validate().await?.create_view().await
+                let result = session.validate().await?.create_view().await?;
+                if is_visible {
+                    Ok(result)
+                } else {
+                    Err(ApiError::new("Frame dropped"))
+                }
             });
 
             draw_task.await?;
