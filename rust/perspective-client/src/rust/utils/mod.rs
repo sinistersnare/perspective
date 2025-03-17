@@ -75,6 +75,9 @@ pub enum ClientError {
     DuplicateNameError(String),
 }
 
+unsafe impl Send for ClientError {}
+unsafe impl Sync for ClientError {}
+
 pub type ClientResult<T> = Result<T, ClientError>;
 
 impl From<Box<dyn std::error::Error + Send + Sync>> for ClientError {

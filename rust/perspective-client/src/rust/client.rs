@@ -17,6 +17,7 @@ use std::sync::Arc;
 use async_lock::{Mutex, RwLock};
 use futures::Future;
 use futures::future::{BoxFuture, LocalBoxFuture, join_all};
+use nanoid::*;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
@@ -539,7 +540,7 @@ impl Client {
     ///
     /// ```rust
     /// let tables = client.open_table("table_one").await;
-    /// ```  
+    /// ```
     pub async fn open_table(&self, entity_id: String) -> ClientResult<Table> {
         let infos = self.get_table_infos().await?;
 
@@ -601,7 +602,7 @@ impl Client {
                     on_update().await;
                     Ok(())
                 },
-                resp => Err(resp.into()),
+                resp => Err(ClientError::OptionResponseFailed(resp.into())),
             }
         });
 
