@@ -10,13 +10,19 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-mod server_async;
-mod server_sync;
-pub(crate) mod session_async;
-pub(crate) mod session_sync;
-pub(crate) mod virtual_server_sync;
+//! Virtual server implementation for Perspective.
+//!
+//! This module provides a virtual server that can process Perspective protocol
+//! messages and delegate operations to a custom backend handler.
 
-pub use server_async::*;
-pub use server_sync::*;
-pub use session_async::PyAsyncSession;
-pub use session_sync::PySession;
+mod data;
+mod error;
+mod features;
+mod handler;
+mod server;
+
+pub use data::{SetVirtualDataColumn, VirtualDataCell, VirtualDataColumn, VirtualDataSlice};
+pub use error::{ResultExt, VirtualServerError};
+pub use features::{AggSpec, Features};
+pub use handler::{VirtualServerFuture, VirtualServerHandler};
+pub use server::VirtualServer;

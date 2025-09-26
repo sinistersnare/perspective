@@ -10,13 +10,49 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-mod server_async;
-mod server_sync;
-pub(crate) mod session_async;
-pub(crate) mod session_sync;
-pub(crate) mod virtual_server_sync;
+use prost::{DecodeError, EncodeError};
+use thiserror::Error;
 
-pub use server_async::*;
-pub use server_sync::*;
-pub use session_async::PyAsyncSession;
-pub use session_sync::PySession;
+/// Error type for virtual server operations.
+///
+/// This enum represents the various errors that can occur when processing
+/// requests through a [`VirtualServer`](super::VirtualServer).
+#[derive(Clone, Error, Debug)]
+pub enum VirtualServerError<T: std::fmt::Debug> {
+    #[error("External Error: {0:?}")]
+    InternalError(#[from] T),
+
+    #[error("{0}")]
+    DecodeError(DecodeError),
+
+    #[error("{0}")]
+    EncodeError(EncodeError),
+
+    #[error("Unknown view '{0}'")]
+    UnknownViewId(String),
+
+    #[error("Invalid JSON'{0}'")]
+    InvalidJSON(std::sync::Arc<serde_json::Error>),
+
+    #[error("{0}")]
+    Other(String),
+}
+
+/// Extension trait for extracting internal errors from [`VirtualServerError`]
+/// results.
+///
+/// Provides a method to distinguish between internal handler errors and other
+/// virtual server errors.
+pub trait ResultExt<X, T> {
+    fn get_internal_error(self) -> Result<X, Result<T, String>>;
+}
+
+impl<X, T: std::fmt::Debug> ResultExt<X, T> for Result<X, VirtualServerError<T>> {
+    fn get_internal_error(self) -> Result<X, Result<T, String>> {
+        match self {
+            Ok(x) => Ok(x),
+            Err(VirtualServerError::InternalError(x)) => Err(Ok(x)),
+            Err(x) => Err(Err(x.to_string())),
+        }
+    }
+}
