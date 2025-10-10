@@ -22,11 +22,6 @@ import type {
     SelectedPosition,
 } from "../types.js";
 
-import { cell_style_numeric } from "./table_cell/numeric.js";
-import { cell_style_string } from "./table_cell/string.js";
-import { cell_style_datetime } from "./table_cell/datetime.js";
-import { cell_style_boolean } from "./table_cell/boolean.js";
-import { cell_style_row_header } from "./table_cell/row_header.js";
 import { applyFocusStyle } from "./focus.js";
 import { styleColumnHeaderRow } from "./column_header.js";
 import { applyColumnHeaderStyles } from "./editable.js";
@@ -117,13 +112,8 @@ export function createConsolidatedStyleListener(
 
         // Toggle edit mode class on datagrid
         datagrid.classList.toggle("edit-mode-allowed", isEditableAllowed);
-
-        // ========== PHASE 1: Collect all metadata (READ PHASE) ==========
         const bodyCells: CollectedCell[] = [];
-        const headerCells: CollectedCell[] = [];
         const groupHeaderRows: CollectedHeaderRow[] = [];
-
-        // Collect body cells (tbody)
         const tbody = regularTable.children[0]?.children[1];
         if (tbody) {
             for (const tr of tbody.children) {
@@ -131,6 +121,7 @@ export function createConsolidatedStyleListener(
                     const metadata = regularTable.getMeta(cell) as
                         | CellMetaExtended
                         | undefined;
+
                     if (metadata) {
                         const isHeader = cell.tagName === "TH";
                         bodyCells.push({
@@ -151,10 +142,12 @@ export function createConsolidatedStyleListener(
                     row: tr as HTMLTableRowElement,
                     cells: [],
                 };
+
                 for (const cell of tr.children) {
                     const metadata = regularTable.getMeta(cell) as
                         | CellMetadata
                         | undefined;
+
                     rowData.cells.push({
                         element: cell as HTMLTableCellElement,
                         metadata,
@@ -164,9 +157,6 @@ export function createConsolidatedStyleListener(
             }
         }
 
-        // ========== PHASE 2: Apply all styles (WRITE PHASE) ==========
-
-        // 2a. Style body cells
         this._applyBodyCellStyles(
             bodyCells,
             plugins,
@@ -179,18 +169,12 @@ export function createConsolidatedStyleListener(
             viewer,
         );
 
-        // 2b. Style group headers
         this._applyGroupHeaderStyles(groupHeaderRows, regularTable);
-
-        // 2c. Style column headers
         this._applyColumnHeaderStyles(groupHeaderRows, regularTable, viewer);
-
-        // 2d. Apply focus
         this._applyFocusStyle(bodyCells, regularTable, selectedPositionMap);
     };
 }
 
-// Extend DatagridModel prototype with styling methods
 declare module "../types.js" {
     interface DatagridModel {
         _applyBodyCellStyles(

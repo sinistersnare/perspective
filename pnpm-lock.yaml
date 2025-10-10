@@ -151,8 +151,8 @@ catalogs:
       specifier: ^18
       version: 18.3.1
     regular-table:
-      specifier: '=0.7.1'
-      version: 0.7.1
+      specifier: '=0.7.2'
+      version: 0.7.2
     stoppable:
       specifier: '=1.1.0'
       version: 1.1.0
@@ -412,6 +412,31 @@ importers:
         version: 0.25.11
 
   examples/python-aiohttp: {}
+
+  examples/python-duckdb-virtual:
+    dependencies:
+      '@perspective-dev/client':
+        specifier: workspace:^
+        version: link:../../rust/perspective-js
+      '@perspective-dev/viewer':
+        specifier: workspace:^
+        version: link:../../rust/perspective-viewer
+      '@perspective-dev/viewer-d3fc':
+        specifier: workspace:^
+        version: link:../../packages/viewer-d3fc
+      '@perspective-dev/viewer-datagrid':
+        specifier: workspace:^
+        version: link:../../packages/viewer-datagrid
+      '@perspective-dev/workspace':
+        specifier: workspace:^
+        version: link:../../packages/workspace
+      superstore-arrow:
+        specifier: 'catalog:'
+        version: 3.2.0
+    devDependencies:
+      npm-run-all:
+        specifier: 'catalog:'
+        version: 4.1.5
 
   examples/python-starlette: {}
 
@@ -754,7 +779,7 @@ importers:
         version: 3.1.2
       regular-table:
         specifier: 'catalog:'
-        version: 0.7.1
+        version: 0.7.2
     devDependencies:
       '@perspective-dev/esbuild-plugin':
         specifier: 'workspace:'
@@ -7722,8 +7747,8 @@ packages:
     resolution: {integrity: sha512-NZQZdC5wOE/H3UT28fVGL+ikOZcEzfMGk/c3iN9UGxzWHMa1op7274oyiUVrAG4B2EuFhus8SvkaYnhvW92p9Q==}
     hasBin: true
 
-  regular-table@0.7.1:
-    resolution: {integrity: sha512-dIt9z+ZIHEhLujDbDMcuwJPZK6HVKFL1qnvyaUHrAbFx8/SoHJyvktwJdNpMkRfFwEdkmBYmtd5dei5BymxvZg==}
+  regular-table@0.7.2:
+    resolution: {integrity: sha512-IyAlxssZF6TGPh620Sjym6/7DH1pUPLFp816P4/0xFovU4oXi+40p5wRfTOQxlvIz73Sz6pb90hvKcrDsPnBBw==}
     engines: {node: '>=16'}
 
   rehype-raw@7.0.0:
@@ -17636,7 +17661,7 @@ snapshots:
     dependencies:
       jsesc: 3.1.0
 
-  regular-table@0.7.1: {}
+  regular-table@0.7.2: {}
 
   rehype-raw@7.0.0:
     dependencies:

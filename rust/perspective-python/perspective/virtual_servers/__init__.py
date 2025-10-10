@@ -81,9 +81,6 @@ class VirtualSessionModel:
 
         pass
 
-    def table_columns_size(self, table_name, config):
-        pass
-
     def table_size(self, table_name):
         """
         Get a table's row count. Optionally, a model may also implement the
