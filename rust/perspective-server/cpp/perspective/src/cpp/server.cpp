@@ -1266,23 +1266,19 @@ coerce_to(const t_dtype dtype, const A& val) {
             case DTYPE_BOOL:
                 scalar.set(val == 1);
                 return scalar;
-            case DTYPE_UINT32:
-                scalar.set((std::uint32_t)val);
-                return scalar;
-            case DTYPE_UINT64:
-                scalar.set((std::uint64_t)val);
-                return scalar;
+            case DTYPE_UINT8:
+            case DTYPE_UINT16:
+            case DTYPE_INT8:
+            case DTYPE_INT16:
             case DTYPE_INT32:
-                scalar.set(val);
+                scalar.set(static_cast<std::int32_t>(val));
                 return scalar;
             case DTYPE_INT64:
-                scalar.set((std::int64_t)val);
-                return scalar;
+            case DTYPE_UINT32:
+            case DTYPE_UINT64:
             case DTYPE_FLOAT32:
-                scalar.set(static_cast<float>(val));
-                return scalar;
             case DTYPE_FLOAT64:
-                scalar.set(val);
+                scalar.set(static_cast<double>(val));
                 return scalar;
             case DTYPE_DATE: {
                 const auto time = static_cast<time_t>(val / 1000);
@@ -1302,7 +1298,9 @@ coerce_to(const t_dtype dtype, const A& val) {
                 return scalar;
             }
             default:
-                PSP_COMPLAIN_AND_ABORT("Unsupported double type");
+                std::stringstream ss;
+                ss << "Unsupported double type: " << dtype;
+                PSP_COMPLAIN_AND_ABORT(ss.str());
         }
     } else if constexpr (std::is_same_v<A, std::int32_t>) {
         return t_tscalar(val);
