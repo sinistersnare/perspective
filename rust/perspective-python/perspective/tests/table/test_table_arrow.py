@@ -15,8 +15,11 @@ import numpy as np
 import pandas as pd
 from perspective.tests.conftest import Util
 import pyarrow as pa
+import pyarrow.ipc as ipc
 from datetime import date, datetime
 import perspective as psp
+import io
+
 
 client = psp.Server().new_local_client()
 Table = client.table
@@ -25,11 +28,38 @@ DATE32_ARROW = os.path.join(os.path.dirname(__file__), "arrow", "date32.arrow")
 DATE64_ARROW = os.path.join(os.path.dirname(__file__), "arrow", "date64.arrow")
 DICT_ARROW = os.path.join(os.path.dirname(__file__), "arrow", "dict.arrow")
 
+
 names = ["a", "b", "c", "d"]
 
+# Create sample data for every integer type
+ALL_INTEGERS_DATA = {
+    "int8": pa.array([1, 2, 3], type=pa.int8()),
+    "int16": pa.array([1000, 2000, 3000], type=pa.int16()),
+    "int32": pa.array([100000, 200000, 300000], type=pa.int32()),
+    "int64": pa.array([10000000000, 20000000000, 30000000000], type=pa.int64()),
+    "uint8": pa.array([1, 2, 3], type=pa.uint8()),
+    "uint16": pa.array([1000, 2000, 3000], type=pa.uint16()),
+    "uint32": pa.array([100000, 200000, 300000], type=pa.uint32()),
+    "uint64": pa.array([10000000000, 20000000000, 30000000000], type=pa.uint64()),
+    "float32": pa.array([100000.0, 200000.0, 300000.0], type=pa.float32()),
+    "float64": pa.array(
+        [10000000000.0, 20000000000.0, 30000000000.0], type=pa.float64()
+    ),
+}
+
+ALL_INTEGERS_TABLE = pa.Table.from_pydict(ALL_INTEGERS_DATA)
+
+bytes_io = io.BytesIO()
+with ipc.new_stream(bytes_io, ALL_INTEGERS_TABLE.schema) as stream:
+    stream.write_table(ALL_INTEGERS_TABLE)
+ALL_INTEGERS_ARROW = bytes_io.getvalue()
 
 class TestTableArrow(object):
-    # files
+    def test_table_with_integer_types(self):
+        tbl = Table(ALL_INTEGERS_ARROW)
+        for k, values in ALL_INTEGERS_DATA.items():
+            v = tbl.view(filter=[[k, "==", values[0].as_py()]])
+            assert len(v.to_json()) == 1
 
     def test_table_arrow_loads_date32_file(self, util: Util):
         with open(DATE32_ARROW, mode="rb") as file:  # b is important -> binary
