@@ -37,8 +37,6 @@ guidelines:
 - Make sure your PR passes _build_, _test_ and _lint_ steps _completely_ before
   opening a PR. Make _sure_ you've run these locally, even if you think your
   change will not impact this step!
-- Don't open a PR for auto-generated, AI-assisted or otherwise inauthentic
-  contributions.
 - Sign commits (e.g. with `-s`) in accordance with the DCO policy detailed
   below, _before_ opening a PR.
 - Please make sure PRs include the following _not optional_ components:
@@ -78,7 +76,8 @@ free to open a discussion on
 
 ## AI Assistance Notice
 
-This section was forked from [`ghostty](https://github.com/ghostty-org/ghostty),
+This section was forked from
+[`ghostty`](https://github.com/ghostty-org/ghostty),
 [MIT License](https://github.com/ghostty-org/ghostty/blob/main/LICENSE)
 ([File](https://github.com/ghostty-org/ghostty/pull/8289/files))
 ([PR](https://github.com/ghostty-org/ghostty/pull/8289)). Thanks @mitchellh!
