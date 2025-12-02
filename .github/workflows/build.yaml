@@ -955,9 +955,9 @@ jobs:
               with:
                   name: perspective-python-dist-aarch64-macos-14-3.9
 
-            - uses: actions/download-artifact@v4
-              with:
-                  name: perspective-python-dist-x86_64-macos-14-3.9
+            # - uses: actions/download-artifact@v4
+            #   with:
+            #       name: perspective-python-dist-x86_64-macos-14-3.9
 
             - uses: actions/download-artifact@v4
               with:

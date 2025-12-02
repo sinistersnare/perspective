@@ -88,4 +88,38 @@ applications.
 <td><a href="https://www.youtube.com/watch?v=0ut-ynvBpGI"><img width="240" src="https://img.youtube.com/vi/0ut-ynvBpGI/0.jpg" /></a></td>
 <td></td>
 </tr>
-</tbody></table>
+</tbody></table><br/><br/>
+
+---
+
+<br/>
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="https://github.com/openjs-foundation/artwork/raw/master/openjs_foundation/openjs_foundation-logo-horizontal-white.svg?raw=true">
+<img width="200" src="https://github.com/openjs-foundation/artwork/raw/master/openjs_foundation/openjs_foundation-logo-horizontal-black.svg?raw=true">
+</picture>
+<br/>
+<br/>
+<br/>
+
+The Perspective project is a member of the
+[The OpenJS Foundation](https://openjsf.org/).
+
+Copyright [OpenJS Foundation](https://openjsf.org) and Perspective contributors.
+All rights reserved. The [OpenJS Foundation](https://openjsf.org) has registered
+trademarks and uses trademarks. For a list of trademarks of the
+[OpenJS Foundation](https://openjsf.org), please see our
+[Trademark Policy](https://trademark-policy.openjsf.org/) and
+[Trademark List](https://trademark-list.openjsf.org/). Trademarks and logos not
+indicated on the
+[list of OpenJS Foundation trademarks](https://trademark-list.openjsf.org) are
+trademarks™ or registered® trademarks of their respective holders. Use of them
+does not imply any affiliation with or endorsement by them.
+
+[The OpenJS Foundation](https://openjsf.org/) |
+[Terms of Use](https://terms-of-use.openjsf.org/) |
+[Privacy Policy](https://privacy-policy.openjsf.org/) |
+[Bylaws](https://bylaws.openjsf.org/) |
+[Code of Conduct](https://code-of-conduct.openjsf.org) |
+[Trademark Policy](https://trademark-policy.openjsf.org/) |
+[Trademark List](https://trademark-list.openjsf.org/) |
+[Cookie Policy](https://www.linuxfoundation.org/cookies/)
