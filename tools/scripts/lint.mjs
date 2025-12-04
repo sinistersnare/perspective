@@ -53,6 +53,7 @@ if (import.meta.url.startsWith("file:")) {
         // if (process.env.PSP_PROJECT === "python") {
         // await import("./lint_python.mjs");
         // } else {
+
         await lint_js();
         lint_python();
         // }

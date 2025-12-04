@@ -90,7 +90,7 @@
         "test_python": "node tools/scripts/test_python.mjs",
         "clean": "node tools/scripts/clean.mjs",
         "start": "npm run start --workspace",
-        "prepush": "npm run lint",
+        "prepush": "node tools/scripts/prepush.mjs && npm run lint",
         "prepare": "husky install",
         "lint": "node tools/scripts/lint.mjs",
         "fix": "node tools/scripts/fix.mjs",
