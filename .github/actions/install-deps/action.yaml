@@ -54,8 +54,8 @@ runs:
               remove-haskell: "true"
               remove-codeql: "true"
 
+        # Sticking to 3.29 because of:
         # https://github.com/open-telemetry/opentelemetry-cpp/issues/2998
-        # Skip on arm64 Linux - use system cmake instead
         - name: Setup cmake
           # uses: jwlawson/actions-setup-cmake@v2
           uses: tomjakubowski/actions-setup-cmake@v0-aarch64-test4
