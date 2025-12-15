@@ -97,9 +97,6 @@ jobs:
             - name: Lint
               run: pnpm run lint --nightly
 
-            # - name: Docs Build
-            #   run: pnpm run docs
-
             - uses: actions/upload-artifact@v4
               with:
                   name: perspective-metadata
@@ -188,6 +185,7 @@ jobs:
             matrix:
                 os:
                     - ubuntu-22.04
+                    - ubuntu-22.04-arm
                     - macos-14
                     - windows-2022
                 arch:
@@ -201,12 +199,14 @@ jobs:
                       arch: x86_64
                       python-version: 3.9
                       container: pagmo2/manylinux228_x86_64_with_deps
+                    - os: ubuntu-22.04-arm
+                      arch: aarch64
+                      python-version: 3.9
+                      container: pagmo2/manylinux228_aarch64_with_deps
                 is-release:
                     - ${{ startsWith(github.ref, 'refs/tags/v') || github.ref_name == 'master' }}
                 exclude:
                     - os: windows-2022
-                      arch: aarch64
-                    - os: ubuntu-22.04
                       arch: aarch64
                     - os: macos-14
                       is-release: false
@@ -214,12 +214,24 @@ jobs:
                       arch: x86_64
                     - os: windows-2022
                       is-release: false
+                    - os: ubuntu-22.04
+                      arch: aarch64
+                    - os: ubuntu-22.04-arm
+                      arch: x86_64
 
         steps:
+            - name: Run df -h
+              if: ${{ runner.os == 'Linux' }}
+              run: df -h
+
             - name: Free up disk space
               if: ${{ runner.os == 'Linux' }}
               run: |
                   rm -rf /__t/*
+
+            - name: Run df -h
+              if: ${{ runner.os == 'Linux' }}
+              run: df -h
 
             - name: Checkout
               uses: actions/checkout@v4
@@ -233,6 +245,10 @@ jobs:
                   name: perspective-metadata
                   path: rust/
 
+            - name: Run df -h
+              if: ${{ runner.os == 'Linux' }}
+              run: df -h
+
             - name: Initialize Build
               id: init-step
               uses: ./.github/actions/install-deps
@@ -242,9 +258,13 @@ jobs:
                   manylinux: ${{ matrix.container && 'true' || 'false' }}
                   skip_cache: ${{ steps.config-step.outputs.SKIP_CACHE }}
 
+            - name: Run df -h
+              if: ${{ runner.os == 'Linux' }}
+              run: df -h
+
             - name: Python Build
               run: pnpm run build
-              if: ${{ !contains(matrix.os, 'windows') }}
+              if: ${{ runner.os != 'Windows' }}
               env:
                   PACKAGE: "python"
                   PSP_ARCH: ${{ matrix.arch }}
@@ -255,7 +275,7 @@ jobs:
               run: |
                   New-Item -ItemType Directory -Path $env:CARGO_TARGET_DIR -Force
                   pnpm run build
-              if: ${{ contains(matrix.os, 'windows') }}
+              if: ${{ runner.os == 'Windows' }}
               env:
                   CARGO_TARGET_DIR: D:\psp-rust
                   PSP_CPP_BUILD_DIR: D:\psp-build
@@ -263,6 +283,10 @@ jobs:
                   PACKAGE: "python"
                   PSP_ARCH: ${{ matrix.arch }}
                   PSP_BUILD_WHEEL: 1
+
+            - name: Run df -h
+              if: ${{ runner.os == 'Linux' }}
+              run: df -h
 
             # Windows sucks lol
             - uses: actions/upload-artifact@v4
@@ -658,7 +682,7 @@ jobs:
             matrix:
                 os:
                     - ubuntu-22.04
-                    - macos-14
+                    - ubuntu-22.04-arm
                     - macos-14
                     - windows-2022
                 arch:
@@ -685,6 +709,8 @@ jobs:
                       arch: aarch64
                     - os: ubuntu-22.04
                       arch: aarch64
+                    - os: ubuntu-22.04-arm
+                      arch: x86_64
         steps:
             - name: Checkout
               uses: actions/checkout@v4
@@ -702,8 +728,7 @@ jobs:
 
             - uses: actions/download-artifact@v4
               with:
-                  # the macos-14 runner tests artifacts built on macos-14
-                  name: perspective-python-dist-${{ matrix.arch }}-${{ matrix.os == 'macos-14' && 'macos-14' || matrix.os }}-${{ matrix.python-version }}
+                  name: perspective-python-dist-${{ matrix.arch }}-${{ matrix.os }}-${{ matrix.python-version }}
 
             - uses: ./.github/actions/install-wheel
 
@@ -954,6 +979,10 @@ jobs:
             - uses: actions/download-artifact@v4
               with:
                   name: perspective-python-dist-aarch64-macos-14-3.9
+
+            - uses: actions/download-artifact@v4
+              with:
+                  name: perspective-python-dist-aarch64-ubuntu-22.04-arm-3.9
 
             # - uses: actions/download-artifact@v4
             #   with:

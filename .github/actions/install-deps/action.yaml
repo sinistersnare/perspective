@@ -54,9 +54,11 @@ runs:
               remove-haskell: "true"
               remove-codeql: "true"
 
+        # Sticking to 3.29 because of:
         # https://github.com/open-telemetry/opentelemetry-cpp/issues/2998
         - name: Setup cmake
-          uses: jwlawson/actions-setup-cmake@v2
+          # uses: jwlawson/actions-setup-cmake@v2
+          uses: tomjakubowski/actions-setup-cmake@v0-aarch64-test4
           with:
               cmake-version: "3.29.6"
 

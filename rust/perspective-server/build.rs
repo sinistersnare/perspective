@@ -46,7 +46,12 @@ fn cmake_build() -> Result<Option<PathBuf>, std::io::Error> {
     dst.define("ARROW_BUILD_EXAMPLES", "OFF");
     dst.define("RAPIDJSON_BUILD_EXAMPLES", "OFF");
     dst.define("ARROW_CXX_FLAGS_DEBUG", "-Wno-error");
-    dst.define("PSP_PROTOC_PATH", protoc());
+    dst.define(
+        "PSP_PROTOC_PATH",
+        protoc()
+            .parent()
+            .expect("protoc() returned root path or empty string"),
+    );
     dst.define("CMAKE_COLOR_DIAGNOSTICS", "ON");
     dst.define(
         "PSP_PROTO_PATH",
