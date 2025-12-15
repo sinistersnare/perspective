@@ -46,13 +46,16 @@ runs:
     using: "composite"
     steps:
         - name: Clean System
-          uses: AdityaGarg8/remove-unwanted-software@v4.1
+          uses: AdityaGarg8/remove-unwanted-software@v5
           if: ${{ inputs.clean == 'true' && runner.os != 'Windows' }}
           with:
               remove-android: "true"
               remove-dotnet: "true"
               remove-haskell: "true"
               remove-codeql: "true"
+              remove-docker-images: "true"
+              remove-large-packages: "true"
+              remove-cached-tools: "true"
 
         # Sticking to 3.29 because of:
         # https://github.com/open-telemetry/opentelemetry-cpp/issues/2998
@@ -152,7 +155,7 @@ runs:
           with:
               toolchain: nightly-2025-02-01
               targets: aarch64-apple-darwin
-              components: rustfmt, clippy, rust-src
+              components: rust-src
 
         - name: Install rust (aarch64 Linux)
           uses: dtolnay/rust-toolchain@nightly
@@ -160,7 +163,7 @@ runs:
           with:
               toolchain: nightly-2025-02-01
               targets: aarch64-unknown-linux-gnu
-              components: rustfmt, clippy, rust-src
+              components: rust-src
 
         # # TODO doesn't work.
         # - name: Install LLVM 17
@@ -217,3 +220,9 @@ runs:
         - run: git config --system core.longpaths true
           shell: pwsh
           if: ${{ runner.os == 'Windows' }}
+
+        # - name: Free up disk space
+        #   if: ${{ runner.os == 'Linux' }}
+        #   run: |
+        #       rm -rf /__t/*
+
