@@ -1,6 +1,27 @@
+# [v4.0.1](https://github.com/perspective-dev/perspective/releases/tag/v4.0.1)
+
+_16 December 2025_ ([Full changelog](https://github.com/finos/perspective/compare/v4.0.0...v4.0.1))
+
+Features
+
+- Build arm64/aarch64 Linux wheels [#3092](https://github.com/finos/perspective/pull/3092)
+
+Fixes
+
+- Fix "Export to HTML" feature in `@perspective-dev/viewer` component [#3095](https://github.com/finos/perspective/pull/3095)
+- Support a wider array of integers [#3084](https://github.com/finos/perspective/pull/3084)
+- Prevent homebrew resolution [#3083](https://github.com/finos/perspective/pull/3083)
+- Fix `datetime` filters against numeric parameters [#3081](https://github.com/finos/perspective/pull/3081)
+- Fix workspace special casing issue [#3066](https://github.com/finos/perspective/pull/3066)
+
+Misc
+
+- OpenJS onboarding pt.2 [#3087](https://github.com/finos/perspective/pull/3087)
+- Publish `@perspective-dev/server` package in CI [#3078](https://github.com/finos/perspective/pull/3078)
+
 # [v4.0.0](https://github.com/perspective-dev/perspective/releases/tag/v4.0.0)
 
-_28 October 2025_ ([Full changelog](https://github.com/finos/perspective/compare/v4.0.0...v4.0.0))
+_28 October 2025_ ([Full changelog](https://github.com/finos/perspective/compare/v3.8.0...v4.0.0))
 
 **Breaking**
 
