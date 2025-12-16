@@ -822,7 +822,8 @@ Table::remove_rows(const std::string_view& data) {
         if (promote) {
             std::stringstream ss;
             ss << "Cannot append value of type " << dtype_to_str(*promote)
-               << " to column of type " << dtype_to_str(col->get_dtype())
+               << " to column \"" << m_index << "\" of type " << dtype_to_str(col->get_dtype())
+               << " at index " << ii
                << std::endl;
             PSP_COMPLAIN_AND_ABORT(ss.str());
         }
@@ -879,7 +880,8 @@ Table::remove_cols(const std::string_view& data) {
         if (promote) {
             std::stringstream ss;
             ss << "Cannot append value of type " << dtype_to_str(*promote)
-               << " to column of type " << dtype_to_str(col->get_dtype())
+               << " to column \"" << m_index << "\" of type " << dtype_to_str(col->get_dtype())
+               << " at index " << ii
                << std::endl;
             PSP_COMPLAIN_AND_ABORT(ss.str());
         }
@@ -964,13 +966,15 @@ Table::update_cols(const std::string_view& data, std::uint32_t port_id) {
             LOG_DEBUG("Ignoring column " << col_name);
             continue;
         }
+
         for (const auto& cell : column.value.GetArray()) {
             auto col = data_table.get_column(col_name);
             auto promote = fill_column_json(col, ii, cell, true);
             if (promote) {
                 std::stringstream ss;
                 ss << "Cannot append value of type " << dtype_to_str(*promote)
-                   << " to column of type " << dtype_to_str(col->get_dtype())
+                   << " to column \"" << col_name << "\" of type " << dtype_to_str(col->get_dtype())
+                   << " at index " << ii
                    << std::endl;
                 PSP_COMPLAIN_AND_ABORT(ss.str());
             }
@@ -1189,7 +1193,8 @@ Table::update_rows(const std::string_view& data, std::uint32_t port_id) {
             if (promote) {
                 std::stringstream ss;
                 ss << "Cannot append value of type " << dtype_to_str(*promote)
-                   << " to column of type " << dtype_to_str(col->get_dtype())
+                   << " to column \"" << col_name << "\" of type " << dtype_to_str(col->get_dtype())
+                   << " at index " << ii
                    << std::endl;
                 PSP_COMPLAIN_AND_ABORT(ss.str());
             }
@@ -1422,7 +1427,8 @@ Table::update_ndjson(const std::string_view& data, std::uint32_t port_id) {
             if (promote) {
                 std::stringstream ss;
                 ss << "Cannot append value of type " << dtype_to_str(*promote)
-                   << " to column of type " << dtype_to_str(col->get_dtype())
+                   << " to column \"" << col_name << "\" of type " << dtype_to_str(col->get_dtype())
+                   << " at index " << ii
                    << std::endl;
                 PSP_COMPLAIN_AND_ABORT(ss.str());
             }
