@@ -16,9 +16,10 @@ static VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn render_plugin(tag_name: impl AsRef<str>) -> String {
     format!(
-        "import \"https://cdn.jsdelivr.net/npm/@perspective-dev/{0}@{1}/dist/cdn/{0}.js\";\n",
+        "import \"https://cdn.jsdelivr.net/npm/@perspective-dev/{0}@{1}/dist/cdn/{2}.js\";\n",
+        tag_name.as_ref().replace("perspective-", ""),
+        VERSION,
         tag_name.as_ref(),
-        VERSION
     )
 }
 
