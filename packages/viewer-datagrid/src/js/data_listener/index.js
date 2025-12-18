@@ -63,14 +63,19 @@ export function createDataListener(viewer) {
                 (x) => x !== "__ROW_PATH__" && x !== "__ID__",
             );
 
-            const old_length = this._column_paths.length;
-            this._column_paths.splice(
-                new_window.start_col,
-                new_col_paths.length,
-                ...new_col_paths,
-            );
+            let changed_cols = false;
+            for (let i = 0; i < new_col_paths.length; i++) {
+                if (
+                    this._column_paths[new_window.start_col + i] !==
+                    new_col_paths[i]
+                ) {
+                    changed_cols = true;
+                    this._column_paths[new_window.start_col + i] =
+                        new_col_paths[i];
+                }
+            }
 
-            if (this._column_paths.length !== old_length || old_length === 0) {
+            if (changed_cols) {
                 const [a, b] = await Promise.all([
                     this._view.schema(),
                     this._view.expression_schema(),

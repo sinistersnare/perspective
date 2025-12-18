@@ -207,6 +207,46 @@ test.describe("Datagrid with superstore data set", () => {
     });
 });
 
+test.describe("Datagrid regressions", () => {
+    // https://github.com/perspective-dev/perspective/issues/3097
+    test("Sorting a column does not break viewport metadata", async ({
+        page,
+    }) => {
+        await page.goto("/tools/test/src/html/basic-test.html");
+        await page.evaluate(async () => {
+            while (!window["__TEST_PERSPECTIVE_READY__"]) {
+                await new Promise((x) => setTimeout(x, 10));
+            }
+        });
+
+        const td = await page.evaluateHandle(async () => {
+            const elem = await document
+                .querySelector("perspective-viewer-datagrid")
+                .shadowRoot.querySelector("regular-table");
+            elem.scrollLeft = 5000;
+            await elem.draw();
+            return document
+                .querySelector("perspective-viewer-datagrid")
+                .shadowRoot.querySelector("table thead tr th:nth-child(3)");
+        });
+
+        await td.click();
+        await page.evaluate(async () => {
+            await document.querySelector("perspective-viewer").flush();
+            const elem = await document
+                .querySelector("perspective-viewer-datagrid")
+                .shadowRoot.querySelector("regular-table");
+            elem.scrollLeft = 0;
+            await elem.draw();
+        });
+
+        compareContentsToSnapshot(
+            await getDatagridContents(page),
+            "sorting-a-column-does-not-break-viewport-emtadata.txt",
+        );
+    });
+});
+
 test.describe("Datagrid with superstore arrow data set", () => {
     test.beforeEach(async ({ page }) => {
         await page.goto(
