@@ -11,6 +11,7 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 export type * from "../../dist/wasm/perspective-js.d.ts";
+export * from "./virtual_server.ts";
 import type * as psp from "../../dist/wasm/perspective-js.d.ts";
 
 import * as wasm_module from "../../dist/wasm/perspective-js.js";

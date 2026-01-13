@@ -91,6 +91,7 @@ pub fn registerPlugin(name: &str) {
 #[cfg(not(feature = "external-bootstrap"))]
 #[wasm_bindgen(js_name = "init")]
 pub fn js_init() {
+    console_error_panic_hook::set_once();
     perspective_js::utils::set_global_logging();
     define_web_components!("export * as psp from '../../perspective-viewer.js'");
     tracing::info!("Perspective initialized.");

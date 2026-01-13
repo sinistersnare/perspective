@@ -83,10 +83,10 @@ try {
 
     fs.cpSync("build/release/web", "dist/wasm", { recursive: true });
     if (!process.env.PSP_HEAP_INSTRUMENTS) {
-        compress(
-            `./dist/wasm/perspective-server.wasm`,
-            `./dist/wasm/perspective-server.wasm`,
-        );
+        // compress(
+        //     `./dist/wasm/perspective-server.wasm`,
+        //     `./dist/wasm/perspective-server.wasm`,
+        // );
     }
 } catch (e) {
     console.error(e);

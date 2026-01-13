@@ -19,7 +19,7 @@ use wasm_bindgen::intern;
 use wasm_bindgen::prelude::*;
 
 use crate::apierror;
-use crate::utils::{ApiError, ApiResult, JsValueSerdeExt, ToApiError};
+use crate::utils::{ApiError, ApiResult, JsValueSerdeExt};
 pub use crate::view::*;
 
 #[ext]
@@ -28,10 +28,10 @@ impl Vec<(String, ColumnType)> {
         Ok(Object::keys(value.unchecked_ref())
             .iter()
             .map(|x| -> Result<_, JsValue> {
-                let key = x.as_string().into_apierror()?;
+                let key = x.as_string().expect("Not string??");
                 let val = Reflect::get(value, &x)?
                     .as_string()
-                    .into_apierror()?
+                    .expect("Y no string?")
                     .into_serde_ext()?;
 
                 Ok((key, val))
@@ -72,7 +72,9 @@ pub(crate) impl TableData {
             if all_strings() {
                 Ok(TableData::Schema(Vec::from_js_value(value)?))
             } else if all_arrays() {
-                let json = JSON::stringify(value)?.as_string().into_apierror()?;
+                let json = JSON::stringify(value)?
+                    .as_string()
+                    .expect("STRINGIFY_ARRAY??");
                 Ok(UpdateData::JsonColumns(json).into())
             } else {
                 Err(apierror!(TableError(value.clone())))
@@ -94,20 +96,20 @@ pub(crate) impl UpdateData {
         } else if value.is_string() {
             match format {
                 None | Some(TableReadFormat::Csv) => {
-                    Ok(Some(UpdateData::Csv(value.as_string().into_apierror()?)))
+                    Ok(Some(UpdateData::Csv(value.as_string().expect("Csv????"))))
                 },
                 Some(TableReadFormat::JsonString) => Ok(Some(UpdateData::JsonRows(
-                    value.as_string().into_apierror()?,
+                    value.as_string().expect("JSON???"),
                 ))),
                 Some(TableReadFormat::ColumnsString) => Ok(Some(UpdateData::JsonColumns(
-                    value.as_string().into_apierror()?,
+                    value.as_string().expect("ColumnString???"),
                 ))),
                 Some(TableReadFormat::Arrow) => Ok(Some(UpdateData::Arrow(
-                    value.as_string().into_apierror()?.into_bytes().into(),
+                    value.as_string().expect("Arrow???").into_bytes().into(),
                 ))),
-                Some(TableReadFormat::Ndjson) => {
-                    Ok(Some(UpdateData::Ndjson(value.as_string().into_apierror()?)))
-                },
+                Some(TableReadFormat::Ndjson) => Ok(Some(UpdateData::Ndjson(
+                    value.as_string().expect("Ndjson???"),
+                ))),
             }
         } else if value.is_instance_of::<ArrayBuffer>() {
             let uint8array = Uint8Array::new(value);
@@ -141,7 +143,7 @@ pub(crate) impl UpdateData {
                 None | Some(TableReadFormat::Arrow) => Ok(Some(UpdateData::Arrow(slice.into()))),
             }
         } else if value.is_instance_of::<Array>() {
-            let rows = JSON::stringify(value)?.as_string().into_apierror()?;
+            let rows = JSON::stringify(value)?.as_string().expect("STRINGIFY??");
             Ok(Some(UpdateData::JsonRows(rows)))
         } else {
             Ok(None)

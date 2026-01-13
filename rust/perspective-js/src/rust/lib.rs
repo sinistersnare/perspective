@@ -26,6 +26,7 @@
 extern crate alloc;
 
 mod client;
+mod server;
 mod table;
 mod table_data;
 pub mod utils;
@@ -35,6 +36,8 @@ mod view;
 use wasm_bindgen::prelude::*;
 
 pub use crate::client::Client;
+#[cfg(target_arch = "wasm32")]
+pub use crate::server::*;
 pub use crate::table::*;
 pub use crate::table_data::*;
 

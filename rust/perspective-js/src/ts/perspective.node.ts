@@ -11,6 +11,7 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 export type * from "../../dist/wasm/perspective-js.d.ts";
+export * from "./virtual_server.ts";
 
 import WebSocket, { WebSocketServer as HttpWebSocketServer } from "ws";
 import stoppable from "stoppable";
