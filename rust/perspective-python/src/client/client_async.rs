@@ -645,7 +645,6 @@ impl AsyncView {
             .transpose()?
             .unwrap_or_default();
 
-        tracing::error!("Window {:?}", window);
         self.view.column_paths(window).await.into_pyerr()
     }
 

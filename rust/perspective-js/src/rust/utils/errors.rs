@@ -16,6 +16,7 @@ use std::string::FromUtf8Error;
 
 use perspective_client::{ClientError, ExprValidationResult};
 use thiserror::*;
+use wasm_bindgen::intern;
 use wasm_bindgen::prelude::*;
 
 #[macro_export]
@@ -35,7 +36,7 @@ macro_rules! apierror {
 fn format_js_error(value: &JsValue) -> String {
     if let Some(err) = value.dyn_ref::<js_sys::Error>() {
         let msg = err.message().as_string().unwrap();
-        if let Ok(x) = js_sys::Reflect::get(value, &"stack".into()) {
+        if let Ok(x) = js_sys::Reflect::get(value, &intern("stack").into()) {
             format!("{}\n{}", msg, x.as_string().unwrap())
         } else {
             msg
@@ -109,15 +110,6 @@ pub enum ApiErrorType {
     StdIoError(Rc<std::io::Error>),
 
     #[error(transparent)]
-    RmpSerdeEncodeError(Rc<rmp_serde::encode::Error>),
-
-    #[error(transparent)]
-    RmpSerdeDecodeError(Rc<rmp_serde::decode::Error>),
-
-    #[error(transparent)]
-    Base64DecodeError(#[from] base64::DecodeError),
-
-    #[error(transparent)]
     ChronoParseError(#[from] chrono::ParseError),
 }
 
@@ -146,9 +138,6 @@ impl ApiError {
             ApiErrorType::SerdeWasmBindgenError(_) => "[SerdeWasmBindgenError]",
             ApiErrorType::Utf8Error(_) => "[FromUtf8Error]",
             ApiErrorType::StdIoError(_) => "[StdIoError]",
-            ApiErrorType::RmpSerdeEncodeError(_) => "[RmpSerdeEncodeError]",
-            ApiErrorType::RmpSerdeDecodeError(_) => "[RmpSerdeDecodeError]",
-            ApiErrorType::Base64DecodeError(_) => "[Base64DecodeError]",
             ApiErrorType::ChronoParseError(_) => "[ChronoParseError]",
             ApiErrorType::ViewerPluginError(_) => "[ViewerPluginError]",
             ApiErrorType::JsRawError(_) => "[JsRawError]",
@@ -167,7 +156,7 @@ impl ApiError {
 
     /// This error's stacktrace from when it was constructed.
     pub fn stacktrace(&self) -> String {
-        js_sys::Reflect::get(&self.1.0, &"stack".into())
+        js_sys::Reflect::get(&self.1.0, &intern("stack").into())
             .unwrap()
             .as_string()
             .unwrap()
@@ -175,6 +164,8 @@ impl ApiError {
     }
 }
 
+// This type is not thread safe, but the JavaScript environment does not allow
+// threading.
 unsafe impl Send for ApiError {}
 unsafe impl Sync for ApiError {}
 
@@ -207,18 +198,6 @@ impl From<serde_wasm_bindgen::Error> for ApiError {
 impl From<std::io::Error> for ApiError {
     fn from(value: std::io::Error) -> Self {
         ApiErrorType::StdIoError(Rc::new(value)).into()
-    }
-}
-
-impl From<rmp_serde::decode::Error> for ApiError {
-    fn from(value: rmp_serde::decode::Error) -> Self {
-        ApiErrorType::RmpSerdeDecodeError(Rc::new(value)).into()
-    }
-}
-
-impl From<rmp_serde::encode::Error> for ApiError {
-    fn from(value: rmp_serde::encode::Error) -> Self {
-        ApiErrorType::RmpSerdeEncodeError(Rc::new(value)).into()
     }
 }
 
@@ -263,7 +242,7 @@ pub trait ToApiError<T> {
 
 impl<T> ToApiError<T> for Option<T> {
     fn into_apierror(self) -> ApiResult<T> {
-        self.ok_or_else(|| "Unwrap on None".into())
+        self.ok_or_else(|| intern("Unwrap on None").into())
     }
 }
 

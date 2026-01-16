@@ -23,5 +23,7 @@ bench = false
 
 [dependencies]
 clap = { version = "4.4.8", features = ["derive"] }
-wasm-bindgen-cli-support = "0.2.90"
-wasm-opt = "0.116.1"
+wasm-bindgen-cli-support = "0.2.105"
+
+# https://github.com/brson/wasm-opt-rs/issues/154
+wasm-opt = { version = "0.116.1", default-features = false }

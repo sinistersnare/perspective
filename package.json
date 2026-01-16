@@ -38,10 +38,11 @@
         "docs"
     ],
     "devDependencies": {
+        "@fontsource/roboto-mono": "catalog:",
         "@perspective-dev/client": "workspace:^",
-        "@perspective-dev/server": "workspace:^",
         "@perspective-dev/jupyterlab": "workspace:^",
         "@perspective-dev/react": "workspace:^",
+        "@perspective-dev/server": "workspace:^",
         "@perspective-dev/test": "workspace:^",
         "@perspective-dev/viewer": "workspace:^",
         "@perspective-dev/viewer-d3fc": "workspace:^",
@@ -50,12 +51,11 @@
         "@perspective-dev/workspace": "workspace:^",
         "@playwright/experimental-ct-react": "catalog:",
         "@playwright/test": "catalog:",
-        "@fontsource/roboto-mono": "catalog:",
         "chalk": "catalog:",
         "dotenv": "catalog:",
-        "prettier": "catalog:",
         "husky": "catalog:",
         "npm-run-all": "catalog:",
+        "prettier": "catalog:",
         "tsx": "catalog:"
     },
     "pnpm": {

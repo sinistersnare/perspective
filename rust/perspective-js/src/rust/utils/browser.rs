@@ -32,8 +32,4 @@ pub mod global {
     pub fn navigator() -> web_sys::Navigator {
         window().navigator()
     }
-
-    pub fn clipboard() -> web_sys::Clipboard {
-        navigator().clipboard()
-    }
 }

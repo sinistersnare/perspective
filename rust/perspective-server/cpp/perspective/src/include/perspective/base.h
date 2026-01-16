@@ -177,11 +177,11 @@ PERSPECTIVE_EXPORT ESM_EXPORT("psp_heap_size") extern "C" size_t
         __SS__ << (X) << "\n";                                                 \
         __SS__ << psp_stack_trace();                                           \
         std::cout << __SS__.str() << '\n';                                     \
-        psp_abort(__SS__.str());                                               \
+        perspective::psp_abort(__SS__.str());                                  \
     }
 #else
 #define PSP_COMPLAIN_AND_ABORT(X)                                              \
-    { psp_abort(X); }
+    { perspective::psp_abort(X); }
 #endif
 
 #define PSP_VERBOSE_ASSERT(...)                                                        \

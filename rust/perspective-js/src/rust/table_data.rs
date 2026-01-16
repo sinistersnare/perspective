@@ -15,6 +15,7 @@ use js_sys::{Array, ArrayBuffer, Function, JSON, Object, Reflect, Uint8Array};
 use perspective_client::config::ColumnType;
 use perspective_client::{TableData, TableReadFormat, UpdateData};
 use wasm_bindgen::convert::TryFromJsValue;
+use wasm_bindgen::intern;
 use wasm_bindgen::prelude::*;
 
 use crate::apierror;
@@ -44,8 +45,10 @@ pub(crate) impl TableData {
     fn from_js_value(value: &JsValue, format: Option<TableReadFormat>) -> ApiResult<TableData> {
         if let Some(result) = UpdateData::from_js_value_partial(value, format)? {
             Ok(result.into())
-        } else if value.is_instance_of::<Object>() && Reflect::has(value, &"__get_model".into())? {
-            let val = Reflect::get(value, &"__get_model".into())?
+        } else if value.is_instance_of::<Object>()
+            && Reflect::has(value, &intern("__get_model").into())?
+        {
+            let val = Reflect::get(value, &intern("__get_model").into())?
                 .dyn_into::<Function>()?
                 .call0(value)?;
 

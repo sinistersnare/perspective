@@ -116,8 +116,17 @@ impl ProxySession {
 #[wasm_bindgen]
 #[derive(TryFromJsValue, Clone)]
 pub struct Client {
-    pub(crate) close: Option<Function>,
     pub(crate) client: perspective_client::Client,
+    pub(crate) close: Option<Function>,
+}
+
+impl From<perspective_client::Client> for Client {
+    fn from(client: perspective_client::Client) -> Self {
+        Client {
+            client,
+            close: None,
+        }
+    }
 }
 
 impl PartialEq for Client {
@@ -132,6 +141,8 @@ impl PartialEq for Client {
 #[derivative(Clone(bound = ""))]
 struct JsReconnect<I>(Arc<dyn Fn(I) -> js_sys::Promise>);
 
+// This type is not thread safe, but the JavaScript environment does not allow
+// threading.
 unsafe impl<I> Send for JsReconnect<I> {}
 unsafe impl<I> Sync for JsReconnect<I> {}
 

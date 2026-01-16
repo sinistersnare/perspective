@@ -100,7 +100,7 @@ class Util:
         batch = pa.RecordBatch.from_arrays(arrays, names)
         table = pa.Table.from_batches([batch])
         writer = pa.RecordBatchStreamWriter(
-            stream, table.schema, use_legacy_format=legacy
+            stream, table.schema
         )
 
         writer.write_table(table)
@@ -123,7 +123,7 @@ class Util:
         table = pa.Table.from_pandas(df, schema=schema)
 
         writer = pa.RecordBatchStreamWriter(
-            stream, table.schema, use_legacy_format=legacy
+            stream, table.schema
         )
 
         writer.write_table(table)
@@ -165,7 +165,7 @@ class Util:
         batch = pa.RecordBatch.from_arrays(arrays, names)
         table = pa.Table.from_batches([batch])
         writer = pa.RecordBatchStreamWriter(
-            stream, table.schema, use_legacy_format=legacy
+            stream, table.schema
         )
 
         writer.write_table(table)

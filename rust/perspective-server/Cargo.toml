@@ -45,7 +45,7 @@ shlex = "1.3.0"
 protobuf-src = { version = "2.0.1" }
 
 [dependencies]
-link-cplusplus = "1.0.9"
+link-cplusplus = "1.0.12"
 perspective-client = { version = "4.0.1" }
 async-lock = "2.5.0"
 tracing = { version = ">=0.1.36" }

@@ -64,3 +64,4 @@ docs/static/node
 docs/static/browser
 docs/static/viewer
 docs/static/react
+rust/perspective-server/build

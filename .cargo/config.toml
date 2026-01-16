@@ -22,7 +22,8 @@ rustflags = ["-C", "target-feature=+crt-static", "--cfg=web_sys_unstable_apis"]
 [future-incompat-report]
 frequency = 'never'
 
-# TODO this is required to synth public releases on GH Actions
+# TODO This is required to synth public releases on GH Actions, which doesn't
+# use the root `Cargo.toml`.
 [patch.crates-io]
 perspective-client = { path = "rust/perspective-client" }
 perspective-server = { path = "rust/perspective-server" }
@@ -33,7 +34,6 @@ perspective = { path = "rust/perspective" }
 
 [unstable]
 bindeps = true
-package-workspace = true
 
 [term]
 quiet = false

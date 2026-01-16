@@ -18,6 +18,7 @@ use tracing::field::{Field, Visit};
 use tracing_subscriber::Layer;
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::LookupSpan;
+use wasm_bindgen::intern;
 use wasm_bindgen::prelude::*;
 
 use crate::utils::*;
@@ -111,8 +112,8 @@ impl<'a> tracing::Metadata<'a> {
             level.web_logger_4()(
                 &format!("%c {level} %c {origin}%c {msg} ").into(),
                 &level.web_log_color().into(),
-                &"color: gray; font-style: italic".into(),
-                &"color: inherit".into(),
+                &intern("color: gray; font-style: italic").into(),
+                &intern("color: inherit").into(),
             );
         } else {
             level.web_logger_1()(&format!("{origin} {msg}").into());

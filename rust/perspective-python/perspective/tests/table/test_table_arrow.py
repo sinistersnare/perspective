@@ -156,14 +156,14 @@ class TestTableArrow(object):
         )
 
         empty_table = table.schema.empty_table()
-        assert client.table(table, name="table").size() == 3
+        assert client.table(table, name="table2").size() == 3
         assert client.table(empty_table, name="table_empty_bad").size() == 0
-        assert client.table(table, name="table").schema() == {
+        assert client.table(table, name="table3").schema() == {
             "col1": "integer",
             "col2": "string",
         }
 
-        assert client.table(empty_table, name="table").schema() == {
+        assert client.table(empty_table, name="table4").schema() == {
             "col1": "integer",
             "col2": "string",
         }
@@ -484,7 +484,7 @@ class TestTableArrow(object):
         # write arrow to stream
         stream = pa.BufferOutputStream()
         writer = pa.RecordBatchStreamWriter(
-            stream, arrow_table.schema, use_legacy_format=False
+            stream, arrow_table.schema
         )
         writer.write_table(arrow_table)
         writer.close()

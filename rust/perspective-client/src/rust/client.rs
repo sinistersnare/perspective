@@ -616,7 +616,10 @@ impl Client {
             let client = self.clone();
             Ok(Table::new(entity_id, client, options))
         } else {
-            Err(ClientError::Unknown("Unknown table".to_owned()))
+            Err(ClientError::Unknown(format!(
+                "Unknown table \"{}\"",
+                entity_id
+            )))
         }
     }
 

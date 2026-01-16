@@ -1,4 +1,4 @@
-set(DEFAULT_PROTOBUF_VERSION "26.1")
+set(DEFAULT_PROTOBUF_VERSION "33.2")
 
 option(PSP_PROTOC_PATH "Path to the protoc binary" "")
 
