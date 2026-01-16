@@ -16,12 +16,14 @@ import { BuildCss } from "@prospective.co/procss/target/cjs/procss.js";
 import * as fs from "node:fs";
 import * as path_mod from "node:path";
 
+import "zx/globals";
+
 const BUILD = [
     {
         define: {
             global: "window",
         },
-        entryPoints: ["src/js/index.js"],
+        entryPoints: ["src/ts/index.ts"],
         plugins: [NodeModulesExternal()],
         format: "esm",
         loader: {
@@ -34,7 +36,7 @@ const BUILD = [
         define: {
             global: "window",
         },
-        entryPoints: ["src/js/index.js"],
+        entryPoints: ["src/ts/index.ts"],
         plugins: [],
         format: "esm",
         loader: {
@@ -77,6 +79,16 @@ async function compile_css() {
 async function build_all() {
     await compile_css();
     await Promise.all(BUILD.map(build)).catch(() => process.exit(1));
+    try {
+        await $`tsc --project ./tsconfig.json`.stdio(
+            "inherit",
+            "inherit",
+            "inherit",
+        );
+    } catch (e) {
+        console.error(e.stdout);
+        process.exit(1);
+    }
 }
 
 build_all();
