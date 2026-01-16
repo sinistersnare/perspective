@@ -20,21 +20,15 @@ use crate::components::style::LocalStyle;
 use crate::css;
 use crate::custom_elements::ColumnDropDownElement;
 
-#[derive(Default)]
-pub struct EmptyColumn {
-    input_ref: NodeRef,
-}
-
-#[derive(Clone, Debug)]
-pub enum InPlaceColumn {
-    Column(String),
-    Expression(Expression<'static>),
-}
-
 #[derive(Properties)]
 pub struct EmptyColumnProps {
+    /// The autocomplete dropdown element.
     pub column_dropdown: ColumnDropDownElement,
+
+    /// Values to exclude from autocomplete
     pub exclude: HashSet<String>,
+
+    /// Fires when a value is selected.
     pub on_select: Callback<InPlaceColumn>,
 }
 
@@ -44,6 +38,12 @@ impl PartialEq for EmptyColumnProps {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum InPlaceColumn {
+    Column(String),
+    Expression(Expression<'static>),
+}
+
 pub enum EmptyColumnMsg {
     KeyDown(u32),
     Blur,
@@ -51,6 +51,11 @@ pub enum EmptyColumnMsg {
 }
 
 use EmptyColumnMsg::*;
+
+#[derive(Default)]
+pub struct EmptyColumn {
+    input_ref: NodeRef,
+}
 
 impl Component for EmptyColumn {
     type Message = EmptyColumnMsg;

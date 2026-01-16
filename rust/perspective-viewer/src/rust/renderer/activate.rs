@@ -39,11 +39,26 @@ pub async fn activate_plugin<T>(
     }
 
     let result = task.await;
-    let first_child = viewer.children().item(0).unwrap();
-    if first_child != *plugin.unchecked_ref::<Element>() {
-        viewer.remove_child(&first_child)?;
-    }
-
     html_plugin.style().set_property("opacity", "1")?;
     result
+}
+
+pub fn remove_inactive_plugin(
+    viewer: &HtmlElement,
+    plugin: &JsPerspectiveViewerPlugin,
+    plugins: &[JsPerspectiveViewerPlugin],
+) -> ApiResult<()> {
+    for idx in 0..viewer.children().length() {
+        let elem = viewer.children().item(idx).unwrap();
+        if &elem != plugin.unchecked_ref::<Element>()
+            && plugins
+                .iter()
+                .any(|x| *x.unchecked_ref::<Element>() == elem)
+        {
+            viewer.remove_child(&elem)?;
+            break;
+        }
+    }
+
+    Ok(())
 }

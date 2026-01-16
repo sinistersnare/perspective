@@ -12,29 +12,30 @@
 
 use std::rc::Rc;
 
-use derivative::Derivative;
 use itertools::Itertools;
 use web_sys::{FocusEvent, HtmlInputElement, KeyboardEvent};
 use yew::{Callback, Component, Html, NodeRef, Properties, TargetCast, classes, html};
 
 use super::type_icon::TypeIconType;
 use crate::components::type_icon::TypeIcon;
-use crate::maybe;
 use crate::session::Session;
+use crate::*;
 
-#[derive(PartialEq, Properties, Derivative, Clone)]
-#[derivative(Debug)]
+#[derive(Clone, PartialEq, Properties, PerspectiveProperties!)]
 pub struct EditableHeaderProps {
     pub icon_type: Option<TypeIconType>,
     pub on_change: Callback<(Option<String>, bool)>,
     pub editable: bool,
     pub initial_value: Option<String>,
     pub placeholder: Rc<String>,
+
     #[prop_or_default]
     pub reset_count: u8,
-    #[derivative(Debug = "ignore")]
+
+    // State
     pub session: Session,
 }
+
 impl EditableHeaderProps {
     fn split_placeholder(&self) -> String {
         let split = self
@@ -42,6 +43,7 @@ impl EditableHeaderProps {
             .split_once('\n')
             .map(|(a, _)| a)
             .unwrap_or(&*self.placeholder);
+
         match split.char_indices().nth(25) {
             None => split.to_string(),
             Some((idx, _)) => split[..idx].to_owned(),
@@ -49,19 +51,12 @@ impl EditableHeaderProps {
     }
 }
 
-#[derive(Default, Debug, PartialEq, Copy, Clone)]
-pub enum ValueState {
-    #[default]
-    Unedited,
-    Edited,
-}
-
 pub enum EditableHeaderMsg {
     SetNewValue(String),
     OnClick(()),
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct EditableHeader {
     noderef: NodeRef,
     edited: bool,
@@ -69,6 +64,7 @@ pub struct EditableHeader {
     value: Option<String>,
     placeholder: String,
 }
+
 impl Component for EditableHeader {
     type Message = EditableHeaderMsg;
     type Properties = EditableHeaderProps;
@@ -78,7 +74,8 @@ impl Component for EditableHeader {
             value: ctx.props().initial_value.clone(),
             placeholder: ctx.props().split_placeholder(),
             valid: true,
-            ..Self::default()
+            noderef: NodeRef::default(),
+            edited: false,
         }
     }
 
@@ -180,4 +177,11 @@ impl Component for EditableHeader {
             </div>
         }
     }
+}
+
+#[derive(Default, Debug, PartialEq, Copy, Clone)]
+pub enum ValueState {
+    #[default]
+    Unedited,
+    Edited,
 }

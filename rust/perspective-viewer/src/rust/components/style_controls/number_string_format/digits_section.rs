@@ -21,7 +21,7 @@ use crate::components::containers::select::{Select, SelectItem};
 use crate::components::form::number_field::NumberField;
 use crate::components::form::number_range_field::NumberRangeField;
 use crate::components::form::optional_field::OptionalField;
-use crate::components::form::select_field::SelectEnumField;
+use crate::components::form::select_enum_field::SelectEnumField;
 use crate::components::style_controls::CustomNumberFormatMsg;
 use crate::config::{
     ROUNDING_INCREMENTS, RoundingIncrement, RoundingMode, RoundingPriority, TrailingZeroDisplay,

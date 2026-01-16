@@ -13,7 +13,6 @@
 mod enums;
 pub use enums::*;
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 use strum::{Display, EnumIter};
 use ts_rs::TS;
 
@@ -45,13 +44,16 @@ pub enum CurrencySign {
     Accounting,
 }
 
-#[skip_serializing_none]
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CurrencyNumberFormatStyle {
     #[serde(default)]
     pub currency: CurrencyCode,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency_display: Option<CurrencyDisplay>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency_sign: Option<CurrencySign>,
 }
 
@@ -64,12 +66,13 @@ pub enum UnitDisplay {
     Long,
 }
 
-#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct UnitNumberFormatStyle {
     #[serde(default)]
     pub unit: Unit,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_display: Option<UnitDisplay>,
 }
 
@@ -166,7 +169,6 @@ pub enum SignDisplay {
     Never,
 }
 
-#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomNumberFormatConfig {
@@ -178,24 +180,45 @@ pub struct CustomNumberFormatConfig {
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat#minimumintegerdigits
     // these min/max props can all be specified but it results in possible conflicts
     // may consider making them distinct options
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub minimum_integer_digits: Option<f64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub minimum_fraction_digits: Option<f64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub maximum_fraction_digits: Option<f64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub minimum_significant_digits: Option<f64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub maximum_significant_digits: Option<f64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rounding_priority: Option<RoundingPriority>,
 
     // specific values https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat#roundingincrement
     // Only available with automatic rounding priority
     // Cannot be mixed with sigfig rounding. (Does this mean max/min sigfig must be unset?)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rounding_increment: Option<f64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rounding_mode: Option<RoundingMode>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub trailing_zero_display: Option<TrailingZeroDisplay>,
 
     #[serde(flatten)]
     #[ts(skip)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub _notation: Option<Notation>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub use_grouping: Option<UseGrouping>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sign_display: Option<SignDisplay>,
 }
 

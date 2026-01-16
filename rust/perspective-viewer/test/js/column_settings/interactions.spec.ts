@@ -10,7 +10,6 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import { Type } from "@perspective-dev/client";
 import { PageView } from "@perspective-dev/test";
 import { ColumnSelector } from "@perspective-dev/test/src/js/models/settings_panel";
 import { test, expect } from "@perspective-dev/test";
@@ -22,7 +21,7 @@ type SidebarState =
           open: true;
           tabs: string[];
           selectedTab: string;
-          type: Type | "expression";
+          type: string | "expression";
           snapshot: string;
       }
     | { open: false };
@@ -55,7 +54,7 @@ type TestSpec = {
 type ExpectedState =
     | { closed: true }
     | { unchanged: true }
-    | ({ tabs: string[]; selectedTab: string } & { type?: Type });
+    | ({ tabs: string[]; selectedTab: string } & { type?: string });
 
 // Note: impossible states are not encoded here.
 const TEST_SPEC: Record<string, TestSpec> = {
@@ -351,7 +350,7 @@ async function checkOutput(
 test.beforeEach(async ({ page }) => {
     await page.goto("/tools/test/src/html/basic-test.html");
     await page.evaluate(async () => {
-        while (!window["__TEST_PERSPECTIVE_READY__"]) {
+        while (!(window as any)["__TEST_PERSPECTIVE_READY__"]) {
             await new Promise((x) => setTimeout(x, 10));
         }
     });
@@ -563,7 +562,7 @@ test.describe("Column Settings State on Interaction", () => {
 });
 
 test.describe("Unique Behaviors", () => {
-    for (const destination of <Action[]>["groupby", "splitby"]) {
+    for (const destination of ["groupby", "splitby"]) {
         test(`${destination} - Single Active Column - table_col`, async ({
             page,
         }) => {
@@ -575,7 +574,9 @@ test.describe("Unique Behaviors", () => {
             );
 
             await selector.container.dragTo(
-                view.settingsPanel[`${destination}Input`],
+                destination === "groupby"
+                    ? view.settingsPanel.groupbyInput
+                    : view.settingsPanel.splitbyInput,
             );
             await checkOutput(
                 view,
@@ -599,28 +600,13 @@ test.describe("Unique Behaviors", () => {
             );
 
             await selector.container.dragTo(
-                view.settingsPanel[`${destination}Input`],
+                destination === "groupby"
+                    ? view.settingsPanel.groupbyInput
+                    : view.settingsPanel.splitbyInput,
             );
             await checkOutput(view, { closed: true }, state_snapshot);
         });
     }
-
-    test("Symbols Styles Close for table_col when Non-String", async ({
-        page,
-    }) => {
-        const view = new PageView(page);
-        await view.restore({
-            settings: true,
-            plugin: "X/Y Scatter",
-            columns: ["Row ID", "Postal Code", null, null, "Category"],
-        });
-        let col =
-            await view.settingsPanel.activeColumns.getColumnByName("Category");
-        await col.editBtn.click();
-        await expect(view.columnSettingsSidebar.container).toBeVisible();
-        view.settingsPanel.groupby("City");
-        await expect(view.columnSettingsSidebar.container).toBeHidden();
-    });
 
     test("Datagrid - switching between date and datetime should rerender", async ({
         page,

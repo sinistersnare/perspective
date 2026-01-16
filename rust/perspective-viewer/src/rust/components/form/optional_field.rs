@@ -14,10 +14,10 @@ use yew::{Callback, Children, Html, MouseEvent, Properties, classes, function_co
 
 #[derive(Properties, PartialEq)]
 pub struct OptionalFieldProps {
-    pub label: String,
-    pub on_check: Callback<MouseEvent>,
     pub checked: bool,
     pub children: Children,
+    pub label: String,
+    pub on_check: Callback<MouseEvent>,
 
     #[prop_or(String::from("section"))]
     pub class: String,

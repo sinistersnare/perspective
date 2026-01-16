@@ -18,15 +18,20 @@ use async_lock::Mutex;
 use perspective_js::utils::ApiResult;
 
 #[derive(Default)]
-pub struct DebounceMutexData {
+struct DebounceMutexData {
     id: Cell<u64>,
     mutex: Mutex<u64>,
 }
 
+/// An async `Mutex` type specialized for Perspective's rendering, which
+/// debounces calls in addition to providing exclusivity. Calling `debounce`
+/// with a _cancellable_ [`Future`] will resolve only after at least one
+/// _complete_ evaluation of a call awaiting the lock.
 #[derive(Clone, Default)]
 pub struct DebounceMutex(Rc<DebounceMutexData>);
 
 impl DebounceMutex {
+    /// Lock like a normal `Mutex`.
     pub async fn lock<T>(&self, f: impl Future<Output = T>) -> T {
         let mut last = self.0.mutex.lock().await;
         let next = self.0.id.get();
@@ -35,6 +40,7 @@ impl DebounceMutex {
         result
     }
 
+    /// Lock and also debounce `f`, which should be cancellable.
     pub async fn debounce(&self, f: impl Future<Output = ApiResult<()>>) -> ApiResult<()> {
         let next = self.0.id.get() + 1;
         let mut last = self.0.mutex.lock().await;

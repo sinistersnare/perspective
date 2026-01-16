@@ -21,31 +21,22 @@ use std::collections::HashSet;
 use std::future::Future;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use perspective_client::config::*;
-use perspective_client::{ClientError, ReconnectCallback, View, ViewWindow};
+use perspective_client::{Client, ClientError, ReconnectCallback, View, ViewWindow};
 use perspective_js::apierror;
 use perspective_js::utils::*;
 use wasm_bindgen::prelude::*;
 use yew::html::ImplicitClone;
 use yew::prelude::*;
 
+pub use self::metadata::MetadataRef;
 use self::metadata::*;
 use self::replace_expression_update::*;
 pub use self::view_subscription::ViewStats;
 use self::view_subscription::*;
-use crate::dragdrop::*;
 use crate::js::plugin::*;
 use crate::utils::*;
-
-/// The `Session` struct is the principal interface to the Perspective engine,
-/// the `Table` and `View` objects for this viewer, and all associated state
-/// including the `ViewConfig`.
-#[derive(Clone, Default)]
-pub struct Session(Arc<SessionHandle>);
-
-impl ImplicitClone for Session {}
 
 /// Immutable state for `Session`.
 #[derive(Default)]
@@ -53,15 +44,26 @@ pub struct SessionHandle {
     session_data: RefCell<SessionData>,
     pub table_updated: PubSub<()>,
     pub table_loaded: PubSub<()>,
+    pub table_errored: PubSub<ApiError>,
+    pub table_unloaded: PubSub<bool>,
     pub view_created: PubSub<()>,
     pub view_config_changed: PubSub<()>,
     pub stats_changed: PubSub<Option<ViewStats>>,
-    pub table_errored: PubSub<ApiError>,
+    pub title_changed: PubSub<Option<String>>,
+}
+
+impl Deref for SessionHandle {
+    type Target = RefCell<SessionData>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.session_data
+    }
 }
 
 /// Mutable state for `Session`.
 #[derive(Default)]
 pub struct SessionData {
+    client: Option<perspective_client::Client>,
     table: Option<perspective_client::Table>,
     metadata: SessionMetadata,
     old_config: Option<ViewConfig>,
@@ -71,10 +73,35 @@ pub struct SessionData {
     is_clean: bool,
     is_paused: bool,
     error: Option<TableErrorState>,
+    title: Option<String>,
 }
 
 #[derive(Clone)]
 pub struct TableErrorState(ApiError, Option<ReconnectCallback>);
+
+/// Options for [`Session::reset`]
+#[derive(Default)]
+pub struct ResetOptions {
+    /// Reset user defined expressions
+    pub expressions: bool,
+
+    /// Reset the [`Table`]
+    pub table: bool,
+
+    /// Reset the [`ViewConfig`]
+    pub config: bool,
+
+    /// Manually reset the [`ViewStats`]
+    pub stats: bool,
+}
+
+/// The `Session` struct is the principal interface to the Perspective engine,
+/// the `Table` and `View` objects for this viewer, and all associated state
+/// including the `ViewConfig`.
+#[derive(Clone)]
+pub struct Session(Rc<SessionHandle>);
+
+impl ImplicitClone for Session {}
 
 impl Deref for Session {
     type Target = SessionHandle;
@@ -86,22 +113,18 @@ impl Deref for Session {
 
 impl PartialEq for Session {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
+        Rc::ptr_eq(&self.0, &other.0)
     }
 }
-
-impl Deref for SessionHandle {
-    type Target = RefCell<SessionData>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.session_data
-    }
-}
-
-pub type MetadataRef<'a> = std::cell::Ref<'a, SessionMetadata>;
-pub type MetadataMutRef<'a> = std::cell::RefMut<'a, SessionMetadata>;
 
 impl Session {
+    /// Uses [`Self::new`] instead of [`Default`] to prevent accidental
+    /// instantiation in props/etc.
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self(Rc::default())
+    }
+
     pub fn metadata(&self) -> MetadataRef<'_> {
         std::cell::Ref::map(self.borrow(), |x| &x.metadata)
     }
@@ -110,40 +133,48 @@ impl Session {
         std::cell::RefMut::map(self.borrow_mut(), |x| &mut x.metadata)
     }
 
-    pub fn invalidate(&self) {
-        self.borrow_mut().error = None;
-        self.borrow_mut().is_clean = false;
-        self.borrow_mut().view_sub = None;
+    pub fn get_title(&self) -> Option<String> {
+        self.borrow().title.clone()
     }
 
-    /// Reset this `Session`'s `View` state, but preserve the `Table`.
-    ///
-    /// # Arguments
-    /// - `reset_expressions` Whether to reset the `expressions` property.
-    pub fn reset(&self, reset_expressions: bool) -> impl Future<Output = ApiResult<()>> + use<> {
-        self.borrow_mut().is_clean = false;
-        let view = self.0.borrow_mut().view_sub.take();
-        self.borrow_mut().view_sub = None;
-        self.borrow_mut().config.reset(reset_expressions);
-        let err = self.get_error();
-        async move {
-            let res = view.delete().await;
-            if let Some(err) = err { Err(err) } else { res }
-        }
+    pub fn set_title(&self, title: Option<String>) {
+        let new_title = title.filter(|x| !x.is_empty());
+        self.borrow_mut().title.clone_from(&new_title);
+        self.title_changed.emit(new_title);
     }
 
     /// Reset this (presumably shared) `Session` to its initial state, returning
     /// a bool indicating whether this `Session` had a table which was
     /// deleted. TODO Table should be an immutable constructor parameter to
     /// `Session`.
-    pub async fn delete(&self) -> ApiResult<()> {
+    pub fn reset(&self, options: ResetOptions) -> impl Future<Output = ApiResult<()>> + use<> {
         self.borrow_mut().is_clean = false;
-        self.borrow_mut().config.reset(true);
-        self.borrow_mut().metadata = SessionMetadata::default();
-        self.borrow_mut().table = None;
-        let view = self.borrow_mut().view_sub.take();
-        view.delete().await?;
-        Ok(())
+        let view = self.0.borrow_mut().view_sub.take();
+        let err = self.get_error();
+        self.borrow_mut().error = None;
+        if options.stats {
+            self.update_stats(ViewStats::default());
+        }
+
+        if options.config {
+            self.borrow_mut().config.reset(options.expressions);
+        }
+
+        if options.table {
+            self.borrow_mut().table = None;
+            self.borrow_mut().metadata = SessionMetadata::default();
+        }
+
+        let table_unloaded = self.table_unloaded.callback();
+        self.borrow_mut().is_clean = false;
+        async move {
+            let res = view.delete().await;
+            if options.table {
+                table_unloaded.emit(true)
+            }
+
+            if let Some(err) = err { Err(err) } else { res }
+        }
     }
 
     pub fn has_table(&self) -> bool {
@@ -154,10 +185,40 @@ impl Session {
         self.borrow().table.clone()
     }
 
+    pub fn set_client(&self, client: Client) -> bool {
+        if Some(&client) != self.borrow().client.as_ref() {
+            self.borrow_mut().client = Some(client);
+            self.borrow_mut().table = None;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_client(&self) -> Option<Client> {
+        self.borrow().client.clone()
+    }
+
     /// Reset this `Session`'s state with a new `Table`.  Implicitly clears the
     /// `ViewSubscription`, which will need to be re-initialized later via
     /// `create_view()`.
-    pub async fn set_table(&self, table: perspective_client::Table) -> ApiResult<JsValue> {
+    ///
+    /// # Arguments
+    ///
+    /// - `table_name` The name of the `Table` to load, which must exist on the
+    ///   loaded `Client`.
+    ///
+    /// # Returns
+    ///
+    /// `table_name` is unique per `Client`, so if this value has not changed,
+    /// `Session::set_table` does nothing and returns `Ok(false)`.
+    pub async fn set_table(&self, table_name: String) -> ApiResult<bool> {
+        if Some(table_name.as_str()) == self.0.borrow().table.as_ref().map(|x| x.get_name()) {
+            return Ok(false);
+        }
+
+        let client = self.0.borrow().client.clone().into_apierror()?;
+        let table = client.open_table(table_name.clone()).await?;
         match SessionMetadata::from_table(&table).await {
             Ok(metadata) => {
                 let client = table.get_client();
@@ -186,19 +247,31 @@ impl Session {
                 let sub = self.borrow_mut().view_sub.take();
                 self.borrow_mut().metadata = metadata;
                 self.borrow_mut().table = Some(table);
+                self.borrow_mut().is_clean = false;
                 sub.delete().await?;
                 self.table_loaded.emit(());
-                Ok(JsValue::UNDEFINED)
+                Ok(true)
             },
-            Err(err) => self.set_error(false, err).await.map(|_| JsValue::UNDEFINED),
+            Err(err) => self.set_error(false, err).await.map(|_| false),
+        }
+    }
+
+    pub fn update_column_defaults(&self, requirements: &ViewConfigRequirements) {
+        if self.borrow().config.columns.is_empty() {
+            let mut update = ViewConfigUpdate::default();
+            self.set_update_column_defaults(&mut update, requirements);
+            self.borrow_mut().config.apply_update(update);
         }
     }
 
     pub async fn set_error(&self, reset_table: bool, err: ApiError) -> ApiResult<()> {
         let session = self.clone();
         let poll_loop = LocalPollLoop::new(move |()| {
-            session.invalidate();
-            ApiFuture::spawn(session.reset(true));
+            ApiFuture::spawn(session.reset(ResetOptions {
+                config: true,
+                expressions: true,
+                ..ResetOptions::default()
+            }));
             Ok(JsValue::UNDEFINED)
         });
 
@@ -240,7 +313,7 @@ impl Session {
 
     pub async fn await_table(&self) -> ApiResult<()> {
         if self.js_get_table().is_none() {
-            self.table_loaded.listen_once().await?;
+            self.table_loaded.read_next().await?;
             let _ = self.js_get_table().ok_or("No table set")?;
         }
 
@@ -279,6 +352,7 @@ impl Session {
             self.borrow_mut().error = None;
             self.borrow_mut().is_clean = false;
             self.borrow_mut().view_sub = None;
+            self.table_loaded.emit(());
         }
 
         Ok(())
@@ -457,7 +531,7 @@ impl Session {
         self.borrow().stats.clone()
     }
 
-    pub fn get_view_config(&self) -> Ref<ViewConfig> {
+    pub fn get_view_config(&'_ self) -> Ref<'_, ViewConfig> {
         Ref::map(self.borrow(), |x| &x.config)
     }
 
@@ -511,7 +585,7 @@ impl Session {
         use self::column_defaults_update::*;
         config_update.set_update_column_defaults(
             &self.metadata(),
-            &self.borrow().config.columns,
+            &self.all_columns().into_iter().map(Some).collect::<Vec<_>>(),
             requirements,
         )
     }
@@ -534,15 +608,6 @@ impl Session {
         Ok(())
     }
 
-    pub fn reset_stats(&self) {
-        self.update_stats(ViewStats::default());
-    }
-
-    #[cfg(test)]
-    pub fn set_stats(&self, stats: ViewStats) {
-        self.update_stats(stats)
-    }
-
     /// In order to create a new view in this session, the session must first be
     /// validated to create a `ValidSession<'_>` guard.
     pub async fn validate(&self) -> Result<ValidSession<'_>, ApiError> {
@@ -555,8 +620,11 @@ impl Session {
         if let Err(err) = self.validate_view_config().await {
             let session = self.clone();
             let poll_loop = LocalPollLoop::new(move |()| {
-                session.invalidate();
-                ApiFuture::spawn(session.reset(true));
+                ApiFuture::spawn(session.reset(ResetOptions {
+                    config: true,
+                    expressions: true,
+                    ..ResetOptions::default()
+                }));
                 Ok(JsValue::UNDEFINED)
             });
 
@@ -574,7 +642,12 @@ impl Session {
             if let Some(config) = old {
                 self.borrow_mut().config = config;
             } else {
-                self.reset(true).await?;
+                self.reset(ResetOptions {
+                    config: true,
+                    expressions: true,
+                    ..ResetOptions::default()
+                })
+                .await?;
             }
 
             return Err(err);
@@ -604,16 +677,18 @@ impl Session {
         self.stats_changed.emit(Some(stats));
     }
 
-    async fn validate_view_config(&self) -> ApiResult<()> {
-        let mut config = self.borrow().config.clone();
-        let table_columns = self
-            .metadata()
+    fn all_columns(&self) -> Vec<String> {
+        self.metadata()
             .get_table_columns()
             .into_iter()
             .flatten()
             .cloned()
-            .collect::<Vec<String>>();
+            .collect()
+    }
 
+    async fn validate_view_config(&self) -> ApiResult<()> {
+        let mut config = self.borrow().config.clone();
+        let table_columns = self.all_columns();
         let all_columns: HashSet<String> = table_columns.iter().cloned().collect();
         let mut view_columns: HashSet<&str> = HashSet::new();
         let table = self
@@ -711,17 +786,17 @@ impl Session {
 /// A newtype wrapper which only provides `create_view()`
 pub struct ValidSession<'a>(&'a Session, bool);
 
-impl<'a> ValidSession<'a> {
+impl ValidSession<'_> {
     /// Set a new `View` (derived from this `Session`'s `Table`), and create the
     /// `update()` subscription, consuming this `ValidSession<'_>` and returning
     /// the original `&Session`.
-    pub async fn create_view(&self) -> Result<&'a Session, ApiError> {
+    pub async fn create_view(&self) -> Result<Option<View>, ApiError> {
         if !self.0.reset_clean() && !self.0.borrow().is_paused {
             if !self.1 {
                 let config = self.0.borrow().config.clone();
                 if let Some(sub) = &mut self.0.borrow_mut().view_sub.as_mut() {
                     sub.update_view_config(Rc::new(config));
-                    return Ok(self.0);
+                    return Ok(Some(sub.get_view().clone()));
                 }
             }
 
@@ -781,7 +856,7 @@ impl<'a> ValidSession<'a> {
             self.0.borrow_mut().view_sub = Some(sub);
         }
 
-        Ok(self.0)
+        Ok(self.0.get_view())
     }
 }
 

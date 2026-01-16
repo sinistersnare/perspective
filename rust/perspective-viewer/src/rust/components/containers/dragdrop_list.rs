@@ -21,21 +21,7 @@ use yew::prelude::*;
 use crate::components::column_selector::{EmptyColumn, InPlaceColumn, InvalidColumn};
 use crate::custom_elements::ColumnDropDownElement;
 use crate::dragdrop::*;
-
-/// Must be implemented by `Properties` of children of `DragDropList`, returning
-/// the value a DragDropItem represents.
-pub trait DragDropListItemProps: Properties {
-    type Item: Clone + PartialEq;
-    fn get_item(&self) -> Self::Item;
-}
-
-pub trait DragContext<T> {
-    fn close(index: usize) -> T;
-    fn dragleave() -> T;
-    fn dragenter(index: usize) -> T;
-    fn create(col: InPlaceColumn) -> T;
-    fn is_self_move(effect: DragTarget) -> bool;
-}
+use crate::utils::DragTarget;
 
 #[derive(Properties, Derivative)]
 #[derivative(Clone(bound = ""))]
@@ -227,11 +213,10 @@ where
                     .position(|x| x.1.1.as_ref().unwrap().props.get_item() == *column);
 
                 valid_duplicate_drag = is_duplicate.is_some() && !ctx.props().allow_duplicates;
-                if let Some(duplicate) = is_duplicate
-                    && !is_append
-                    && (!ctx.props().allow_duplicates || is_self_move)
-                {
-                    columns.remove(duplicate);
+                if let Some(duplicate) = is_duplicate {
+                    if !is_append && (!ctx.props().allow_duplicates || is_self_move) {
+                        columns.remove(duplicate);
+                    }
                 }
 
                 // If inserting into the middle of the list, use
@@ -322,4 +307,19 @@ where
             </div>
         }
     }
+}
+
+/// Must be implemented by `Properties` of children of `DragDropList`, returning
+/// the value a DragDropItem represents.
+pub trait DragDropListItemProps: Properties {
+    type Item: Clone + PartialEq;
+    fn get_item(&self) -> Self::Item;
+}
+
+pub trait DragContext<T> {
+    fn close(index: usize) -> T;
+    fn dragleave() -> T;
+    fn dragenter(index: usize) -> T;
+    fn create(col: InPlaceColumn) -> T;
+    fn is_self_move(effect: DragTarget) -> bool;
 }

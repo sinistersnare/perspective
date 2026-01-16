@@ -171,7 +171,7 @@ impl Default for RenderTimerState {
 
 impl From<&RenderTimerState> for RenderTimerStats {
     fn from(value: &RenderTimerState) -> Self {
-        let perf = global::window().performance().unwrap();
+        let perf = global::performance();
         let now = perf.now();
         let total_time = now - value.start_time;
         RenderTimerStats {

@@ -11,35 +11,50 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 use itertools::Itertools;
-use perspective_client::config::{ColumnType, *};
+use perspective_client::config::*;
 use perspective_client::utils::PerspectiveResultExt;
+use perspective_js::utils::ApiFuture;
 use web_sys::*;
 use yew::prelude::*;
 
-use super::expression_toolbar::*;
+use super::expr_edit_button::*;
 use crate::components::type_icon::TypeIcon;
-use crate::components::viewer::ColumnLocator;
 use crate::dragdrop::*;
 use crate::js::plugin::*;
 use crate::model::*;
-use crate::presentation::Presentation;
+use crate::presentation::ColumnLocator;
 use crate::renderer::*;
 use crate::session::*;
+use crate::utils::*;
 use crate::*;
 
-#[derive(Properties, Clone)]
+#[derive(Clone, Properties, PerspectiveProperties!)]
 pub struct InactiveColumnProps {
+    /// This column's index in its list.
     pub idx: usize,
+
+    /// Is this column visible?
     pub visible: bool,
+
+    /// Column name
     pub name: String,
+
+    /// Is the expression/config panel open for this column?
+    pub is_editing: bool,
+
+    /// `dragend` event`.
+    pub ondragend: Callback<()>,
+
+    /// Fires when this column's select button is sclicked.
+    pub onselect: Callback<()>,
+
+    /// Fires when this column's expression/config button is clicked.
+    pub on_open_expr_panel: Callback<ColumnLocator>,
+
+    // State
     pub dragdrop: DragDrop,
     pub session: Session,
     pub renderer: Renderer,
-    pub presentation: Presentation,
-    pub is_editing: bool,
-    pub ondragend: Callback<()>,
-    pub onselect: Callback<()>,
-    pub on_open_expr_panel: Callback<ColumnLocator>,
 }
 
 impl PartialEq for InactiveColumnProps {
@@ -51,61 +66,6 @@ impl PartialEq for InactiveColumnProps {
     }
 }
 
-derive_model!(Renderer, Session for InactiveColumnProps);
-
-impl InactiveColumnProps {
-    /// Add a column to the active columns, which corresponds to the `columns`
-    /// field of the `JsPerspectiveViewConfig`.
-    ///
-    /// # Arguments
-    /// - `name` The name of the column to de-activate, which is a unique ID
-    ///   with respect to `columns`.
-    /// - `shift` whether to toggle or select this column.
-    pub fn activate_column(&self, name: String, shift: bool) {
-        let mut columns = self.session.get_view_config().columns.clone();
-        let max_cols = self
-            .renderer
-            .metadata()
-            .names
-            .as_ref()
-            .map_or(0, |x| x.len());
-
-        // Don't treat `None` at the end of the column list as columns, we'll refill
-        // these later
-        if let Some(last_filled) = columns.iter().rposition(|x| !x.is_none()) {
-            columns.truncate(last_filled + 1);
-
-            let mode = self.renderer.metadata().mode;
-            if (mode == ColumnSelectMode::Select) ^ shift {
-                columns.clear();
-            } else {
-                columns.retain(|x| x.as_ref() != Some(&name));
-            }
-
-            columns.push(Some(name));
-        }
-
-        // Do this outside the loop so errors dont just become noops
-        self.apply_columns(
-            columns
-                .into_iter()
-                .pad_using(max_cols, |_| None)
-                .collect::<Vec<_>>(),
-        );
-    }
-
-    fn apply_columns(&self, columns: Vec<Option<String>>) {
-        let config = ViewConfigUpdate {
-            columns: Some(columns),
-            ..ViewConfigUpdate::default()
-        };
-
-        self.update_and_render(config)
-            .map(ApiFuture::spawn)
-            .unwrap_or_log();
-    }
-}
-
 pub enum InactiveColumnMsg {
     ActivateColumn(bool),
     MouseEnter(bool),
@@ -114,7 +74,6 @@ pub enum InactiveColumnMsg {
 
 use InactiveColumnMsg::*;
 
-#[derive(Default)]
 pub struct InactiveColumn {
     add_expression_ref: NodeRef,
     mouseover: bool,
@@ -125,7 +84,10 @@ impl Component for InactiveColumn {
     type Properties = InactiveColumnProps;
 
     fn create(_ctx: &Context<Self>) -> Self {
-        Self::default()
+        Self {
+            add_expression_ref: NodeRef::default(),
+            mouseover: false,
+        }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: InactiveColumnMsg) -> bool {
@@ -195,9 +157,9 @@ impl Component for InactiveColumn {
             <div {class} {onmouseover} {onmouseout} data-index={ctx.props().idx.to_string()}>
                 <span class={is_active_class} onmousedown={add_column} />
                 <div
+                    ref={&self.add_expression_ref}
                     class="column-selector-draggable column-selector-column-title"
                     draggable="true"
-                    ref={&self.add_expression_ref}
                     {ondragstart}
                     {ondragend}
                 >
@@ -217,5 +179,58 @@ impl Component for InactiveColumn {
                 </div>
             </div>
         }
+    }
+}
+
+impl InactiveColumnProps {
+    /// Add a column to the active columns, which corresponds to the `columns`
+    /// field of the `JsPerspectiveViewConfig`.
+    ///
+    /// # Arguments
+    /// - `name` The name of the column to de-activate, which is a unique ID
+    ///   with respect to `columns`.
+    /// - `shift` whether to toggle or select this column.
+    pub fn activate_column(&self, name: String, shift: bool) {
+        let mut columns = self.session.get_view_config().columns.clone();
+        let max_cols = self
+            .renderer
+            .metadata()
+            .names
+            .as_ref()
+            .map_or(0, |x| x.len());
+
+        // Don't treat `None` at the end of the column list as columns, we'll refill
+        // these later
+        if let Some(last_filled) = columns.iter().rposition(|x| !x.is_none()) {
+            columns.truncate(last_filled + 1);
+
+            let mode = self.renderer.metadata().mode;
+            if (mode == ColumnSelectMode::Select) ^ shift {
+                columns.clear();
+            } else {
+                columns.retain(|x| x.as_ref() != Some(&name));
+            }
+
+            columns.push(Some(name));
+        }
+
+        // Do this outside the loop so errors dont just become noops
+        self.apply_columns(
+            columns
+                .into_iter()
+                .pad_using(max_cols, |_| None)
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    fn apply_columns(&self, columns: Vec<Option<String>>) {
+        let config = ViewConfigUpdate {
+            columns: Some(columns),
+            ..ViewConfigUpdate::default()
+        };
+
+        self.update_and_render(config)
+            .map(ApiFuture::spawn)
+            .unwrap_or_log();
     }
 }

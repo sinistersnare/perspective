@@ -26,17 +26,6 @@ pub struct ColorRangeProps {
     pub is_modified: bool,
 }
 
-fn infer_fg(color: &str) -> &'static str {
-    let r = i32::from_str_radix(&color[1..3], 16).unwrap_or(255) as f64;
-    let g = i32::from_str_radix(&color[3..5], 16).unwrap_or(0) as f64;
-    let b = i32::from_str_radix(&color[5..7], 16).unwrap_or(0) as f64;
-    if (r * r * 0.299 + g * g * 0.587 + b * b * 0.114).sqrt() > 130.0 {
-        "--sign--color:#161616"
-    } else {
-        "--sign--color:#FFFFFF"
-    }
-}
-
 #[function_component(ColorRangeSelector)]
 pub fn color_chooser_component(props: &ColorRangeProps) -> Html {
     let on_pos_color = use_callback(
@@ -106,10 +95,23 @@ pub fn color_chooser_component(props: &ColorRangeProps) -> Html {
                     />
                     <label for={format!("{}-neg", props.id)} class="color-label">{ "-" }</label>
                 </div>
-                if props.is_modified { <span class="reset-default-style" onclick={on_reset} /> } else {
+                if props.is_modified {
+                    <span class="reset-default-style" onclick={on_reset} />
+                } else {
                     <span class="reset-default-style-disabled" />
                 }
             </div>
         </>
+    }
+}
+
+fn infer_fg(color: &str) -> &'static str {
+    let r = i32::from_str_radix(&color[1..3], 16).unwrap_or(255) as f64;
+    let g = i32::from_str_radix(&color[3..5], 16).unwrap_or(0) as f64;
+    let b = i32::from_str_radix(&color[5..7], 16).unwrap_or(0) as f64;
+    if (r * r * 0.299 + g * g * 0.587 + b * b * 0.114).sqrt() > 130.0 {
+        "--sign--color:#161616"
+    } else {
+        "--sign--color:#FFFFFF"
     }
 }

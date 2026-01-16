@@ -14,139 +14,65 @@ use std::collections::HashSet;
 
 use perspective_client::config::*;
 use perspective_client::utils::PerspectiveResultExt;
+use perspective_js::utils::ApiFuture;
 use web_sys::*;
 use yew::prelude::*;
 
 use super::InPlaceColumn;
 use super::aggregate_selector::*;
-use super::expression_toolbar::*;
+use super::expr_edit_button::*;
+use crate::PerspectiveProperties;
 use crate::components::column_selector::{EmptyColumn, InvalidColumn};
 use crate::components::type_icon::TypeIcon;
-use crate::components::viewer::ColumnLocator;
 use crate::custom_elements::ColumnDropDownElement;
 use crate::dragdrop::*;
 use crate::js::plugin::*;
 use crate::model::*;
-use crate::presentation::Presentation;
+use crate::presentation::ColumnLocator;
 use crate::renderer::*;
 use crate::session::*;
-use crate::*;
+use crate::utils::*;
 
-enum ColumnState {
-    Empty,
-    Invalid,
-    Named(String),
-}
-
-#[derive(Properties, Clone)]
+#[derive(Clone, Properties, PerspectiveProperties!)]
 pub struct ActiveColumnProps {
+    /// The column's index in the list.
     pub idx: usize,
+
+    /// The column definition (including name and type).
     pub name: ActiveColumnState,
-    pub dragdrop: DragDrop,
-    pub session: Session,
-    pub renderer: Renderer,
-    pub presentation: Presentation,
+
+    /// The column select dropdown menu element.
     pub column_dropdown: ColumnDropDownElement,
+
+    /// `dragenter` event.
     pub ondragenter: Callback<()>,
+
+    /// `dragend` event.
     pub ondragend: Callback<()>,
+
+    /// Fires when this component's select button is clicked.
     pub onselect: Callback<()>,
+
+    /// Fires when this component's expression/config button is clicked.
     pub on_open_expr_panel: Callback<ColumnLocator>,
 
+    /// Is this column in a grouped context (does the aggregate selector
+    /// need to be visible)?
     #[prop_or_default]
     pub is_aggregated: bool,
+
+    /// Is this column's expression/config side panel open?
     pub is_editing: bool,
+
+    /// State
+    pub session: Session,
+    pub dragdrop: DragDrop,
+    pub renderer: Renderer,
 }
 
 impl PartialEq for ActiveColumnProps {
     fn eq(&self, _rhs: &Self) -> bool {
         false
-    }
-}
-
-impl ActiveColumnProps {
-    fn get_name(&self) -> Option<String> {
-        match &self.name.state {
-            ActiveColumnStateData::DragOver => Some(self.dragdrop.get_drag_column().unwrap()),
-            ActiveColumnStateData::Column(name) => Some(name.to_owned()),
-            ActiveColumnStateData::Required => None,
-            ActiveColumnStateData::Invalid => None,
-        }
-    }
-
-    fn get_table_type(&self) -> Option<ColumnType> {
-        self.get_name()
-            .as_ref()
-            .and_then(|x| self.session.metadata().get_column_table_type(x))
-    }
-
-    fn _get_view_type(&self) -> Option<ColumnType> {
-        self.get_name()
-            .as_ref()
-            .and_then(|x| self.session.metadata().get_column_view_type(x))
-    }
-}
-
-derive_model!(Renderer, Session for ActiveColumnProps);
-
-impl ActiveColumnProps {
-    /// Remove an active column from `columns`, or alternatively make this
-    /// column the only column in `columns` if the shift key is set (via the
-    /// `shift` flag).
-    ///
-    /// # Arguments
-    /// - `name` The name of the column to de-activate, which is a unique ID
-    ///   with respect to `columns`.
-    /// - `shift` whether to toggle or select this column.
-    pub fn deactivate_column(&self, name: String, shift: bool) {
-        let mut columns = self.session.get_view_config().columns.clone();
-        let max_cols = self
-            .renderer
-            .metadata()
-            .names
-            .as_ref()
-            .map_or(0, |x| x.len());
-
-        match self.renderer.metadata().mode {
-            ColumnSelectMode::Toggle => {
-                let index = columns
-                    .iter()
-                    .position(|x| x.as_ref() == Some(&name))
-                    .unwrap();
-
-                if max_cols > 0 && index < max_cols - 1 {
-                    columns[index] = None;
-                } else if !shift && columns.len() > 1 {
-                    columns.retain(|x| x.as_ref() != Some(&name));
-                } else if shift {
-                    columns.clear();
-                    columns.push(Some(name));
-                }
-            },
-            ColumnSelectMode::Select => {
-                columns.retain(|x| x.as_ref() != Some(&name));
-            },
-        }
-        self.apply_columns(columns);
-    }
-
-    fn get_is_required(&self) -> bool {
-        let min_cols = self.renderer.metadata().min.unwrap_or(0);
-        self.idx < min_cols
-    }
-
-    fn get_aggregate(&self, name: &str) -> Option<Aggregate> {
-        self.session.get_view_config().aggregates.get(name).cloned()
-    }
-
-    fn apply_columns(&self, columns: Vec<Option<String>>) {
-        let config = ViewConfigUpdate {
-            columns: Some(columns),
-            ..ViewConfigUpdate::default()
-        };
-
-        self.update_and_render(config)
-            .map(ApiFuture::spawn)
-            .unwrap_or_log();
     }
 }
 
@@ -159,14 +85,12 @@ pub enum ActiveColumnMsg {
 
 use ActiveColumnMsg::*;
 
-/// An `ActiveColumn` indicates a column which is part of the `columns` field of
-/// a `ViewConfig`.  It shows additional column details in context (like
+/// An [`ActiveColumn`] indicates a column which is part of the `columns` field
+/// of a [`ViewConfig`].  It shows additional column details in context (like
 /// selected aggregate), and supports drag/drop and missing entries.
 /// TODO Break this into "Active", "Hover" and "Empty"?
-#[derive(Default)]
 pub struct ActiveColumn {
     add_expression_ref: NodeRef,
-    is_required: bool,
     mouseover: bool,
 }
 
@@ -174,17 +98,11 @@ impl Component for ActiveColumn {
     type Message = ActiveColumnMsg;
     type Properties = ActiveColumnProps;
 
-    fn create(ctx: &Context<Self>) -> Self {
-        let is_required = ctx.props().get_is_required();
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            is_required,
-            ..Default::default()
+            add_expression_ref: NodeRef::default(),
+            mouseover: false,
         }
-    }
-
-    fn changed(&mut self, ctx: &Context<Self>, _old: &Self::Properties) -> bool {
-        self.is_required = ctx.props().get_is_required();
-        true
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: ActiveColumnMsg) -> bool {
@@ -248,6 +166,12 @@ impl Component for ActiveColumn {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        enum ColumnState {
+            Empty,
+            Invalid,
+            Named(String),
+        }
+
         let mut classes = classes!["column-selector-draggable"];
         if ctx.props().is_aggregated {
             classes.push("show-aggregate");
@@ -310,7 +234,7 @@ impl Component for ActiveColumn {
             })
             .collect();
 
-        let col_type = ctx.props().get_table_type();
+        let col_type = ctx.props().get_table_type(&ctx.props().name);
         match (name, col_type) {
             ((label, ColumnState::Empty), _) => {
                 classes.push("empty-named");
@@ -353,7 +277,8 @@ impl Component for ActiveColumn {
                 }
             },
             ((label, ColumnState::Named(name)), Some(col_type)) => {
-                let remove_column = if self.is_required {
+                let is_required = ctx.props().get_is_required(ctx.props().idx);
+                let remove_column = if is_required {
                     None
                 } else {
                     Some(ctx.link().callback({
@@ -389,7 +314,7 @@ impl Component for ActiveColumn {
 
                 let is_expression = ctx.props().session.metadata().is_column_expression(&name);
                 let mut class = ctx.props().renderer.metadata().mode.css();
-                if self.is_required {
+                if is_required {
                     class.push("required");
                 };
 
@@ -398,7 +323,6 @@ impl Component for ActiveColumn {
                     .can_render_column_styles(&name)
                     .unwrap_or_default();
                 let show_edit_btn = is_expression || can_render_styles;
-
                 html! {
                     <div
                         class={outer_classes}
@@ -427,7 +351,11 @@ impl Component for ActiveColumn {
                                         session={&ctx.props().session}
                                     />
                                 }
-                                <span class="column_name">{ name.clone() }</span>
+                                <span
+                                    class="column_name"
+                                >
+                                    { name.clone() }
+                                </span>
                                 if !ctx.props().is_aggregated {
                                     <span class="column-selector--spacer" />
                                 }
@@ -458,5 +386,88 @@ impl Component for ActiveColumn {
                 }
             },
         }
+    }
+}
+
+impl ActiveColumnProps {
+    fn get_name(&self, defn: &ActiveColumnState) -> Option<String> {
+        match &defn.state {
+            ActiveColumnStateData::DragOver => Some(self.dragdrop.get_drag_column().unwrap()),
+            ActiveColumnStateData::Column(name) => Some(name.to_owned()),
+            ActiveColumnStateData::Required => None,
+            ActiveColumnStateData::Invalid => None,
+        }
+    }
+
+    fn get_table_type(&self, defn: &ActiveColumnState) -> Option<ColumnType> {
+        self.get_name(defn)
+            .as_ref()
+            .and_then(|x| self.session.metadata().get_column_table_type(x))
+    }
+
+    fn _get_view_type(&self, defn: &ActiveColumnState) -> Option<ColumnType> {
+        self.get_name(defn)
+            .as_ref()
+            .and_then(|x| self.session.metadata().get_column_view_type(x))
+    }
+
+    /// Remove an active column from `columns`, or alternatively make this
+    /// column the only column in `columns` if the shift key is set (via the
+    /// `shift` flag).
+    ///
+    /// # Arguments
+    /// - `name` The name of the column to de-activate, which is a unique ID
+    ///   with respect to `columns`.
+    /// - `shift` whether to toggle or select this column.
+    fn deactivate_column(&self, name: String, shift: bool) {
+        let mut columns = self.session.get_view_config().columns.clone();
+        let max_cols = self
+            .renderer
+            .metadata()
+            .names
+            .as_ref()
+            .map_or(0, |x| x.len());
+
+        match self.renderer.metadata().mode {
+            ColumnSelectMode::Toggle => {
+                let index = columns
+                    .iter()
+                    .position(|x| x.as_ref() == Some(&name))
+                    .unwrap();
+
+                if max_cols > 0 && index < max_cols - 1 {
+                    columns[index] = None;
+                } else if !shift && columns.len() > 1 {
+                    columns.retain(|x| x.as_ref() != Some(&name));
+                } else if shift {
+                    columns.clear();
+                    columns.push(Some(name));
+                }
+            },
+            ColumnSelectMode::Select => {
+                columns.retain(|x| x.as_ref() != Some(&name));
+            },
+        }
+        self.apply_columns(columns);
+    }
+
+    fn get_is_required(&self, idx: usize) -> bool {
+        let min_cols = self.renderer.metadata().min.unwrap_or(0);
+        idx < min_cols
+    }
+
+    fn get_aggregate(&self, name: &str) -> Option<Aggregate> {
+        self.session.get_view_config().aggregates.get(name).cloned()
+    }
+
+    fn apply_columns(&self, columns: Vec<Option<String>>) {
+        let config = ViewConfigUpdate {
+            columns: Some(columns),
+            ..ViewConfigUpdate::default()
+        };
+
+        self.update_and_render(config)
+            .map(ApiFuture::spawn)
+            .unwrap_or_log();
     }
 }

@@ -13,14 +13,16 @@
 use perspective_client::*;
 use yew::prelude::*;
 
+use crate::PerspectiveProperties;
 use crate::session::{Session, ViewStats};
-use crate::utils::{AddListener, ToFormattedString};
+use crate::utils::{AddListener, u32Ext};
 
-#[derive(Properties, PartialEq)]
+#[derive(PartialEq, Properties, PerspectiveProperties!)]
 pub struct StatusBarRowsCounterProps {
     pub session: Session,
 }
 
+/// A component to show the current [`Table`]'s dimensions.
 #[function_component]
 pub fn StatusBarRowsCounter(props: &StatusBarRowsCounterProps) -> Html {
     let stats = use_state_eq(|| props.session.get_table_stats());
@@ -57,10 +59,11 @@ pub fn StatusBarRowsCounter(props: &StatusBarRowsCounterProps) -> Html {
             let ncols = tc.to_formatted_string();
             html! {
                 <span id="rows">
-                    { vrows }
-                    <span>{ format!(" ({}) x ", nrows) }</span>
-                    { vcols }
-                    <span>{ format!(" ({})", ncols) }</span>
+                    <span>{ vrows }</span>
+                    <span class="total">{ format!(" ({})", nrows) }</span>
+                    <span class="x">{ " x " }</span>
+                    <span>{ vcols }</span>
+                    <span class="total">{ format!(" ({})", ncols) }</span>
                 </span>
             }
         },
@@ -83,7 +86,12 @@ pub fn StatusBarRowsCounter(props: &StatusBarRowsCounterProps) -> Html {
             let nrows = tr.to_formatted_string();
             let vcols = vc.to_formatted_string();
             html! {
-                <span id="rows">{ vrows }<span>{ format!(" ({}) x ", nrows) }</span>{ vcols }</span>
+                <span id="rows">
+                    <span>{ vrows }</span>
+                    <span class="total">{ format!(" ({})", nrows) }</span>
+                    <span class="x">{ " x " }</span>
+                    <span>{ vcols }</span>
+                </span>
             }
         },
 
@@ -97,10 +105,10 @@ pub fn StatusBarRowsCounter(props: &StatusBarRowsCounterProps) -> Html {
             let ncols = tc.to_formatted_string();
             html! {
                 <span id="rows">
-                    { vrows }
-                    <span>{ " x " }</span>
-                    { vcols }
-                    <span>{ format!(" ({})", ncols) }</span>
+                    <span>{ vrows }</span>
+                    <span class="x">{ " x " }</span>
+                    <span>{ vcols }</span>
+                    <span class="total">{ format!(" ({})", ncols) }</span>
                 </span>
             }
         },
@@ -111,7 +119,13 @@ pub fn StatusBarRowsCounter(props: &StatusBarRowsCounterProps) -> Html {
         }) => {
             let nrows = tr.to_formatted_string();
             let ncols = tc.to_formatted_string();
-            html! { <span id="rows">{ nrows }<span>{ " x " }</span>{ ncols }</span> }
+            html! {
+                <span id="rows">
+                    <span>{ nrows }</span>
+                    <span class="x">{ " x " }</span>
+                    <span>{ ncols }</span>
+                </span>
+            }
         },
         Some(ViewStats {
             num_table_cells: None,
@@ -120,110 +134,3 @@ pub fn StatusBarRowsCounter(props: &StatusBarRowsCounterProps) -> Html {
         None => html! { <span /> },
     }
 }
-
-// /// A label widget which displays a row count and a "projection" count, the
-// /// number of rows in the `View` which includes aggregate rows.
-// pub struct StatusBarRowsCounter {}
-
-// impl Component for StatusBarRowsCounter {
-//     type Message = ();
-//     type Properties = ();
-
-//     fn create(_ctx: &Context<Self>) -> Self {
-//         Self {}
-//     }
-
-//     fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
-//         false
-//     }
-
-//     fn view(&self, ctx: &Context<Self>) -> Html {
-//         match &ctx.props().stats {
-//             Some(
-//                 ViewStats {
-//                     num_table_cells: Some((tr, tc)),
-//                     num_view_cells: Some((vr, vc)),
-//                     is_group_by: true,
-//                     ..
-//                 }
-//                 | ViewStats {
-//                     num_table_cells: Some((tr, tc)),
-//                     num_view_cells: Some((vr, vc)),
-//                     is_filtered: true,
-//                     ..
-//                 },
-//             ) if vc != tc => {
-//                 let vrows = vr.to_formatted_string();
-//                 let nrows = tr.to_formatted_string();
-//                 let vcols = vc.to_formatted_string();
-//                 let ncols = tc.to_formatted_string();
-//                 html! {
-//                     <span id="rows">
-//                         { vrows }
-//                         <span>{ format!(" ({}) x ", nrows) }</span>
-//                         { vcols }
-//                         <span>{ format!(" ({})", ncols) }</span>
-//                     </span>
-//                 }
-//             },
-
-//             Some(
-//                 ViewStats {
-//                     num_table_cells: Some((tr, _)),
-//                     num_view_cells: Some((vr, vc)),
-//                     is_group_by: true,
-//                     ..
-//                 }
-//                 | ViewStats {
-//                     num_table_cells: Some((tr, _)),
-//                     num_view_cells: Some((vr, vc)),
-//                     is_filtered: true,
-//                     ..
-//                 },
-//             ) => {
-//                 let vrows = vr.to_formatted_string();
-//                 let nrows = tr.to_formatted_string();
-//                 let vcols = vc.to_formatted_string();
-//                 html! {
-//                     <span id="rows">
-//                         { vrows }
-//                         <span>{ format!(" ({}) x ", nrows) }</span>
-//                         { vcols }
-//                     </span>
-//                 }
-//             },
-
-//             Some(ViewStats {
-//                 num_table_cells: Some((_, tc)),
-//                 num_view_cells: Some((vr, vc)),
-//                 ..
-//             }) if vc != tc => {
-//                 let vrows = vr.to_formatted_string();
-//                 let vcols = vc.to_formatted_string();
-//                 let ncols = tc.to_formatted_string();
-//                 html! {
-//                     <span id="rows">
-//                         { vrows }
-//                         <span>{ " x " }</span>
-//                         { vcols }
-//                         <span>{ format!(" ({})", ncols) }</span>
-//                     </span>
-//                 }
-//             },
-
-//             Some(ViewStats {
-//                 num_table_cells: Some((tr, tc)),
-//                 ..
-//             }) => {
-//                 let nrows = tr.to_formatted_string();
-//                 let ncols = tc.to_formatted_string();
-//                 html! { <span id="rows">{ nrows }<span>{ " x " }</span>{
-// ncols }</span> }             },
-//             Some(ViewStats {
-//                 num_table_cells: None,
-//                 ..
-//             }) => html! { <span /> },
-//             None => html! { <span /> },
-//         }
-//     }
-// }

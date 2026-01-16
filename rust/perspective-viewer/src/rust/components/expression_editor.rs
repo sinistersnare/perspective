@@ -17,35 +17,29 @@ use yew::prelude::*;
 
 use super::form::code_editor::*;
 use super::style::LocalStyle;
+use crate::model::*;
 use crate::session::Session;
 use crate::*;
 
-#[derive(Debug)]
-pub enum ExpressionEditorMsg {
-    SetExpr(Rc<String>),
-    ValidateComplete(Option<ExprValidationError>),
-}
-
-#[derive(Properties, PartialEq, Clone)]
+#[derive(Properties, PartialEq, PerspectiveProperties!, Clone)]
 pub struct ExpressionEditorProps {
-    pub session: Session,
     pub on_save: Callback<()>,
     pub on_validate: Callback<bool>,
     pub on_input: Callback<Rc<String>>,
     pub alias: Option<String>,
     pub disabled: bool,
+
     #[prop_or_default]
     pub reset_count: u8,
+
+    // State
+    pub session: Session,
 }
 
-impl ExpressionEditorProps {
-    fn initial_expr(&self) -> Rc<String> {
-        self.alias
-            .as_ref()
-            .and_then(|alias| self.session.metadata().get_expression_by_alias(alias))
-            .unwrap_or_default()
-            .into()
-    }
+#[derive(Debug)]
+pub enum ExpressionEditorMsg {
+    SetExpr(Rc<String>),
+    ValidateComplete(Option<ExprValidationError>),
 }
 
 /// Expression editor component `CodeEditor` and a button toolbar.
@@ -61,7 +55,7 @@ impl Component for ExpressionEditor {
 
     fn create(ctx: &Context<Self>) -> Self {
         let oninput = ctx.link().callback(ExpressionEditorMsg::SetExpr);
-        let expr = ctx.props().initial_expr();
+        let expr = initial_expr(&ctx.props().session, &ctx.props().alias);
         ctx.link()
             .send_message(Self::Message::SetExpr(expr.clone()));
 
@@ -95,12 +89,13 @@ impl Component for ExpressionEditor {
                 if self.error.is_none() {
                     maybe!({
                         let alias = ctx.props().alias.as_ref()?;
-                        let session = &ctx.props().session;
+                        let session = ctx.props().session();
                         let old = session.metadata().get_expression_by_alias(alias)?;
                         let is_edited = *self.expr != old;
                         session
                             .metadata_mut()
                             .set_edit_by_alias(alias, self.expr.to_string());
+
                         Some(is_edited)
                     });
 
@@ -144,10 +139,21 @@ impl Component for ExpressionEditor {
         if ctx.props().alias != old_props.alias || ctx.props().reset_count != old_props.reset_count
         {
             ctx.link()
-                .send_message(ExpressionEditorMsg::SetExpr(ctx.props().initial_expr()));
+                .send_message(ExpressionEditorMsg::SetExpr(initial_expr(
+                    &ctx.props().session,
+                    &ctx.props().alias,
+                )));
             false
         } else {
             true
         }
     }
+}
+
+fn initial_expr(session: &Session, alias: &Option<String>) -> Rc<String> {
+    alias
+        .as_ref()
+        .and_then(|alias| session.metadata().get_expression_by_alias(alias))
+        .unwrap_or_default()
+        .into()
 }

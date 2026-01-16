@@ -20,6 +20,13 @@ use crate::presentation::ColumnConfigMap;
 #[wasm_bindgen]
 #[rustfmt::skip]
 extern "C" {
+
+    #[derive(Clone)]
+    pub type JsPerspectiveViewer;
+
+    #[wasm_bindgen(method)]
+    pub fn get_model(this: &JsPerspectiveViewer) -> JsValue;
+
     #[derive(Clone)]
     pub type JsPerspectiveViewerPlugin;
 

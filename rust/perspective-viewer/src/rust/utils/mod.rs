@@ -17,16 +17,12 @@
 //! reference other `crate::utils` modules when it helps reduce boiler-plate.
 
 mod browser;
-
 mod custom_element;
 mod datetime;
 mod debounce;
 mod hooks;
 mod number_format;
 mod pubsub;
-mod scope;
-mod tee;
-mod wasm_abi;
 mod weak_scope;
 
 #[cfg(test)]
@@ -40,10 +36,9 @@ pub use hooks::*;
 pub use number_format::*;
 pub use perspective_client::clone;
 pub use pubsub::*;
-pub use scope::*;
-pub use tee::*;
 pub use weak_scope::*;
 
+/// An implementaiton of `try_blocks` feature in a non-nightly macro.
 #[macro_export]
 macro_rules! maybe {
     ($($exp:stmt);*) => {{
@@ -57,8 +52,9 @@ macro_rules! maybe {
     }};
 }
 
+/// As `maybe!`, but returns `()` and just logs errors.
 #[macro_export]
-macro_rules! js_log_maybe {
+macro_rules! maybe_log {
     ($($exp:tt)+) => {{
         let x = ({
             #[inline(always)]
@@ -74,41 +70,33 @@ macro_rules! js_log_maybe {
 }
 
 #[macro_export]
-macro_rules! max {
-    ($x:expr) => ($x);
-    ($x:expr, $($z:expr),+ $(,)?) => {{
-        let x = $x;
-        let y = max!($($z),*);
-        if x > y {
-            x
-        } else {
-            y
-        }
-    }}
-}
-
-#[macro_export]
-macro_rules! min {
-    ($x:expr) => ($x);
-    ($x:expr, $($z:expr),+ $(,)?) => {{
-        let x = $x;
-        let y = min!($($z),*);
-        if x < y {
-            x
-        } else {
-            y
-        }
-    }}
-}
-
-#[macro_export]
-macro_rules! js_log {
-    ($x:expr) => {{
-        const DEBUG_ONLY_WARNING: &str = $x;
-        web_sys::console::log_1(&wasm_bindgen::JsValue::from($x));
+macro_rules! maybe_log_or_default {
+    ($($exp:tt)+) => {{
+        let x = ({
+            #[inline(always)]
+            || {
+                $($exp)+
+            }
+        })();
+        x.unwrap_or_else(|e| {
+            web_sys::console::warn_1(&e);
+            Default::default()
+        })
     }};
-    ($x:expr $(, $y:expr)*) => {{
-        const DEBUG_ONLY_WARNING: &str = $x;
-        web_sys::console::log_1(&format!($x, $($y),*).into());
+}
+
+#[macro_export]
+macro_rules! maybe_or_default {
+    ($($exp:tt)+) => {{
+        let x = ({
+            #[inline(always)]
+            || {
+                $($exp)+
+            }
+        })();
+        x.unwrap_or_else(|| {
+            web_sys::console::warn_1("Unwrap on Noner");
+            Default::default()
+        })
     }};
 }

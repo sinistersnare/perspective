@@ -15,7 +15,7 @@ mod add_expression_button;
 mod aggregate_selector;
 mod config_selector;
 mod empty_column;
-mod expression_toolbar;
+mod expr_edit_button;
 mod filter_column;
 mod inactive_column;
 mod invalid_column;
@@ -27,6 +27,7 @@ use std::rc::Rc;
 
 pub use empty_column::*;
 pub use invalid_column::*;
+use perspective_js::utils::ApiFuture;
 use web_sys::*;
 use yew::prelude::*;
 
@@ -37,37 +38,33 @@ use self::inactive_column::*;
 use super::containers::scroll_panel::*;
 use super::containers::split_panel::{Orientation, SplitPanel};
 use super::style::LocalStyle;
-use super::viewer::ColumnLocator;
 use crate::components::containers::scroll_panel_item::ScrollPanelItem;
 use crate::custom_elements::ColumnDropDownElement;
 use crate::dragdrop::*;
 use crate::model::*;
-use crate::presentation::Presentation;
+use crate::presentation::ColumnLocator;
 use crate::renderer::*;
 use crate::session::*;
 use crate::utils::*;
 use crate::*;
 
-#[derive(Properties)]
+#[derive(Properties, PerspectiveProperties!)]
 pub struct ColumnSelectorProps {
-    pub session: Session,
-    pub renderer: Renderer,
-    pub dragdrop: DragDrop,
-    pub presentation: Presentation,
-
+    /// Fires when the expression/config column is open.
     pub on_open_expr_panel: Callback<ColumnLocator>,
 
     /// This is passed to the add_expression_button for styling.
     pub selected_column: Option<ColumnLocator>,
 
+    /// Fires when this component is resized via the UI.
     #[prop_or_default]
     pub on_resize: Option<Rc<PubSub<()>>>,
 
-    #[prop_or_default]
-    pub on_dimensions_reset: Option<Rc<PubSub<()>>>,
+    // State
+    pub session: Session,
+    pub renderer: Renderer,
+    pub dragdrop: DragDrop,
 }
-
-derive_model!(DragDrop, Renderer, Session for ColumnSelectorProps);
 
 impl PartialEq for ColumnSelectorProps {
     fn eq(&self, rhs: &Self) -> bool {
@@ -102,34 +99,40 @@ impl Component for ColumnSelector {
     type Properties = ColumnSelectorProps;
 
     fn create(ctx: &Context<Self>) -> Self {
+        let ColumnSelectorProps {
+            dragdrop,
+            renderer,
+            session,
+            ..
+        } = ctx.props();
         let table_sub = {
             let cb = ctx.link().callback(|_| ColumnSelectorMsg::TableLoaded);
-            ctx.props().session.table_loaded.add_listener(cb)
+            session.table_loaded.add_listener(cb)
         };
 
         let view_sub = {
             let cb = ctx.link().callback(|_| ColumnSelectorMsg::ViewCreated);
-            ctx.props().session.view_created.add_listener(cb)
+            session.view_created.add_listener(cb)
         };
 
         let drop_sub = {
             let cb = ctx.link().callback(ColumnSelectorMsg::Drop);
-            ctx.props().dragdrop.drop_received.add_listener(cb)
+            dragdrop.drop_received.add_listener(cb)
         };
 
         let drag_sub = {
             let cb = ctx.link().callback(ColumnSelectorMsg::Drag);
-            ctx.props().dragdrop.dragstart_received.add_listener(cb)
+            dragdrop.dragstart_received.add_listener(cb)
         };
 
         let dragend_sub = {
             let cb = ctx.link().callback(|_| ColumnSelectorMsg::DragEnd);
-            ctx.props().dragdrop.dragend_received.add_listener(cb)
+            dragdrop.dragend_received.add_listener(cb)
         };
 
         let named = maybe! {
             let plugin =
-                ctx.props().renderer.get_active_plugin().ok()?;
+                renderer.get_active_plugin().ok()?;
 
             Some(plugin.config_column_names()?.length() as usize)
         };
@@ -140,7 +143,7 @@ impl Component for ColumnSelector {
             move || link.send_message(ColumnSelectorMsg::HoverActiveIndex(None))
         });
 
-        let column_dropdown = ColumnDropDownElement::new(ctx.props().session.clone());
+        let column_dropdown = ColumnDropDownElement::new(session.clone());
         Self {
             _subscriptions: [table_sub, view_sub, drop_sub, drag_sub, dragend_sub],
             named_row_count,
@@ -211,20 +214,25 @@ impl Component for ColumnSelector {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let config = ctx.props().session.get_view_config();
-
+        let ColumnSelectorProps {
+            session,
+            renderer,
+            dragdrop,
+            ..
+        } = ctx.props();
+        let config = session.get_view_config();
         let is_aggregated = config.is_aggregated();
         let columns_iter = ctx.props().column_selector_iter_set(&config);
         let onselect = ctx.link().callback(|()| ViewCreated);
         let ondragenter = ctx.link().callback(HoverActiveIndex);
         let ondragover = Callback::from(|_event: DragEvent| _event.prevent_default());
         let ondrop = Callback::from({
-            let dragdrop = ctx.props().dragdrop.clone();
+            clone!(dragdrop);
             move |event| dragdrop.notify_drop(&event)
         });
 
         let ondragend = Callback::from({
-            let dragdrop = ctx.props().dragdrop.clone();
+            clone!(dragdrop);
             move |_| dragdrop.notify_drag_end()
         });
 
@@ -242,8 +250,7 @@ impl Component for ColumnSelector {
                 + config.split_by.len()
                 + config.filter.len()
                 + config.sort.len()) as f64,
-            ctx.props()
-                .session
+            session
                 .metadata()
                 .get_features()
                 .map(|x| {
@@ -272,11 +279,11 @@ impl Component for ColumnSelector {
         let config_selector = html_nested! {
             <ScrollPanelItem key="config_selector" {size_hint}>
                 <ConfigSelector
-                    dragdrop={&ctx.props().dragdrop}
-                    session={&ctx.props().session}
-                    renderer={&ctx.props().renderer}
                     onselect={onselect.clone()}
                     ondragenter={ctx.link().callback(|()| ViewCreated)}
+                    {dragdrop}
+                    {renderer}
+                    {session}
                 />
             </ScrollPanelItem>
         };
@@ -310,13 +317,12 @@ impl Component for ColumnSelector {
                             {is_editing}
                             {name}
                             {on_open_expr_panel}
-                            dragdrop={&ctx.props().dragdrop}
-                            session={&ctx.props().session}
-                            renderer={&ctx.props().renderer}
-                            presentation={&ctx.props().presentation}
                             {ondragenter}
                             ondragend={&ondragend}
                             onselect={&onselect}
+                            {dragdrop}
+                            {renderer}
+                            {session}
                         />
                     </ScrollPanelItem>
                 }
@@ -336,14 +342,13 @@ impl Component for ColumnSelector {
                             {idx}
                             visible={vc.is_visible}
                             name={vc.name.to_owned()}
-                            dragdrop={&ctx.props().dragdrop}
-                            session={&ctx.props().session}
-                            renderer={&ctx.props().renderer}
-                            presentation={&ctx.props().presentation}
                             {is_editing}
                             onselect={&onselect}
                             ondragend={&ondragend}
                             on_open_expr_panel={&ctx.props().on_open_expr_panel}
+                            {dragdrop}
+                            {renderer}
+                            {session}
                         />
                     </ScrollPanelItem>
                 }

@@ -11,7 +11,6 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 use perspective_client::config::ColumnType;
-// use perspective_client::ColumnType;
 use web_sys::*;
 use yew::prelude::*;
 
@@ -19,15 +18,20 @@ use crate::components::containers::dragdrop_list::*;
 use crate::components::type_icon::TypeIcon;
 use crate::dragdrop::*;
 use crate::session::*;
+use crate::utils::*;
+use crate::*;
 
-pub struct PivotColumn {}
-
-#[derive(Properties)]
+#[derive(Properties, PerspectiveProperties!)]
 pub struct PivotColumnProps {
-    pub session: Session,
+    /// Column name.
     pub column: String,
-    pub dragdrop: DragDrop,
+
+    /// The drag starte of this column, if applicable.
     pub action: DragTarget,
+
+    // State
+    pub session: Session,
+    pub dragdrop: DragDrop,
 }
 
 impl PartialEq for PivotColumnProps {
@@ -44,9 +48,15 @@ impl DragDropListItemProps for PivotColumnProps {
     }
 }
 
+pub struct PivotColumn;
+
 impl Component for PivotColumn {
     type Message = ();
     type Properties = PivotColumnProps;
+
+    fn create(_ctx: &Context<Self>) -> Self {
+        Self
+    }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let dragstart = Callback::from({
@@ -80,14 +90,9 @@ impl Component for PivotColumn {
             >
                 <div class="pivot-column-border">
                     <TypeIcon ty={col_type} />
-                    // <TypeIcon ty={ColumnType::String} />
                     <span class="column_name">{ ctx.props().column.clone() }</span>
                 </div>
             </div>
         }
-    }
-
-    fn create(_ctx: &Context<Self>) -> Self {
-        Self {}
     }
 }

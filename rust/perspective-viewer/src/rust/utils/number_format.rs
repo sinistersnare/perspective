@@ -17,12 +17,10 @@ use perspective_js::json;
 use perspective_js::utils::global::navigator;
 use wasm_bindgen::JsValue;
 
-pub trait ToFormattedString {
-    fn to_formatted_string(&self) -> String;
-}
-
 struct UnsafeNumberFormat(Intl::NumberFormat);
 
+// JavaScript does not allow threading, but we do not have a non-threadsafe
+// way to conveniently make lazy static caches of JavaScript ref values.
 unsafe impl Send for UnsafeNumberFormat {}
 unsafe impl Sync for UnsafeNumberFormat {}
 
@@ -35,7 +33,10 @@ static NUMBER_FORMAT: LazyLock<UnsafeNumberFormat> = LazyLock::new(|| {
 
 impl UnsafeNumberFormat {}
 
-impl ToFormattedString for u32 {
+/// Trait for the [`u32::to_formatted_string`] method.
+#[extend::ext]
+pub impl u32 {
+    /// Format integers consistenly using the Browser's native `NumberFormat`.
     fn to_formatted_string(&self) -> String {
         NUMBER_FORMAT
             .0

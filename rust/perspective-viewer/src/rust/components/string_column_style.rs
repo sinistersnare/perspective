@@ -16,18 +16,10 @@ use yew::*;
 use super::form::color_selector::*;
 use super::modal::{ModalLink, SetModalLink};
 use super::style::LocalStyle;
-use crate::components::form::select_field::SelectEnumField;
+use crate::components::form::select_enum_field::SelectEnumField;
 use crate::config::*;
+use crate::css;
 use crate::utils::WeakScope;
-use crate::*;
-
-pub enum StringColumnStyleMsg {
-    Reset(StringColumnStyleConfig),
-    FormatChanged(Option<FormatMode>),
-    ColorModeChanged(Option<StringColorMode>),
-    ColorChanged(String),
-    ColorReset,
-}
 
 #[derive(Properties)]
 pub struct StringColumnStyleProps {
@@ -53,45 +45,18 @@ impl PartialEq for StringColumnStyleProps {
     }
 }
 
+pub enum StringColumnStyleMsg {
+    Reset(StringColumnStyleConfig),
+    FormatChanged(Option<FormatMode>),
+    ColorModeChanged(Option<StringColorMode>),
+    ColorChanged(String),
+    ColorReset,
+}
+
 /// A component for the style form control for [`String`] columns.
 pub struct StringColumnStyle {
     config: StringColumnStyleConfig,
     default_config: StringColumnStyleDefaultConfig,
-}
-
-impl StringColumnStyle {
-    /// When this config has changed, we must signal the wrapper element.
-    fn dispatch_config(&self, ctx: &Context<Self>) {
-        let update = Some(self.config.clone()).filter(|x| x != &StringColumnStyleConfig::default());
-        ctx.props()
-            .on_change
-            .emit(ColumnConfigValueUpdate::DatagridStringStyle(update));
-    }
-
-    /// Generate a color selector component for a specific `StringColorMode`
-    /// variant.
-    fn color_select_row(&self, ctx: &Context<Self>, mode: &StringColorMode, title: &str) -> Html {
-        let on_color = ctx.link().callback(StringColumnStyleMsg::ColorChanged);
-        let color = self
-            .config
-            .color
-            .clone()
-            .unwrap_or_else(|| self.default_config.color.to_owned());
-
-        let color_props = props!(ColorProps {
-            title: title.to_owned(),
-            on_color,
-            is_modified: color != self.default_config.color,
-            color,
-            on_reset: ctx.link().callback(|_| StringColumnStyleMsg::ColorReset)
-        });
-
-        if &self.config.string_color_mode == mode {
-            html! { <div class="row"><ColorSelector ..color_props /></div> }
-        } else {
-            html! {}
-        }
-    }
 }
 
 impl Component for StringColumnStyle {
@@ -181,6 +146,41 @@ impl Component for StringColumnStyle {
                     { color_controls }
                 </div>
             </>
+        }
+    }
+}
+
+impl StringColumnStyle {
+    /// When this config has changed, we must signal the wrapper element.
+    fn dispatch_config(&self, ctx: &Context<Self>) {
+        let update = Some(self.config.clone()).filter(|x| x != &StringColumnStyleConfig::default());
+        ctx.props()
+            .on_change
+            .emit(ColumnConfigValueUpdate::DatagridStringStyle(update));
+    }
+
+    /// Generate a color selector component for a specific `StringColorMode`
+    /// variant.
+    fn color_select_row(&self, ctx: &Context<Self>, mode: &StringColorMode, title: &str) -> Html {
+        let on_color = ctx.link().callback(StringColumnStyleMsg::ColorChanged);
+        let color = self
+            .config
+            .color
+            .clone()
+            .unwrap_or_else(|| self.default_config.color.to_owned());
+
+        let color_props = props!(ColorProps {
+            title: title.to_owned(),
+            on_color,
+            is_modified: color != self.default_config.color,
+            color,
+            on_reset: ctx.link().callback(|_| StringColumnStyleMsg::ColorReset)
+        });
+
+        if &self.config.string_color_mode == mode {
+            html! { <div class="row"><ColorSelector ..color_props /></div> }
+        } else {
+            html! {}
         }
     }
 }

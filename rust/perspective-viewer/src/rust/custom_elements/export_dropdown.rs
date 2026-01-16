@@ -61,7 +61,7 @@ impl ExportDropDownMenuElement {
     /// Internal Only.
     ///
     /// Set this custom element model's raw pointer.
-    pub fn set_model(&self, parent: &PerspectiveViewerElement) {
+    pub fn __set_model(&self, parent: &PerspectiveViewerElement) {
         self.set_config_model(parent)
     }
 
@@ -69,7 +69,11 @@ impl ExportDropDownMenuElement {
 }
 
 impl ExportDropDownMenuElement {
-    pub fn new_from_model<A: GetViewerConfigModel>(model: &A) -> Self {
+    pub fn new_from_model<A>(model: &A) -> Self
+    where
+        A: GetViewerConfigModel + StateProvider,
+        <A as StateProvider>::State: HasPresentation + HasRenderer + HasSession,
+    {
         let dropdown = global::document()
             .create_element("perspective-export-menu")
             .unwrap()
@@ -80,15 +84,19 @@ impl ExportDropDownMenuElement {
         elem
     }
 
-    fn set_config_model<A: GetViewerConfigModel>(&self, model: &A) {
+    fn set_config_model<A>(&self, model: &A)
+    where
+        A: GetViewerConfigModel + StateProvider,
+        <A as StateProvider>::State: HasPresentation + HasRenderer + HasSession,
+    {
         let callback = Callback::from({
-            let model = model.cloned();
+            let model = model.clone_state();
             let modal_rc = self.modal.clone();
             move |x: ExportFile| {
                 if !x.name.is_empty() {
                     clone!(modal_rc, model);
                     spawn_local(async move {
-                        let val = model.export_method_to_jsvalue(x.method).await.unwrap();
+                        let val = model.export_method_to_blob(x.method).await.unwrap();
                         let is_chart = model.renderer().is_chart();
                         download(&x.as_filename(is_chart), &val).unwrap();
                         modal_rc.borrow().clone().unwrap().hide().unwrap();
@@ -98,10 +106,10 @@ impl ExportDropDownMenuElement {
         });
 
         let renderer = model.renderer().clone();
-        let presentation = model.presentation().clone();
+        let session = model.session().clone();
         let props = props!(ExportDropDownMenuProps {
             renderer,
-            presentation,
+            session,
             callback,
             root: self.elem.clone()
         });

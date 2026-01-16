@@ -18,7 +18,7 @@ use yew::prelude::*;
 /// Because ExprTK reports errors in column/row coordinates and visually needs
 /// to be applied to an entire token rather than a single character, we need
 /// fairly obnoxious counter logic to figure out how to generate the resulting
-/// syntax-highlighted HTML. The `Counter<'a>` struct encpsulates this logic,
+/// syntax-highlighted HTML. The `Counter<'a>` struct encapsulates this logic,
 /// generating a `NodeRef` to any autocomplete-able `<span>` tokens, as well
 /// as other convenient data for HTML rendering, and can be called incrementally
 /// while iterating tokens after parsing.
@@ -26,13 +26,22 @@ pub struct Cursor<'a> {
     row: u32,
     col: u32,
     index: u32,
+
+    /// Error text
     pub err: &'a Option<ExprValidationError>,
+
+    /// Expression text
     pub txt: &'a str,
+
+    /// Actual element
     pub noderef: NodeRef,
+
+    /// Auto complete text
     pub auto: Option<String>,
 }
 
 impl<'a> Cursor<'a> {
+    /// Create a new Cursor (given its error state).
     pub fn new(err: &'a Option<ExprValidationError>) -> Self {
         Self {
             row: 1,

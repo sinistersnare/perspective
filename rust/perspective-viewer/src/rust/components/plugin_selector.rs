@@ -11,6 +11,7 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 use perspective_client::config::ViewConfigUpdate;
+use perspective_js::utils::ApiFuture;
 use yew::prelude::*;
 
 use super::containers::select::*;
@@ -22,20 +23,14 @@ use crate::presentation::Presentation;
 use crate::renderer::*;
 use crate::session::*;
 use crate::utils::*;
-use crate::*;
+use crate::{css, *};
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, PerspectiveProperties!)]
 pub struct PluginSelectorProps {
+    pub presentation: Presentation,
     pub renderer: Renderer,
     pub session: Session,
-    pub presentation: Presentation,
-
-    #[cfg(test)]
-    #[prop_or_default]
-    pub weak_link: WeakScope<PluginSelector>,
 }
-
-derive_model!(Renderer, Session, Presentation for PluginSelectorProps);
 
 #[derive(Debug)]
 pub enum PluginSelectorMsg {
@@ -57,8 +52,9 @@ impl Component for PluginSelector {
     type Properties = PluginSelectorProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let options = generate_plugin_optgroups(&ctx.props().renderer);
-        let _plugin_sub = ctx.props().renderer.plugin_changed.add_listener({
+        let PluginSelectorProps { renderer, .. } = ctx.props();
+        let options = generate_plugin_optgroups(renderer);
+        let _plugin_sub = renderer.plugin_changed.add_listener({
             let link = ctx.link().clone();
             move |plugin: JsPerspectiveViewerPlugin| {
                 let name = plugin.name();
@@ -74,28 +70,30 @@ impl Component for PluginSelector {
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let PluginSelectorProps {
+            presentation,
+            renderer,
+            session,
+            ..
+        } = ctx.props();
         match msg {
             RendererSelectPlugin(_plugin_name) => true,
             ComponentSelectPlugin(plugin_name) => {
-                if !ctx.props().session.is_errored() {
-                    let metadata = ctx
-                        .props()
-                        .renderer
-                        .get_next_plugin_metadata(&PluginUpdate::Update(plugin_name));
+                if !session.is_errored() {
+                    let metadata =
+                        renderer.get_next_plugin_metadata(&PluginUpdate::Update(plugin_name));
 
                     let mut update = ViewConfigUpdate::default();
-                    ctx.props().session.set_update_column_defaults(
+                    session.set_update_column_defaults(
                         &mut update,
-                        metadata
-                            .as_ref()
-                            .unwrap_or(&*ctx.props().renderer.metadata()),
+                        metadata.as_ref().unwrap_or(&*renderer.metadata()),
                     );
 
                     if let Ok(task) = ctx.props().update_and_render(update) {
                         ApiFuture::spawn(task);
                     }
 
-                    ctx.props().presentation.set_open_column_settings(None);
+                    presentation.set_open_column_settings(None);
                     self.is_open = false;
                     false
                 } else {
@@ -116,7 +114,6 @@ impl Component for PluginSelector {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let callback = ctx.link().callback(|_| OpenMenu);
-
         let plugin_name = ctx.props().renderer.get_active_plugin().unwrap().name();
         let plugin_name2 = plugin_name.clone();
         let class = if self.is_open { "open" } else { "" };
@@ -170,7 +167,7 @@ struct PluginSelectProps {
 
 #[function_component]
 fn PluginSelect(props: &PluginSelectProps) -> Html {
-    let name = props.name.clone().tee::<2>();
+    let name = props.name.clone();
     let path: String = props
         .name
         .chars()
@@ -186,9 +183,9 @@ fn PluginSelect(props: &PluginSelectProps) -> Html {
     html! {
         <div
             class="plugin-select-item"
-            data-plugin={name.0}
+            data-plugin={name.clone()}
             style={format!("--default-column-title:var(--plugin-name-{}--content, \"{}\")", path, props.name)}
-            onclick={props.on_click.reform(move |_| name.1.clone())}
+            onclick={props.on_click.reform(move |_| name.clone())}
         >
             <span class="plugin-select-item-name" />
         </div>

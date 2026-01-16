@@ -23,11 +23,6 @@ use crate::components::style::LocalStyle;
 use crate::css;
 use crate::custom_elements::FilterDropDownElement;
 
-#[derive(Default)]
-pub struct EmptyRow {
-    input_ref: NodeRef,
-}
-
 #[derive(Properties, Derivative)]
 #[derivative(Debug)]
 pub struct EmptyRowProps {
@@ -56,6 +51,11 @@ pub enum EmptyRowMsg {
 }
 
 use EmptyRowMsg::*;
+
+#[derive(Default)]
+pub struct EmptyRow {
+    input_ref: NodeRef,
+}
 
 impl Component for EmptyRow {
     type Message = EmptyRowMsg;

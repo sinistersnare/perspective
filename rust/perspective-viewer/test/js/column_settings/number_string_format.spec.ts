@@ -143,6 +143,7 @@ test("Datagrid integration", async ({ page }) => {
         },
     });
     const decimal = await datagrid.regularTable.table.innerHTML();
+    await page.pause();
     await compareContentsToSnapshot(decimal, [
         "datagrid-integration-decimal.html",
     ]);

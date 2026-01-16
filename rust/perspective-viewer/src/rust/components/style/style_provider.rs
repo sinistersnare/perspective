@@ -10,15 +10,14 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-use web_sys::HtmlStyleElement;
 use yew::prelude::*;
-use yew::virtual_dom::VNode;
 
 use super::style_cache::StyleCache;
 
 #[derive(Properties, PartialEq)]
 pub struct StyleProviderProps {
     pub root: web_sys::HtmlElement,
+
     #[prop_or(true)]
     pub is_shadow: bool,
     pub children: Children,
@@ -49,17 +48,4 @@ impl Component for StyleProvider {
             </ContextProvider<StyleCache>>
         }
     }
-}
-
-#[derive(Properties, PartialEq)]
-struct StyleKeyedProps {
-    elem: HtmlStyleElement,
-}
-
-/// Necessary only to attach `key` to individual `HtmlStylElement` children,
-/// as `yew` does not calculate list updates correctly for sequences of these
-/// without keys.
-#[function_component(StyleKeyed)]
-fn style_renderer(props: &StyleKeyedProps) -> Html {
-    VNode::VRef(props.elem.clone().into())
 }

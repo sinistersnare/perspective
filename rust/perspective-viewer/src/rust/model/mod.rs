@@ -30,22 +30,21 @@
 //! # Examples
 //!
 //! ```rust
+//! #[derive(PerspectiveProperties!)]
 //! struct A {
 //!     session: Session,
 //! }
 //!
+//! #[derive(PerspectiveProperties!)]
 //! struct B {
 //!     renderer: Renderer,
 //! }
 //!
+//! #[derive(PerspectiveProperties!)]
 //! struct C {
 //!     session: Session,
 //!     renderer: Renderer,
 //! }
-//!
-//! derive_model!(Session for A);
-//! derive_model!(Renderer for B);
-//! derive_model!(Session, Renderer for C);
 //!
 //! trait SessionRenderModel: HasSession + HasRenderer {
 //!     fn render_session_now(&self) {
@@ -65,29 +64,37 @@
 //! }
 //! ```
 
+mod column_locator;
 mod columns_iter_set;
 mod copy_export;
 mod edit_expression;
+mod eject;
 mod export_app;
 mod export_method;
 mod get_viewer_config;
 mod intersection_observer;
 mod is_invalid_drop;
 mod plugin_column_styles;
+mod reset_all;
 mod resize_observer;
 mod restore_and_render;
+mod send_plugin_config;
 mod structural;
 mod update_and_render;
 
+pub use self::column_locator::*;
 pub use self::columns_iter_set::*;
 pub use self::copy_export::*;
 pub use self::edit_expression::*;
+pub use self::eject::*;
 pub use self::export_method::*;
 pub use self::get_viewer_config::*;
 pub use self::intersection_observer::*;
 pub use self::is_invalid_drop::*;
 pub use self::plugin_column_styles::*;
+pub use self::reset_all::*;
 pub use self::resize_observer::*;
 pub use self::restore_and_render::*;
+pub use self::send_plugin_config::*;
 pub use self::structural::*;
 pub use self::update_and_render::*;

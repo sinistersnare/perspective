@@ -28,54 +28,17 @@ use super::modal::{ModalLink, SetModalLink};
 use super::style::LocalStyle;
 use crate::components::datetime_column_style::custom::DatetimeStyleCustom;
 use crate::components::datetime_column_style::simple::DatetimeStyleSimple;
-use crate::components::form::select_field::{SelectEnumField, SelectValueField};
+use crate::components::form::select_enum_field::SelectEnumField;
+use crate::components::form::select_value_field::SelectValueField;
 use crate::config::*;
+use crate::css;
 use crate::utils::WeakScope;
-use crate::*;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_name = supportedValuesOf, js_namespace = Intl)]
-    pub fn supported_values_of(s: &JsValue) -> js_sys::Array;
-}
-
-thread_local! {
-    static ALL_TIMEZONES: LazyLock<Rc<Vec<String>>> = LazyLock::new(|| {
-        Rc::new(
-            supported_values_of(&JsValue::from("timeZone"))
-                .iter()
-                .map(|x| x.as_string().unwrap())
-                .collect(),
-        )
-    });
-}
-
-static USER_TIMEZONE: LazyLock<String> = LazyLock::new(|| {
-    js_sys::Reflect::get(
-        &js_sys::Intl::DateTimeFormat::new(&navigator().languages(), &json!({})).resolved_options(),
-        &JsValue::from("timeZone"),
-    )
-    .unwrap()
-    .as_string()
-    .unwrap()
-});
-
-pub enum DatetimeColumnStyleMsg {
-    SimpleDatetimeStyleConfigChanged(SimpleDatetimeStyleConfig),
-    CustomDatetimeStyleConfigChanged(CustomDatetimeStyleConfig),
-    TimezoneChanged(Option<String>),
-    ColorModeChanged(Option<DatetimeColorMode>),
-    ColorChanged(String),
-    ColorReset,
-}
 
 #[derive(Properties, Derivative)]
 #[derivative(Debug)]
 pub struct DatetimeColumnStyleProps {
     pub enable_time_config: bool,
-
     pub config: Option<DatetimeColumnStyleConfig>,
-
     pub default_config: DatetimeColumnStyleDefaultConfig,
 
     #[prop_or_default]
@@ -98,47 +61,20 @@ impl PartialEq for DatetimeColumnStyleProps {
     }
 }
 
+pub enum DatetimeColumnStyleMsg {
+    SimpleDatetimeStyleConfigChanged(SimpleDatetimeStyleConfig),
+    CustomDatetimeStyleConfigChanged(CustomDatetimeStyleConfig),
+    TimezoneChanged(Option<String>),
+    ColorModeChanged(Option<DatetimeColorMode>),
+    ColorChanged(String),
+    ColorReset,
+}
+
 /// Column style controls for the `datetime` type.
 #[derive(Debug)]
 pub struct DatetimeColumnStyle {
     config: DatetimeColumnStyleConfig,
     default_config: DatetimeColumnStyleDefaultConfig,
-}
-
-impl DatetimeColumnStyle {
-    /// When this config has changed, we must signal the wrapper element.
-    fn dispatch_config(&self, ctx: &Context<Self>) {
-        let update =
-            Some(self.config.clone()).filter(|x| x != &DatetimeColumnStyleConfig::default());
-        ctx.props()
-            .on_change
-            .emit(ColumnConfigValueUpdate::DatagridDatetimeStyle(update));
-    }
-
-    /// Generate a color selector component for a specific `StringColorMode`
-    /// variant.
-    fn color_select_row(&self, ctx: &Context<Self>, mode: &DatetimeColorMode, title: &str) -> Html {
-        let on_color = ctx.link().callback(DatetimeColumnStyleMsg::ColorChanged);
-        let color = self
-            .config
-            .color
-            .clone()
-            .unwrap_or_else(|| self.default_config.color.to_owned());
-
-        let color_props = props!(ColorProps {
-            title: title.to_owned(),
-            on_color,
-            is_modified: color != self.default_config.color,
-            color,
-            on_reset: ctx.link().callback(|_| DatetimeColumnStyleMsg::ColorReset)
-        });
-
-        if &self.config.datetime_color_mode == mode {
-            html! { <div class="row"><ColorSelector ..color_props /></div> }
-        } else {
-            html! {}
-        }
-    }
 }
 
 impl Component for DatetimeColumnStyle {
@@ -279,6 +215,69 @@ impl Component for DatetimeColumnStyle {
                     }
                 </div>
             </>
+        }
+    }
+}
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_name = supportedValuesOf, js_namespace = Intl)]
+    pub fn supported_values_of(s: &JsValue) -> js_sys::Array;
+}
+
+thread_local! {
+    static ALL_TIMEZONES: LazyLock<Rc<Vec<String>>> = LazyLock::new(|| {
+        Rc::new(
+            supported_values_of(&JsValue::from("timeZone"))
+                .iter()
+                .map(|x| x.as_string().unwrap())
+                .collect(),
+        )
+    });
+}
+
+static USER_TIMEZONE: LazyLock<String> = LazyLock::new(|| {
+    js_sys::Reflect::get(
+        &js_sys::Intl::DateTimeFormat::new(&navigator().languages(), &json!({})).resolved_options(),
+        &JsValue::from("timeZone"),
+    )
+    .unwrap()
+    .as_string()
+    .unwrap()
+});
+
+impl DatetimeColumnStyle {
+    /// When this config has changed, we must signal the wrapper element.
+    fn dispatch_config(&self, ctx: &Context<Self>) {
+        let update =
+            Some(self.config.clone()).filter(|x| x != &DatetimeColumnStyleConfig::default());
+        ctx.props()
+            .on_change
+            .emit(ColumnConfigValueUpdate::DatagridDatetimeStyle(update));
+    }
+
+    /// Generate a color selector component for a specific `StringColorMode`
+    /// variant.
+    fn color_select_row(&self, ctx: &Context<Self>, mode: &DatetimeColorMode, title: &str) -> Html {
+        let on_color = ctx.link().callback(DatetimeColumnStyleMsg::ColorChanged);
+        let color = self
+            .config
+            .color
+            .clone()
+            .unwrap_or_else(|| self.default_config.color.to_owned());
+
+        let color_props = props!(ColorProps {
+            title: title.to_owned(),
+            on_color,
+            is_modified: color != self.default_config.color,
+            color,
+            on_reset: ctx.link().callback(|_| DatetimeColumnStyleMsg::ColorReset)
+        });
+
+        if &self.config.datetime_color_mode == mode {
+            html! { <div class="row"><ColorSelector ..color_props /></div> }
+        } else {
+            html! {}
         }
     }
 }

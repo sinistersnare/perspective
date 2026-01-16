@@ -19,6 +19,18 @@ use crate::utils::WeakScope;
 
 static CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/css/function-dropdown.css"));
 
+#[derive(Properties, PartialEq)]
+pub struct FunctionDropDownProps {
+    #[prop_or_default]
+    pub weak_link: WeakScope<FunctionDropDown>,
+}
+
+impl ModalLink<FunctionDropDown> for FunctionDropDownProps {
+    fn weak_link(&self) -> &'_ WeakScope<FunctionDropDown> {
+        &self.weak_link
+    }
+}
+
 pub enum FunctionDropDownMsg {
     SetValues(Vec<CompletionItemSuggestion>),
     SetCallback(Callback<CompletionItemSuggestion>),
@@ -31,18 +43,6 @@ pub struct FunctionDropDown {
     values: Option<Vec<CompletionItemSuggestion>>,
     selected: usize,
     on_select: Option<Callback<CompletionItemSuggestion>>,
-}
-
-#[derive(Properties, PartialEq)]
-pub struct FunctionDropDownProps {
-    #[prop_or_default]
-    pub weak_link: WeakScope<FunctionDropDown>,
-}
-
-impl ModalLink<FunctionDropDown> for FunctionDropDownProps {
-    fn weak_link(&self) -> &'_ WeakScope<FunctionDropDown> {
-        &self.weak_link
-    }
 }
 
 impl Component for FunctionDropDown {
@@ -88,19 +88,19 @@ impl Component for FunctionDropDown {
             },
             FunctionDropDownMsg::ItemDown => {
                 self.selected += 1;
-                if let Some(ref values) = self.values
-                    && self.selected >= values.len()
-                {
-                    self.selected = 0;
+                if let Some(ref values) = self.values {
+                    if self.selected >= values.len() {
+                        self.selected = 0;
+                    }
                 };
 
                 true
             },
             FunctionDropDownMsg::ItemUp => {
-                if let Some(ref values) = self.values
-                    && self.selected < 1
-                {
-                    self.selected = values.len();
+                if let Some(ref values) = self.values {
+                    if self.selected < 1 {
+                        self.selected = values.len();
+                    }
                 }
 
                 self.selected -= 1;
@@ -146,6 +146,6 @@ impl Component for FunctionDropDown {
             }
         };
 
-        html! { <><style>{ &CSS }</style>{ body }</> }
+        html! { <><style>{ CSS }</style>{ body }</> }
     }
 }

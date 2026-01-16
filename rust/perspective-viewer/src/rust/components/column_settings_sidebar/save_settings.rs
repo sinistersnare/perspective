@@ -43,7 +43,9 @@ pub fn save_settings(props: &SaveSettingsProps) -> Html {
                     </button>
                 </div>
             }
-            <div id="save-settings">
+            <div
+                id="save-settings"
+            >
                 if props.is_save {
                     <button
                         id="psp-expression-editor-button-reset"

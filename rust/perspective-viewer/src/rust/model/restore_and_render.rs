@@ -35,16 +35,15 @@ pub trait RestoreAndRender: HasRenderer + HasSession + HasPresentation {
     ) -> ApiFuture<()> {
         clone!(self.session(), self.renderer(), self.presentation());
         ApiFuture::new(async move {
-            if !session.has_table()
-                && let OptionalUpdate::Update(x) = settings
-            {
+            if let OptionalUpdate::Update(x) = settings {
                 presentation.set_settings_attribute(x);
+                presentation.set_settings_before_open(x);
             }
 
             if let OptionalUpdate::Update(title) = title {
-                presentation.set_title(Some(title));
+                session.set_title(Some(title));
             } else if matches!(title, OptionalUpdate::SetDefault) {
-                presentation.set_title(None);
+                session.set_title(None);
             }
 
             let needs_restyle = match theme_name {
@@ -93,17 +92,23 @@ pub trait RestoreAndRender: HasRenderer + HasSession + HasPresentation {
                     return Err(error);
                 }
 
-                session.validate().await?.create_view().await
+                let view = session.validate().await?.create_view().await;
+                if !presentation.is_visible() {
+                    Ok(None)
+                } else {
+                    view
+                }
             });
 
             draw_task.await?;
 
             // TODO this should be part of the API for `draw()` above, such that
             // the plugin need not render twice when a theme is provided.
-            if needs_restyle {
+            if needs_restyle && presentation.is_visible() {
                 let view = session.get_view().into_apierror()?;
                 renderer.restyle_all(&view).await?;
             }
+            // }
 
             Ok(())
         })

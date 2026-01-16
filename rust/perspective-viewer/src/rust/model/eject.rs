@@ -10,36 +10,32 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-use yew::prelude::*;
+use perspective_client::clone;
+use yew::Component;
 
-use super::ColumnLocator;
+use super::{HasRenderer, HasSession};
+use crate::ApiFuture;
+use crate::root::Root;
+use crate::session::ResetOptions;
 
-#[derive(PartialEq, Clone, Properties)]
-pub struct ExprEditButtonProps {
-    pub name: String,
-    pub is_expression: bool,
-    pub on_open_expr_panel: Callback<ColumnLocator>,
-    pub is_editing: bool,
+pub trait DeleteAll: HasSession + HasRenderer {
+    fn delete_all<T: Component>(&self, root: &Root<T>) -> ApiFuture<()> {
+        self.session().table_unloaded.emit(false);
+        clone!(self.renderer(), self.session(), root);
+        ApiFuture::new(self.renderer().clone().with_lock(async move {
+            renderer.delete()?;
+            root.borrow_mut().take().ok_or("Already deleted")?.destroy();
+            session
+                .reset(ResetOptions {
+                    config: true,
+                    expressions: true,
+                    table: true,
+                    ..ResetOptions::default()
+                })
+                .await?;
+            Ok(())
+        }))
+    }
 }
 
-/// A button that goes into a column-list for a custom expression
-/// when pressed, it opens up the expression editor side-panel.
-#[function_component]
-pub fn ExprEditButton(p: &ExprEditButtonProps) -> Html {
-    let onmousedown = yew::use_callback(p.clone(), |_, p| {
-        let name = if p.is_expression {
-            ColumnLocator::Expression(p.name.clone())
-        } else {
-            ColumnLocator::Table(p.name.clone())
-        };
-        p.on_open_expr_panel.emit(name)
-    });
-
-    let class = if p.is_editing {
-        "expression-edit-button is-editing"
-    } else {
-        "expression-edit-button"
-    };
-
-    html! { <span {onmousedown} {class} /> }
-}
+impl<T: HasSession + HasRenderer> DeleteAll for T {}

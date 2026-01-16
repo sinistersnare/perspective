@@ -10,7 +10,7 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import { View } from "@perspective-dev/client";
+import type { View } from "@perspective-dev/client";
 
 // import type * as perspective from "@perspective-dev/client";
 

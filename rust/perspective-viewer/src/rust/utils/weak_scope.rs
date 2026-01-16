@@ -18,7 +18,7 @@ use derivative::Derivative;
 use yew::html::Scope;
 use yew::prelude::*;
 
-/// A mutable reference for capturing the `Scope<_>` props arguments, a useful
+/// A mutable reference for capturing the [`Scope`] props arguments, a useful
 /// function for tests.
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Default(bound = ""))]
@@ -37,3 +37,13 @@ impl<C: Component> PartialEq for WeakScope<C> {
         Rc::ptr_eq(&self.0, &other.0)
     }
 }
+
+// #[extend::ext]
+// pub impl<T: Component> Context<T> {
+//     fn context<U: Clone + PartialEq + 'static>(&self) -> U {
+//         self.link()
+//             .context::<U>(Callback::from(|_| {}))
+//             .map(|(c, _)| c)
+//             .unwrap()
+//     }
+// }

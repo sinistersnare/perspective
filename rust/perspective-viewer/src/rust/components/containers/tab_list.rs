@@ -14,20 +14,20 @@ use yew::{Callback, Children, Component, Html, Properties, classes, html};
 
 use crate::components::style::LocalStyle;
 use crate::css;
-
-pub trait Tab: PartialEq + std::fmt::Display + Clone + Default + 'static {}
-
-impl Tab for String {}
-
-impl Tab for &'static str {}
+use crate::presentation::ColumnTab;
 
 #[derive(Properties, Debug, PartialEq)]
-pub struct TabListProps<T: Tab> {
-    // all possible tabs
+pub struct TabListProps<T: ColumnTab> {
+    /// All tabs
     pub tabs: Vec<T>,
+
+    /// Fires when the selected tab changes in the UI.
     pub on_tab_change: Callback<(usize, T)>,
+
+    // Which tab is selected.
     pub selected_tab: Option<usize>,
-    // the curently instantiated tabs
+
+    // The currently instantiated tabs.
     pub children: Children,
 }
 
@@ -35,12 +35,12 @@ pub enum TabListMsg {
     SetSelected(usize),
 }
 
-pub struct TabList<T: Tab> {
+pub struct TabList<T: ColumnTab> {
     t: std::marker::PhantomData<T>,
     selected_idx: usize,
 }
 
-impl<T: Tab> Component for TabList<T> {
+impl<T: ColumnTab> Component for TabList<T> {
     type Message = TabListMsg;
     type Properties = TabListProps<T>;
 

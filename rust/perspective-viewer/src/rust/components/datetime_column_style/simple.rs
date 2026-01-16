@@ -12,20 +12,14 @@
 
 use yew::prelude::*;
 
-use crate::components::form::select_field::SelectEnumField;
+use crate::components::form::select_enum_field::SelectEnumField;
 use crate::components::modal::{ModalLink, SetModalLink};
 use crate::config::*;
 use crate::utils::WeakScope;
 
-pub enum DatetimeStyleSimpleMsg {
-    DateStyleChanged(Option<SimpleDatetimeFormat>),
-    TimeStyleChanged(Option<SimpleDatetimeFormat>),
-}
-
 #[derive(Properties)]
 pub struct DatetimeStyleSimpleProps {
     pub enable_time_config: bool,
-
     pub config: SimpleDatetimeStyleConfig,
 
     #[prop_or_default]
@@ -47,19 +41,17 @@ impl PartialEq for DatetimeStyleSimpleProps {
     }
 }
 
+pub enum DatetimeStyleSimpleMsg {
+    DateStyleChanged(Option<SimpleDatetimeFormat>),
+    TimeStyleChanged(Option<SimpleDatetimeFormat>),
+}
+
 /// `DatetimeStyleSimple` represents the variation of the options parameter to
 /// `Intl.DatetimeFormat()` which supports `timeStyle` and `dateStyle`. These
 /// options are mutually exclusive with those of `DatetimeStyleCustom`, hence
 /// the two-struct model for this options parameter.
 pub struct DatetimeStyleSimple {
     config: SimpleDatetimeStyleConfig,
-}
-
-impl DatetimeStyleSimple {
-    /// When this config has changed, we must signal the wrapper element.
-    fn dispatch_config(&self, ctx: &Context<Self>) {
-        ctx.props().on_change.emit(self.config.clone());
-    }
 }
 
 impl Component for DatetimeStyleSimple {
@@ -118,5 +110,12 @@ impl Component for DatetimeStyleSimple {
                 }
             </>
         }
+    }
+}
+
+impl DatetimeStyleSimple {
+    /// When this config has changed, we must signal the wrapper element.
+    fn dispatch_config(&self, ctx: &Context<Self>) {
+        ctx.props().on_change.emit(self.config.clone());
     }
 }

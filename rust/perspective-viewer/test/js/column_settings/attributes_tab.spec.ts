@@ -43,6 +43,7 @@ test.describe("Attributes Tab", () => {
         await view.columnSettingsSidebar.openTab("Attributes");
         await expect(input).toBeEnabled();
     });
+
     test("Empty expression names", async ({ page }) => {
         // Setup
         let expr_value = "12345";
@@ -70,6 +71,7 @@ test.describe("Attributes Tab", () => {
         let config = await view.save();
         expect(config.expressions?.[expr_value]).toBe(expr_value);
     });
+
     test("Expression names do not overlap existing columns", async ({
         page,
     }) => {

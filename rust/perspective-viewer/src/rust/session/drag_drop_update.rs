@@ -12,8 +12,8 @@
 
 use perspective_client::config::*;
 
-use crate::dragdrop::{DragEffect, DragTarget};
 use crate::js::plugin::ViewConfigRequirements;
+use crate::utils::{DragEffect, DragTarget};
 
 #[allow(clippy::too_many_arguments)]
 #[extend::ext]

@@ -23,21 +23,6 @@ use yew::prelude::*;
 use crate::utils::*;
 use crate::*;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DragTarget {
-    Active,
-    GroupBy,
-    SplitBy,
-    Sort,
-    Filter,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DragEffect {
-    Copy,
-    Move(DragTarget),
-}
-
 #[derive(Clone, Debug)]
 struct DragFrom {
     column: String,
@@ -50,17 +35,12 @@ struct DragOver {
     index: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 enum DragState {
+    #[default]
     NoDrag,
     DragInProgress(DragFrom),
     DragOverInProgress(DragFrom, DragOver),
-}
-
-impl Default for DragState {
-    fn default() -> Self {
-        Self::NoDrag
-    }
 }
 
 impl DragState {
@@ -249,7 +229,7 @@ impl DragDrop {
 pub fn dragenter_helper(callback: impl Fn() + 'static, target: NodeRef) -> Callback<DragEvent> {
     Callback::from({
         move |event: DragEvent| {
-            js_log_maybe!({
+            maybe_log!({
                 event.stop_propagation();
                 event.prevent_default();
                 if event.related_target().is_none() {
@@ -273,7 +253,7 @@ pub fn dragleave_helper(callback: impl Fn() + 'static, drag_ref: NodeRef) -> Cal
     Callback::from({
         clone!(drag_ref);
         move |event: DragEvent| {
-            js_log_maybe!({
+            maybe_log!({
                 event.stop_propagation();
                 event.prevent_default();
 

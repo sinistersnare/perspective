@@ -61,7 +61,7 @@ impl CopyDropDownMenuElement {
     /// Internal Only.
     ///
     /// Set this custom element model's raw pointer.
-    pub fn set_model(&self, parent: &PerspectiveViewerElement) {
+    pub fn __set_model(&self, parent: &PerspectiveViewerElement) {
         self.set_config_model(parent)
     }
 
@@ -69,7 +69,11 @@ impl CopyDropDownMenuElement {
 }
 
 impl CopyDropDownMenuElement {
-    pub fn new_from_model<A: GetViewerConfigModel>(model: &A) -> Self {
+    pub fn new_from_model<A>(model: &A) -> Self
+    where
+        A: GetViewerConfigModel + StateProvider,
+        <A as StateProvider>::State: HasPresentation + HasRenderer + HasSession,
+    {
         let dropdown = global::document()
             .create_element("perspective-copy-menu")
             .unwrap()
@@ -80,18 +84,22 @@ impl CopyDropDownMenuElement {
         elem
     }
 
-    pub fn set_config_model<A: GetViewerConfigModel>(&self, model: &A) {
+    pub fn set_config_model<A>(&self, model: &A)
+    where
+        A: GetViewerConfigModel + StateProvider,
+        <A as StateProvider>::State: HasPresentation + HasRenderer + HasSession,
+    {
         let callback = Callback::from({
-            let model = model.cloned();
+            let model = model.clone_state();
             let modal_rc = self.modal.clone();
             move |x: ExportFile| {
                 let model = model.clone();
                 let modal = modal_rc.borrow().clone().unwrap();
                 spawn_local(async move {
                     let mime = x.method.mimetype(x.is_chart);
-                    let task = model.export_method_to_jsvalue(x.method);
+                    let task = model.export_method_to_blob(x.method);
                     let result = copy_to_clipboard(task, mime).await;
-                    crate::js_log_maybe!({
+                    crate::maybe_log!({
                         result?;
                         modal.hide()?;
                     })

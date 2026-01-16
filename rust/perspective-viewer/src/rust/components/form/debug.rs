@@ -13,6 +13,7 @@
 use std::rc::Rc;
 
 use perspective_client::ExprValidationError;
+use perspective_js::utils::{ApiFuture, JsValueSerdeExt};
 use wasm_bindgen::prelude::*;
 use yew::prelude::*;
 
@@ -25,86 +26,13 @@ use crate::presentation::*;
 use crate::renderer::*;
 use crate::session::*;
 use crate::utils::*;
-use crate::*;
+use crate::{PerspectiveProperties, css};
 
-#[derive(Properties, Clone, PartialEq)]
+#[derive(PartialEq, Properties, PerspectiveProperties!)]
 pub struct DebugPanelProps {
-    pub session: Session,
-    pub renderer: Renderer,
     pub presentation: Presentation,
-}
-
-derive_model!(Presentation, Renderer, Session for DebugPanelProps);
-
-impl DebugPanelProps {
-    fn set_text(&self, setter: UseStateSetter<Rc<String>>) {
-        let props = self.clone();
-        ApiFuture::spawn(async move {
-            let task = props.get_viewer_config();
-            let config = task.await?;
-            let json = JsValue::from_serde_ext(&config)?;
-            let js_string =
-                js_sys::JSON::stringify_with_replacer_and_space(&json, &JsValue::NULL, &2.into())?;
-
-            setter.set(Rc::new(js_string.as_string().unwrap()));
-            Ok(())
-        });
-    }
-
-    fn reset_callback(
-        &self,
-        text: UseStateSetter<Rc<String>>,
-        error: UseStateSetter<Option<ExprValidationError>>,
-        modified: UseStateSetter<bool>,
-    ) -> impl Fn(()) + use<> {
-        let props = self.clone();
-        move |_| {
-            error.set(None);
-            props.set_text(text.clone());
-            modified.set(false);
-        }
-    }
-}
-
-fn on_save(
-    props: &DebugPanelProps,
-    text: &Rc<String>,
-    error: &UseStateHandle<Option<ExprValidationError>>,
-    modified: &UseStateHandle<bool>,
-) {
-    clone!(props, text, error, modified);
-    ApiFuture::spawn(async move {
-        match serde_json::from_str(&text) {
-            Ok(config) => {
-                match props.restore_and_render(config, async { Ok(()) }).await {
-                    Ok(_) => {
-                        modified.set(false);
-                    },
-                    Err(e) => {
-                        modified.set(true);
-                        error.set(Some(ExprValidationError {
-                            error_message: JsValue::from(e)
-                                .as_string()
-                                .unwrap_or_else(|| "Failed to validate viewer config".to_owned()),
-                            line: 0_u32,
-                            column: 0,
-                        }));
-                    },
-                }
-                Ok(())
-            },
-            Err(err) => {
-                modified.set(true);
-                error.set(Some(ExprValidationError {
-                    error_message: err.to_string(),
-                    line: err.line() as u32 - 1,
-                    column: err.column() as u32 - 1,
-                }));
-
-                Ok(())
-            },
-        }
-    });
+    pub renderer: Renderer,
+    pub session: Session,
 }
 
 #[function_component(DebugPanel)]
@@ -113,33 +41,34 @@ pub fn debug_panel(props: &DebugPanelProps) -> Html {
     let error = use_state_eq(|| Option::<ExprValidationError>::None);
     let select_all = use_memo((), |()| PubSub::default());
     let modified = use_state_eq(|| false);
-    use_effect_with((expr.setter(), props.clone()), {
+
+    use_effect_with((expr.setter(), props.clone_state()), {
         clone!(error, modified);
-        move |(text, props)| {
-            props.set_text(text.clone());
+        move |(text, state)| {
+            state.set_text(text.clone());
             error.set(None);
-            let sub1 = props
-                .renderer()
+            let sub1 = state
+                .renderer
                 .style_changed
-                .add_listener(props.reset_callback(
+                .add_listener(state.reset_callback(
                     text.clone(),
                     error.setter(),
                     modified.setter(),
                 ));
 
-            let sub2 = props
+            let sub2 = state
                 .renderer()
                 .reset_changed
-                .add_listener(props.reset_callback(
+                .add_listener(state.reset_callback(
                     text.clone(),
                     error.setter(),
                     modified.setter(),
                 ));
 
-            let sub3 = props
+            let sub3 = state
                 .session()
                 .view_config_changed
-                .add_listener(props.reset_callback(
+                .add_listener(state.reset_callback(
                     text.clone(),
                     error.setter(),
                     modified.setter(),
@@ -161,9 +90,9 @@ pub fn debug_panel(props: &DebugPanelProps) -> Html {
         }
     });
 
-    let onsave = use_callback((expr.clone(), error.clone(), props.clone()), {
+    let onsave = use_callback((expr.clone(), error.clone(), props.clone_state()), {
         clone!(modified);
-        move |_, (text, error, props)| on_save(props, text, error, &modified)
+        move |_, (text, error, props)| props.on_save(text, error, &modified)
     });
 
     let oncopy = use_callback(
@@ -182,12 +111,12 @@ pub fn debug_panel(props: &DebugPanelProps) -> Html {
         },
     );
 
-    let onapply = use_callback((expr.clone(), error.clone(), props.clone()), {
+    let onapply = use_callback((expr.clone(), error.clone(), props.clone_state()), {
         clone!(modified);
-        move |_, (text, error, props)| on_save(props, text, error, &modified)
+        move |_, (text, error, props)| props.on_save(text, error, &modified)
     });
 
-    let onreset = use_callback((expr.setter(), error.clone(), props.clone()), {
+    let onreset = use_callback((expr.setter(), error.clone(), props.clone_state()), {
         clone!(modified);
         move |_, (text, error, props)| {
             props.set_text(text.clone());
@@ -196,7 +125,7 @@ pub fn debug_panel(props: &DebugPanelProps) -> Html {
         }
     });
 
-    let onpaste = use_callback((expr.clone(), error.clone(), props.clone()), {
+    let onpaste = use_callback((expr.clone(), error.clone(), props.clone_state()), {
         clone!(modified);
         move |_, (text, error, props)| {
             clone!(text, error, props, modified);
@@ -206,7 +135,7 @@ pub fn debug_panel(props: &DebugPanelProps) -> Html {
                     modified.set(true);
                     error.set(None);
                     text.set(x.clone());
-                    on_save(&props, &x, &error, &modified);
+                    props.on_save(&x, &error, &modified);
                 }
 
                 Ok(())
@@ -249,5 +178,77 @@ pub fn debug_panel(props: &DebugPanelProps) -> Html {
                 </TrapDoorPanel>
             </div>
         </>
+    }
+}
+
+impl DebugPanelPropsState {
+    fn set_text(&self, setter: UseStateSetter<Rc<String>>) {
+        let props = self.clone();
+        ApiFuture::spawn(async move {
+            let task = props.get_viewer_config();
+            let config = task.await?;
+            let json = JsValue::from_serde_ext(&config)?;
+            let js_string =
+                js_sys::JSON::stringify_with_replacer_and_space(&json, &JsValue::NULL, &2.into())?;
+
+            setter.set(Rc::new(js_string.as_string().unwrap()));
+            Ok(())
+        });
+    }
+
+    fn reset_callback(
+        &self,
+        text: UseStateSetter<Rc<String>>,
+        error: UseStateSetter<Option<ExprValidationError>>,
+        modified: UseStateSetter<bool>,
+    ) -> impl Fn(()) + use<> {
+        let props = self.clone();
+        move |_| {
+            error.set(None);
+            props.set_text(text.clone());
+            modified.set(false);
+        }
+    }
+
+    fn on_save(
+        &self,
+        text: &Rc<String>,
+        error: &UseStateHandle<Option<ExprValidationError>>,
+        modified: &UseStateHandle<bool>,
+    ) {
+        let props = self.clone();
+        clone!(text, error, modified);
+        ApiFuture::spawn(async move {
+            match serde_json::from_str(&text) {
+                Ok(config) => {
+                    match props.restore_and_render(config, async { Ok(()) }).await {
+                        Ok(_) => {
+                            modified.set(false);
+                        },
+                        Err(e) => {
+                            modified.set(true);
+                            error.set(Some(ExprValidationError {
+                                error_message: JsValue::from(e).as_string().unwrap_or_else(|| {
+                                    "Failed to validate viewer config".to_owned()
+                                }),
+                                line: 0_u32,
+                                column: 0,
+                            }));
+                        },
+                    }
+                    Ok(())
+                },
+                Err(err) => {
+                    modified.set(true);
+                    error.set(Some(ExprValidationError {
+                        error_message: err.to_string(),
+                        line: err.line() as u32 - 1,
+                        column: err.column() as u32 - 1,
+                    }));
+
+                    Ok(())
+                },
+            }
+        });
     }
 }

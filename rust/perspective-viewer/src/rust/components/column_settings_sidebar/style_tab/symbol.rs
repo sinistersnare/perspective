@@ -11,8 +11,9 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 mod row_selector;
-mod symbol_config;
+
 mod symbol_pairs;
+mod symbol_pairs_item;
 mod symbol_selector;
 
 use std::collections::HashMap;
@@ -21,10 +22,9 @@ use std::rc::Rc;
 use itertools::Itertools;
 use yew::{Callback, Html, Properties, html};
 
-use self::symbol_config::SymbolKVPair;
 use crate::components::column_settings_sidebar::style_tab::symbol::symbol_pairs::PairsList;
 use crate::components::style::LocalStyle;
-use crate::config::{ColumnConfigValueUpdate, KeyValueOpts};
+use crate::config::{ColumnConfigValueUpdate, KeyValueOpts, SymbolKVPair};
 use crate::css;
 use crate::custom_elements::FilterDropDownElement;
 use crate::session::Session;

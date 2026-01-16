@@ -10,15 +10,19 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
+//! Utilities specific to Browser-only JavaScript extensions.
+
 mod blob;
 mod download;
+mod dragdrop;
 mod request_animation_frame;
 mod selection;
 
 #[cfg(test)]
 mod tests;
 
-pub use blob::*;
-pub use download::*;
-pub use request_animation_frame::*;
-pub use selection::*;
+pub use self::blob::*;
+pub use self::download::*;
+pub use self::dragdrop::*;
+pub use self::request_animation_frame::*;
+pub use self::selection::*;

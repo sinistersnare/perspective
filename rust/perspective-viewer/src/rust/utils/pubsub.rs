@@ -18,9 +18,8 @@ use derivative::Derivative;
 use futures::channel::oneshot::*;
 use yew::prelude::*;
 
-/// An internal `HashSet` variant which supports unconstrained `T` e.g.
-/// without `Hash`, via returning a unique `usize` index for each insert
-/// which can be used for a reciprocal `remove(x: usize)`.
+/// A simple collection with lookup and remove with stable indices, for
+/// collecting `Box<dyn Fn()>` which do not implement [`Hash`].
 #[derive(Derivative)]
 #[derivative(Default(bound = ""))]
 struct IndexedSet<T> {
@@ -31,7 +30,10 @@ struct IndexedSet<T> {
 impl<T> IndexedSet<T> {
     fn insert(&mut self, v: T) -> usize {
         let key = self.gen_;
-        self.set.insert(key, v);
+        if self.set.insert(key, v).is_some() {
+            tracing::warn!("Collision");
+        };
+
         self.gen_ += 1;
         key
     }
@@ -56,7 +58,7 @@ type ListenerOnceSet<T> = IndexedSet<Box<dyn FnOnce(T) + 'static>>;
 
 #[derive(Derivative)]
 #[derivative(Default(bound = ""))]
-pub struct PubSubInternal<T: Clone> {
+struct PubSubInternal<T: Clone> {
     deleted: Cell<bool>,
     listeners: RefCell<ListenerSet<T>>,
     once_listeners: RefCell<ListenerOnceSet<T>>,
@@ -87,9 +89,8 @@ impl<T: Clone> PubSubInternal<T> {
 #[derivative(Default(bound = ""))]
 pub struct PubSub<T: Clone>(Rc<PubSubInternal<T>>);
 
-unsafe impl<T: Clone> Send for PubSub<T> {}
-unsafe impl<T: Clone> Sync for PubSub<T> {}
-
+/// An extension trait for [`AddListener::add_listener`], which we want to
+/// take a variety of function-like arguments for readability.
 pub trait AddListener<T> {
     /// Register a listener to this `PubSub<_>`, which will be automatically
     /// deregistered when the return `Subscription` is dropped.
@@ -109,18 +110,21 @@ impl<T: Clone + 'static> PubSub<T> {
     }
 
     /// Get this `PubSub<_>`'s `.emit_all()` method as a `Callback<T>`.
+    #[must_use]
     pub fn callback(&self) -> Callback<T> {
         let internal = self.0.clone();
         Callback::from(move |val: T| internal.emit(val))
     }
 
-    pub fn as_boxfn(&self) -> Box<dyn Fn(T) + Send + Sync + 'static> {
+    /// Convert [`PubSub::emit`] to a `Box<dyn Fn(T)>`.
+    #[must_use]
+    pub fn as_boxfn(&self) -> Box<dyn Fn(T) + 'static> {
         let internal = PubSub(self.0.clone());
         Box::new(move |val: T| internal.emit(val))
     }
 
     /// Await this `PubSub<_>`'s next call to `emit_all()`, once.
-    pub async fn listen_once(&self) -> Result<T, Canceled> {
+    pub async fn read_next(&self) -> Result<T, Canceled> {
         let (sender, receiver) = channel::<T>();
         let f = move |x| sender.send(x).unwrap_or(());
         self.0.once_listeners.borrow_mut().insert(Box::new(f));
@@ -130,6 +134,7 @@ impl<T: Clone + 'static> PubSub<T> {
     /// Create a `Subscriber` from this `PubSub`, which is the reciprocal of
     /// `PubSub::callback` (a struct which only allows sending), a struct which
     /// only allows receiving via `Subscriber::add_listener`.
+    #[must_use]
     pub fn subscriber(&self) -> Subscriber<T> {
         Subscriber(Rc::<PubSubInternal<T>>::downgrade(&self.0))
     }

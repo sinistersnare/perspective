@@ -29,17 +29,18 @@ use crate::session::Session;
 use crate::utils::*;
 use crate::*;
 
-/// A collection of `Subscription` which should trigger an event on the
-/// JavaScript Custom Element as a `CustomEvent`.  There are no public methods
+/// A collection of [`Subscription`]s which should trigger an event on the
+/// JavaScript Custom Element as a [`CustomEvent`].  There are no public methods
 /// on `CustomElements`, but when it is `drop()` the Custom Element will no
 /// longer dispatch events such as `"perspective-config-change"`.
 #[derive(Clone)]
-pub struct CustomEvents(Rc<(CustomEventsDataRc, [Subscription; 6])>);
+pub struct CustomEvents(Rc<(CustomEventsDataRc, [Subscription; 8])>);
 
 impl ImplicitClone for CustomEvents {}
+
 impl PartialEq for CustomEvents {
-    fn eq(&self, _: &Self) -> bool {
-        true
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
     }
 }
 
@@ -54,6 +55,7 @@ impl Deref for CustomEventsDataRc {
     }
 }
 
+#[derive(PerspectiveProperties!)]
 struct CustomEventsData {
     elem: HtmlElement,
     session: Session,
@@ -61,8 +63,6 @@ struct CustomEventsData {
     presentation: Presentation,
     last_dispatched: RefCell<Option<ViewerConfig>>,
 }
-
-derive_model!(Renderer, Session, Presentation for CustomEventsData);
 
 impl CustomEvents {
     pub fn new(
@@ -86,9 +86,17 @@ impl CustomEvents {
 
         let settings_sub = presentation.settings_open_changed.add_listener({
             clone!(data);
-            move |open| {
-                data.dispatch_settings_open_changed(open);
+            move |open: bool| {
+                data.dispatch_event("toggle-settings", open).unwrap();
                 data.clone().dispatch_config_update();
+            }
+        });
+
+        let before_settings_sub = presentation.settings_before_open_changed.add_listener({
+            clone!(data);
+            move |open: bool| {
+                data.dispatch_event("toggle-settings-before", open).unwrap();
+                // data.clone().dispatch_config_update();
             }
         });
 
@@ -113,57 +121,72 @@ impl CustomEvents {
             move |_| data.clone().dispatch_config_update()
         });
 
-        let title_sub = presentation.title_changed.add_listener({
+        let title_sub = session.title_changed.add_listener({
             clone!(data);
             move |_| data.clone().dispatch_config_update()
         });
 
+        let unload_sub = session.table_unloaded.add_listener({
+            clone!(data);
+            move |x: bool| {
+                if !x {
+                    data.clone()
+                        .dispatch_event("table-delete-before", JsValue::UNDEFINED)
+                        .unwrap();
+                } else {
+                    data.clone()
+                        .dispatch_event("table-delete", JsValue::UNDEFINED)
+                        .unwrap()
+                }
+            }
+        });
+
         Self(Rc::new((data, [
             theme_sub,
+            before_settings_sub,
             settings_sub,
             column_settings_sub,
             plugin_sub,
             view_sub,
             title_sub,
+            unload_sub,
         ])))
     }
 
-    pub fn dispatch_column_style_changed(&self, config: &JsValue) {
-        let event_init = web_sys::CustomEventInit::new();
-        event_init.set_detail(config);
-        let event = web_sys::CustomEvent::new_with_event_init_dict(
-            "perspective-column-style-change",
-            &event_init,
-        );
-        self.0.0.elem.dispatch_event(&event.unwrap()).unwrap();
+    pub fn dispatch_column_style_changed(&self, config: &JsValue) -> ApiResult<()> {
+        self.dispatch_event("column-style-change", config)?;
         self.0.0.clone().dispatch_config_update();
+        Ok(())
     }
 
     pub fn dispatch_select(&self, view_window: Option<&ViewWindow>) -> ApiResult<()> {
-        let event_init = web_sys::CustomEventInit::new();
-        event_init.set_detail(&serde_wasm_bindgen::to_value(&view_window)?);
-        let event =
-            web_sys::CustomEvent::new_with_event_init_dict("perspective-select", &event_init);
-
-        self.0.0.elem.dispatch_event(&event.unwrap()).unwrap();
+        self.dispatch_event("select", &serde_wasm_bindgen::to_value(&view_window)?)?;
         self.0.0.clone().dispatch_config_update();
         Ok(())
+    }
+
+    pub fn dispatch_event<T>(&self, name: &str, event: T) -> ApiResult<()>
+    where
+        T: Into<JsValue>,
+    {
+        self.0.0.dispatch_event(name, event)
     }
 }
 
 impl CustomEventsDataRc {
-    fn dispatch_settings_open_changed(&self, open: bool) {
+    pub fn dispatch_event<T>(&self, name: &str, event: T) -> ApiResult<()>
+    where
+        T: Into<JsValue>,
+    {
         let event_init = web_sys::CustomEventInit::new();
-        event_init.set_detail(&JsValue::from(open));
+        event_init.set_detail(&event.into());
         let event = web_sys::CustomEvent::new_with_event_init_dict(
-            "perspective-toggle-settings",
+            format!("perspective-{}", name).as_str(),
             &event_init,
-        );
+        )?;
 
-        self.elem
-            .toggle_attribute_with_force("settings", open)
-            .unwrap();
-        self.elem.dispatch_event(&event.unwrap()).unwrap();
+        self.elem.dispatch_event(&event)?;
+        Ok(())
     }
 
     fn dispatch_column_settings_open_changed(&self, open: bool, column_name: Option<String>) {

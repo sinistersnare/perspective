@@ -14,20 +14,19 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::str::FromStr;
 
-use ::perspective_js::{Table, View};
-use futures::future::join;
-use js_sys::*;
+use futures::channel::oneshot::channel;
+use js_sys::{Array, JsString};
 use perspective_client::config::ViewConfigUpdate;
-use perspective_js::{JsViewWindow, apierror};
+use perspective_client::utils::PerspectiveResultExt;
+use perspective_js::{JsViewConfig, JsViewWindow, Table, View, apierror};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_derive::try_from_js_option;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::*;
-use yew::prelude::*;
+use web_sys::HtmlElement;
 
-use crate::components::viewer::{PerspectiveViewer, PerspectiveViewerMsg, PerspectiveViewerProps};
+use crate::components::viewer::{PerspectiveViewerMsg, PerspectiveViewerProps};
 use crate::config::*;
 use crate::custom_events::*;
 use crate::dragdrop::*;
@@ -35,7 +34,8 @@ use crate::js::*;
 use crate::model::*;
 use crate::presentation::*;
 use crate::renderer::*;
-use crate::session::Session;
+use crate::root::Root;
+use crate::session::{ResetOptions, Session};
 use crate::utils::*;
 use crate::*;
 
@@ -49,21 +49,36 @@ use crate::*;
 /// const viewer = document.createElement("perspective-viewer");
 /// window.body.appendChild(viewer);
 /// ```
-#[derive(Clone)]
+///
+/// Complete example including loading and restoring the [`Table`]:
+///
+/// ```javascript
+/// import perspective from "@perspective-dev/viewer";
+/// import perspective from "@perspective-dev/client";
+///
+/// const viewer = document.createElement("perspective-viewer");
+/// const worker = await perspective.worker();
+///
+/// await worker.table("x\n1", {name: "table_one"});
+/// await viewer.load(worker);
+/// await viewer.restore({table: "table_one"});
+/// ```
+#[derive(Clone, PerspectiveProperties!)]
 #[wasm_bindgen]
 pub struct PerspectiveViewerElement {
     elem: HtmlElement,
-    root: Rc<RefCell<Option<AppHandle<PerspectiveViewer>>>>,
+    root: Root<components::viewer::PerspectiveViewer>,
     resize_handle: Rc<RefCell<Option<ResizeObserverHandle>>>,
     intersection_handle: Rc<RefCell<Option<IntersectionObserverHandle>>>,
     session: Session,
     renderer: Renderer,
     presentation: Presentation,
-    events: CustomEvents,
-    _subscriptions: Rc<Subscription>,
+    custom_events: CustomEvents,
+    _subscriptions: Rc<[Subscription; 2]>,
 }
 
-derive_model!( Renderer, Session, Presentation for PerspectiveViewerElement);
+// derive_model!( Renderer, Root, Session, Presentation for
+// PerspectiveViewerElement);
 
 impl CustomElementMetadata for PerspectiveViewerElement {
     const CUSTOM_ELEMENT_NAME: &'static str = "perspective-viewer";
@@ -86,10 +101,10 @@ impl PerspectiveViewerElement {
 
     fn new_from_shadow(elem: web_sys::HtmlElement, shadow_root: web_sys::Element) -> Self {
         // Application State
-        let session = Session::default();
+        let session = Session::new();
         let renderer = Renderer::new(&elem);
         let presentation = Presentation::new(&elem);
-        let events = CustomEvents::new(&elem, &session, &renderer, &presentation);
+        let custom_events = CustomEvents::new(&elem, &session, &renderer, &presentation);
 
         // Create Yew App
         let props = yew::props!(PerspectiveViewerProps {
@@ -98,49 +113,83 @@ impl PerspectiveViewerElement {
             renderer: renderer.clone(),
             presentation: presentation.clone(),
             dragdrop: DragDrop::default(),
-            custom_events: events.clone(),
-            weak_link: WeakScope::default(),
+            custom_events: custom_events.clone(),
         });
 
-        let root = yew::Renderer::with_root_and_props(shadow_root, props).render();
+        let state = props.clone_state();
+        let root = Root::new(shadow_root, props);
 
         // Create callbacks
         let update_sub = session.table_updated.add_listener({
             clone!(renderer, session);
             move |_| {
                 clone!(renderer, session);
-                ApiFuture::spawn(async move { renderer.update(&session).await })
+                ApiFuture::spawn(async move { renderer.update(session.get_view()).await })
             }
         });
 
-        let resize_handle = ResizeObserverHandle::new(&elem, &renderer, &root);
+        let eject_sub = presentation.on_eject.add_listener({
+            let root = root.clone();
+            move |_| ApiFuture::spawn(state.delete_all(&root))
+        });
+
+        let resize_handle = ResizeObserverHandle::new(&elem, &renderer, &session, &root);
+        let intersect_handle =
+            IntersectionObserverHandle::new(&elem, &presentation, &session, &renderer);
+
         Self {
             elem,
-            root: Rc::new(RefCell::new(Some(root))),
+            root,
             session,
             renderer,
             presentation,
             resize_handle: Rc::new(RefCell::new(Some(resize_handle))),
-            intersection_handle: Rc::new(RefCell::new(None)),
-            events,
-            _subscriptions: Rc::new(update_sub),
+            intersection_handle: Rc::new(RefCell::new(Some(intersect_handle))),
+            custom_events,
+            _subscriptions: Rc::new([update_sub, eject_sub]),
         }
     }
 
     #[doc(hidden)]
     #[wasm_bindgen(js_name = "connectedCallback")]
-    pub fn connected_callback(&self) {
+    pub fn connected_callback(&self) -> ApiResult<()> {
         tracing::debug!("Connected <perspective-viewer>");
+        Ok(())
     }
 
-    /// Loads a [`Table`] (or rather, a Javascript `Promise` which returns a
-    /// [`Table`]) in this viewer.
+    /// Loads a [`Client`], or optionally [`Table`], or optionally a Javascript
+    /// `Promise` which returns a [`Client`] or [`Table`], in this viewer.
+    ///
+    /// Loading a [`Client`] does not render, but subsequent calls to
+    /// [`PerspectiveViewerElement::restore`] will use this [`Client`] to look
+    /// up the proviced `table` name field for the provided
+    /// [`ViewerConfigUpdate`].
+    ///
+    /// Loading a [`Table`] is equivalent to subsequently calling
+    /// [`Self::restore`] with the `table` field set to [`Table::get_name`], and
+    /// will render the UI in its default state when [`Self::load`] resolves.
+    /// If you plan to call [`Self::restore`] anyway, prefer passing a
+    /// [`Client`] argument to [`Self::load`] as it will conserve one render.
     ///
     /// When [`PerspectiveViewerElement::load`] resolves, the first frame of the
     /// UI + visualization is guaranteed to have been drawn. Awaiting the result
     /// of this method in a `try`/`catch` block will capture any errors
-    /// thrown during the loading process, or from the [`Table`] `Promise`
+    /// thrown during the loading process, or from the [`Client`] `Promise`
     /// itself.
+    ///
+    /// [`PerspectiveViewerElement::load`] may also be called with a [`Table`],
+    /// which is equivalent to:
+    ///
+    /// ```javascript
+    /// await viewer.load(await table.get_client());
+    /// await viewer.restore({name: await table.get_name()})
+    /// ```
+    ///
+    /// If you plan to call [`PerspectiveViewerElement::restore`] immediately
+    /// after [`PerspectiveViewerElement::load`] yourself, as is commonly
+    /// done when loading and configuring a new `<perspective-viewer>`, you
+    /// should use a [`Client`] as an argument and set the `table` field in the
+    /// restore call as
     ///
     /// A [`Table`] can be created using the
     /// [`@perspective-dev/client`](https://www.npmjs.com/package/@perspective-dev/client)
@@ -152,76 +201,104 @@ impl PerspectiveViewerElement {
     /// import perspective from "@perspective-dev/client";
     ///
     /// const worker = await perspective.worker();
-    /// viewer.load(worker.table("x,y\n1,2"));
+    /// viewer.load(worker);
     /// ```
-    pub fn load(&self, table: JsValue) -> ApiFuture<()> {
-        tracing::info!("Loading Table");
-        self.session.invalidate();
+    ///
+    /// ... or
+    ///
+    /// ```javascript
+    /// const table = await worker.table(data, {name: "superstore"});
+    /// viewer.load(table);
+    /// ```
+    ///
+    /// Complete example:
+    ///
+    /// ```javascript
+    /// const viewer = document.createElement("perspective-viewer");
+    /// const worker = await perspective.worker();
+    ///
+    /// await worker.table("x\n1", {name: "table_one"});
+    /// await viewer.load(worker);
+    /// await viewer.restore({table: "table_one", columns: ["x"]});
+    /// ```
+    ///
+    /// ... or, if you don't want to pass your own arguments to `restore`:
+    ///
+    /// ```javascript
+    /// const viewer = document.createElement("perspective-viewer");
+    /// const worker = await perspective.worker();
+    ///
+    /// const table = await worker.table("x\n1", {name: "table_one"});
+    /// await viewer.load(table);
+    /// ```
+    pub fn load(&self, table: JsValue) -> ApiResult<ApiFuture<()>> {
         let promise = table
             .clone()
             .dyn_into::<js_sys::Promise>()
             .unwrap_or_else(|_| js_sys::Promise::resolve(&table));
 
-        self.session.reset_stats();
-        let delete_task = self.session.reset(true);
+        let _plugin = self.renderer.get_active_plugin()?;
+        let task = self.session.reset(ResetOptions {
+            config: true,
+            expressions: true,
+            stats: true,
+            ..ResetOptions::default()
+        });
+
         let mut config = ViewConfigUpdate {
             columns: Some(self.session.get_view_config().columns.clone()),
             ..ViewConfigUpdate::default()
         };
 
+        let metadata = self.renderer.metadata();
         self.session
-            .set_update_column_defaults(&mut config, &self.renderer.metadata());
+            .set_update_column_defaults(&mut config, &metadata);
+        self.session.update_view_config(config)?;
 
-        let update_task = self.session.update_view_config(config);
         clone!(self.renderer, self.session);
-        ApiFuture::new(async move {
+        Ok(ApiFuture::new(async move {
             let task = async {
-                update_task?;
+                // Ignore this error, which is blown away by the table anyway.
+                let _ = task.await;
                 let jstable = JsFuture::from(promise)
                     .await
                     .map_err(|x| apierror!(TableError(x)))?;
 
-                if let Some(table) =
-                    wasm_bindgen_derive::try_from_js_option::<perspective_js::Table>(jstable)?
+                if let Ok(Some(table)) =
+                    try_from_js_option::<perspective_js::Table>(jstable.clone())
                 {
-                    if let Some(existing_table) = session.get_table() {
-                        if table.get_table() == &existing_table {
-                            tracing::info!(
-                                "Table `{}` already loaded, skipping",
-                                table.get_name().await
-                            );
-
-                            return Ok(&session);
-                        } else {
-                            tracing::debug!(
-                                "New table {} vs {}",
-                                table.get_table().get_name(),
-                                existing_table.get_name()
-                            );
-                        }
-                    }
-
+                    let client = table.get_client().await;
+                    session.set_client(client.get_client().clone());
+                    let name = table.get_name().await;
                     tracing::debug!(
-                        "Successfully loaded {:.0} rows from Table",
-                        table.size().await?
+                        "Loading {:.0} rows from `Table` {}",
+                        table.size().await?,
+                        name
                     );
 
-                    session.set_table(table.get_table().clone()).await?;
-                    session.validate().await?.create_view().await
+                    if session.set_table(name).await? {
+                        session.validate().await?.create_view().await?;
+                    }
+
+                    Ok(session.get_view())
+                } else if let Ok(Some(client)) =
+                    wasm_bindgen_derive::try_from_js_option::<perspective_js::Client>(jstable)
+                {
+                    session.set_client(client.get_client().clone());
+                    Ok(session.get_view())
                 } else {
-                    Err(ApiError::new("Invalid Table"))
+                    Err(ApiError::new("Invalid argument"))
                 }
             };
 
             renderer.set_throttle(None);
-            let (draw, delete) = join(renderer.draw(task), delete_task).await;
-            let result = draw.and(delete);
+            let result = renderer.draw(task).await;
             if let Err(e) = &result {
                 session.set_error(false, e.clone()).await?;
             }
 
             result
-        })
+        }))
     }
 
     /// Delete the internal [`View`] and all associated state, rendering this
@@ -246,17 +323,7 @@ impl PerspectiveViewerElement {
     /// await viewer.delete();
     /// ```
     pub fn delete(self) -> ApiFuture<()> {
-        clone!(self.renderer, self.session, self.root);
-        ApiFuture::new(self.renderer.clone().with_lock(async move {
-            renderer.delete()?;
-            root.borrow_mut()
-                .take()
-                .ok_or("Already deleted!")?
-                .destroy();
-            session.delete().await?;
-            tracing::info!("Deleted <perspective-viewer>");
-            Ok(())
-        }))
+        self.delete_all(self.root())
     }
 
     /// Restart this `<perspective-viewer>` to its initial state, before
@@ -273,7 +340,7 @@ impl PerspectiveViewerElement {
             );
 
             std::mem::swap(self, &mut state);
-            state.delete()
+            ApiFuture::new(state.delete())
         } else {
             ApiFuture::new(async move { Ok(()) })
         }
@@ -304,8 +371,23 @@ impl PerspectiveViewerElement {
         ApiFuture::new(async move { Ok(session.get_view().ok_or("No table set")?.into()) })
     }
 
+    /// Get a copy of the [`ViewConfig`] for the current [`View`]. This is
+    /// non-blocking as it does not need to access the plugin (unlike
+    /// [`PerspectiveViewerElement::save`]), and also makes no API calls to the
+    /// server (unlike [`PerspectiveViewerElement::getView`] followed by
+    /// [`View::get_config`])
+    #[wasm_bindgen]
+    pub fn getViewConfig(&self) -> ApiFuture<JsViewConfig> {
+        let session = self.session.clone();
+        ApiFuture::new(async move {
+            let config = session.get_view_config();
+            Ok(JsValue::from_serde_ext(&*config)?.unchecked_into())
+        })
+    }
+
     /// Get the underlying [`Table`] for this viewer (as passed to
-    /// [`PerspectiveViewerElement::load`]).
+    /// [`PerspectiveViewerElement::load`] or as the `table` field to
+    /// [`PerspectiveViewerElement::restore`]).
     ///
     /// # Arguments
     ///
@@ -324,10 +406,40 @@ impl PerspectiveViewerElement {
         ApiFuture::new(async move {
             match session.get_table() {
                 Some(table) => Ok(table.into()),
-                None if !wait_for_table.unwrap_or_default() => Err("No table set".into()),
+                None if !wait_for_table.unwrap_or_default() => Err("No `Table` set".into()),
                 None => {
-                    session.table_loaded.listen_once().await?;
-                    Ok(session.get_table().ok_or("No table set")?.into())
+                    session.table_loaded.read_next().await?;
+                    Ok(session.get_table().ok_or("No `Table` set")?.into())
+                },
+            }
+        })
+    }
+
+    /// Get the underlying [`Client`] for this viewer (as passed to, or
+    /// associated with the [`Table`] passed to,
+    /// [`PerspectiveViewerElement::load`]).
+    ///
+    /// # Arguments
+    ///
+    /// - `wait_for_client` - whether to wait for
+    ///   [`PerspectiveViewerElement::load`] to be called, or fail immediately
+    ///   if [`PerspectiveViewerElement::load`] has not yet been called.
+    ///
+    /// # JavaScript Examples
+    ///
+    /// ```javascript
+    /// const client = await viewer.getClient();
+    /// ```
+    #[wasm_bindgen]
+    pub fn getClient(&self, wait_for_client: Option<bool>) -> ApiFuture<perspective_js::Client> {
+        let session = self.session.clone();
+        ApiFuture::new(async move {
+            match session.get_client() {
+                Some(client) => Ok(client.into()),
+                None if !wait_for_client.unwrap_or_default() => Err("No `Client` set".into()),
+                None => {
+                    session.table_loaded.read_next().await?;
+                    Ok(session.get_client().ok_or("No `Client` set")?.into())
                 },
             }
         })
@@ -370,13 +482,23 @@ impl PerspectiveViewerElement {
     pub fn flush(&self) -> ApiFuture<()> {
         clone!(self.renderer);
         ApiFuture::new(async move {
+            // We must let two AFs pass to guarantee listeners to the DOM state
+            // have themselves triggered, or else `request_animation_frame`
+            // may finish before a `ResizeObserver` triggered before is
+            // notifiedd.
+            //
+            // https://github.com/w3c/csswg-drafts/issues/9560
+            // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
             request_animation_frame().await;
+            request_animation_frame().await;
+            renderer.clone().with_lock(async { Ok(()) }).await?;
             renderer.with_lock(async { Ok(()) }).await
         })
     }
 
     /// Restores this element from a full/partial
-    /// [`perspective_js::JsViewConfig`].
+    /// [`perspective_js::JsViewConfig`] (this element's user-configurable
+    /// state, including the `Table` name).
     ///
     /// One of the best ways to use [`Self::restore`] is by first configuring
     /// a `<perspective-viewer>` as you wish, then using either the `Debug`
@@ -390,42 +512,61 @@ impl PerspectiveViewerElement {
     ///
     /// # JavaScript Examples
     ///
-    /// Apply a `group_by` to the current [`View`], without modifying/resetting
-    /// other fields:
+    /// Loads a default plugin for the table named `"superstore"`:
+    ///
+    /// ```javascript
+    /// await viewer.restore({table: "superstore"});
+    /// ```
+    ///
+    /// Apply a `group_by` to the same `viewer` element, without
+    /// modifying/resetting other fields - you can omit the `table` field,
+    /// this has already been set once and is not modified:
     ///
     /// ```javascript
     /// await viewer.restore({group_by: ["State"]});
     /// ```
     pub fn restore(&self, update: JsValue) -> ApiFuture<()> {
-        tracing::info!("Restoring ViewerConfig");
         let this = self.clone();
         ApiFuture::new(async move {
             let decoded_update = ViewerConfigUpdate::decode(&update)?;
+            tracing::info!("Restoring {}", decoded_update);
             let root = this.root.clone();
             let settings = decoded_update.settings.clone();
-            let result = root
-                .borrow()
-                .as_ref()
-                .into_apierror()?
-                .send_message_async(move |x| {
-                    PerspectiveViewerMsg::ToggleSettingsComplete(settings, x)
-                });
+            let (sender, receiver) = channel::<()>();
+            root.borrow().as_ref().into_apierror()?.send_message(
+                PerspectiveViewerMsg::ToggleSettingsComplete(settings, sender),
+            );
 
-            let task = this
-                .restore_and_render(decoded_update, async move { Ok(result.await?) })
+            let result = this
+                .restore_and_render(decoded_update.clone(), {
+                    clone!(this, decoded_update.table);
+                    async move {
+                        if let OptionalUpdate::Update(name) = table {
+                            this.session.set_table(name).await?;
+                            this.session
+                                .update_column_defaults(&this.renderer.metadata());
+                        };
+
+                        // Something abnormal in the DOM happened, e.g. the
+                        // element was disconnected while rendering.
+                        receiver.await.unwrap_or_log();
+                        Ok(())
+                    }
+                })
                 .await;
 
-            if let Err(e) = task {
+            if let Err(e) = &result {
                 this.session().set_error(false, e.clone()).await?;
-                Err(e)
-            } else {
-                Ok(())
             }
+            result
         })
     }
 
+    /// If this element is in an _errored_ state, this method will clear it and
+    /// re-render. Calling this method is equivalent to clicking the error reset
+    /// button in the UI.
     pub fn resetError(&self) -> ApiFuture<()> {
-        self.session.invalidate();
+        ApiFuture::spawn(self.session.reset(ResetOptions::default()));
         let this = self.clone();
         ApiFuture::new(async move {
             this.update_and_render(ViewConfigUpdate::default())?.await?;
@@ -433,12 +574,8 @@ impl PerspectiveViewerElement {
         })
     }
 
-    /// Save this element to serialized state object, one which can be restored
-    /// via the [`Self::restore`] method.
-    ///
-    /// # Arguments
-    ///
-    /// - `format` - Supports "json" (default), "arraybuffer" or "string".
+    /// Save this element's user-configurable state to a serialized state
+    /// object, one which can be restored via the [`Self::restore`] method.
     ///
     /// # JavaScript Examples
     ///
@@ -456,26 +593,25 @@ impl PerspectiveViewerElement {
     ///     await viewer.restore(token);
     /// });
     /// ```
-    pub fn save(&self, format: Option<String>) -> ApiFuture<JsValue> {
+    pub fn save(&self) -> ApiFuture<JsValue> {
         let this = self.clone();
         ApiFuture::new(async move {
-            let viewer_config_task = this.get_viewer_config();
-            let format = format
-                .as_ref()
-                .map(|x| ViewerConfigEncoding::from_str(x))
-                .transpose()?;
+            let viewer_config = this
+                .renderer
+                .clone()
+                .with_lock(async { this.get_viewer_config().await })
+                .await?;
 
-            let viewer_config = viewer_config_task.await?;
-            viewer_config.encode(&format)
+            viewer_config.encode()
         })
     }
 
-    /// Download this viewer's internal [`View`] data as a `.csv` file.
+    /// Download this viewer's internal [`View`] data via a browser download
+    /// event.
     ///
     /// # Arguments
     ///
-    /// - `flat` - Whether to use the current [`perspective_js::JsViewConfig`]
-    ///   to generate this data, or use the default.
+    /// - `method` - The `ExportMethod` to use to render the data to download.
     ///
     /// # JavaScript Examples
     ///
@@ -484,16 +620,58 @@ impl PerspectiveViewerElement {
     ///     await viewer.download();
     /// })
     /// ```
-    pub fn download(&self, flat: Option<bool>) -> ApiFuture<()> {
-        let session = self.session.clone();
+    pub fn download(&self, method: Option<JsString>) -> ApiFuture<()> {
+        let this = self.clone();
         ApiFuture::new(async move {
-            let val = session
-                .csv_as_jsvalue(flat.unwrap_or_default(), None)
-                .await?
-                .as_blob()?;
+            let method = if let Some(method) = method
+                .map(|x| x.unchecked_into())
+                .map(serde_wasm_bindgen::from_value)
+            {
+                method?
+            } else {
+                ExportMethod::Csv
+            };
 
-            // TODO name.as_deref().unwrap_or("untitled.csv")
-            download("untitled.csv", &val)
+            let blob = this.export_method_to_blob(method).await?;
+            let is_chart = this.renderer.is_chart();
+            download(
+                format!("untitled{}", method.as_filename(is_chart)).as_ref(),
+                &blob,
+            )
+        })
+    }
+
+    /// Exports this viewer's internal [`View`] as a JavaSript data, the
+    /// exact type of which depends on the `method` but defaults to `String`
+    /// in CSV format.
+    ///
+    /// This method is only really useful for the `"plugin"` method, which
+    /// will use the configured plugin's export (e.g. PNG for
+    /// `@perspective-dev/viewer-d3fc`). Otherwise, prefer to call the
+    /// equivalent method on the underlying [`View`] directly.
+    ///
+    /// # Arguments
+    ///
+    /// - `method` - The `ExportMethod` to use to render the data to download.
+    ///
+    /// # JavaScript Examples
+    ///
+    /// ```javascript
+    /// const data = await viewer.export("plugin");
+    /// ```
+    pub fn export(&self, method: Option<JsString>) -> ApiFuture<JsValue> {
+        let this = self.clone();
+        ApiFuture::new(async move {
+            let method = if let Some(method) = method
+                .map(|x| x.unchecked_into())
+                .map(serde_wasm_bindgen::from_value)
+            {
+                method?
+            } else {
+                ExportMethod::Csv
+            };
+
+            this.export_method_to_jsvalue(method).await
         })
     }
 
@@ -524,7 +702,7 @@ impl PerspectiveViewerElement {
                 ExportMethod::Csv
             };
 
-            let js_task = this.export_method_to_jsvalue(method);
+            let js_task = this.export_method_to_blob(method);
             copy_to_clipboard(js_task, MimeType::TextPlain).await
         })
     }
@@ -542,17 +720,17 @@ impl PerspectiveViewerElement {
     /// await viewer.reset();
     /// ```
     pub fn reset(&self, reset_all: Option<bool>) -> ApiFuture<()> {
-        tracing::info!("Resetting config");
+        tracing::debug!("Resetting config");
         let root = self.root.clone();
         let all = reset_all.unwrap_or_default();
         ApiFuture::new(async move {
-            let task = root
-                .borrow()
+            let (sender, receiver) = channel::<()>();
+            root.borrow()
                 .as_ref()
                 .ok_or("Already deleted")?
-                .send_message_async(move |x| PerspectiveViewerMsg::Reset(all, Some(x)));
+                .send_message(PerspectiveViewerMsg::Reset(all, Some(sender)));
 
-            Ok(task.await?)
+            Ok(receiver.await?)
         })
     }
 
@@ -584,8 +762,18 @@ impl PerspectiveViewerElement {
             *self.resize_handle.borrow_mut() = None;
         }
 
-        let renderer = self.renderer.clone();
-        ApiFuture::new(async move { renderer.resize().await })
+        let state = self.clone_state();
+        ApiFuture::new(async move {
+            if !state.renderer().is_plugin_activated()? {
+                state
+                    .update_and_render(ViewConfigUpdate::default())?
+                    .await?;
+            } else {
+                state.renderer().resize().await?;
+            }
+
+            Ok(())
+        })
     }
 
     /// Sets the auto-size behavior of this component.
@@ -614,7 +802,8 @@ impl PerspectiveViewerElement {
             let handle = Some(ResizeObserverHandle::new(
                 &self.elem,
                 &self.renderer,
-                self.root.borrow().as_ref().unwrap(),
+                &self.session,
+                &self.root,
             ));
             *self.resize_handle.borrow_mut() = handle;
         } else {
@@ -645,9 +834,11 @@ impl PerspectiveViewerElement {
         if autopause {
             let handle = Some(IntersectionObserverHandle::new(
                 &self.elem,
+                &self.presentation,
                 &self.session,
                 &self.renderer,
             ));
+
             *self.intersection_handle.borrow_mut() = handle;
         } else {
             *self.intersection_handle.borrow_mut() = None;
@@ -666,7 +857,7 @@ impl PerspectiveViewerElement {
     pub fn setSelection(&self, window: Option<JsViewWindow>) -> ApiResult<()> {
         let window = window.map(|x| x.into_serde_ext()).transpose()?;
         if self.renderer.get_selection() != window {
-            self.events.dispatch_select(window.as_ref())?;
+            self.custom_events.dispatch_select(window.as_ref())?;
         }
 
         self.renderer.set_selection(window);
@@ -742,8 +933,10 @@ impl PerspectiveViewerElement {
                 .cloned();
 
             changed = presentation.set_theme_name(reset_theme.as_deref()).await? || changed;
-            if changed && let Some(view) = session.get_view() {
-                return renderer.restyle_all(&view).await;
+            if changed {
+                if let Some(view) = session.get_view() {
+                    return renderer.restyle_all(&view).await;
+                }
             }
 
             Ok(JsValue::UNDEFINED)
@@ -789,13 +982,12 @@ impl PerspectiveViewerElement {
         let root = self.root.clone();
         ApiFuture::new(async move {
             let force = force.map(SettingsUpdate::Update);
-            let task = root
-                .borrow()
-                .as_ref()
-                .into_apierror()?
-                .send_message_async(|x| PerspectiveViewerMsg::ToggleSettingsInit(force, Some(x)));
+            let (sender, receiver) = channel::<ApiResult<wasm_bindgen::JsValue>>();
+            root.borrow().as_ref().into_apierror()?.send_message(
+                PerspectiveViewerMsg::ToggleSettingsInit(force, Some(sender)),
+            );
 
-            task.await.map_err(|_| JsValue::from("Cancelled"))?
+            receiver.await.map_err(|_| JsValue::from("Cancelled"))?
         })
     }
 
@@ -826,7 +1018,7 @@ impl PerspectiveViewerElement {
     #[doc(hidden)]
     #[allow(clippy::use_self)]
     #[wasm_bindgen]
-    pub fn get_model(&self) -> PerspectiveViewerElement {
+    pub fn __get_model(&self) -> PerspectiveViewerElement {
         self.clone()
     }
 
@@ -840,17 +1032,17 @@ impl PerspectiveViewerElement {
     pub fn toggleColumnSettings(&self, column_name: String) -> ApiFuture<()> {
         clone!(self.session, self.root);
         ApiFuture::new(async move {
-            let locator = session.metadata().get_column_locator(Some(column_name));
-            let task = root
-                .borrow()
-                .as_ref()
-                .into_apierror()?
-                .send_message_async(|sender| PerspectiveViewerMsg::OpenColumnSettings {
+            let locator = session.get_column_locator(Some(column_name));
+            let (sender, receiver) = channel::<()>();
+            root.borrow().as_ref().into_apierror()?.send_message(
+                PerspectiveViewerMsg::OpenColumnSettings {
                     locator,
                     sender: Some(sender),
                     toggle: true,
-                });
-            task.await.map_err(|_| ApiError::from("Cancelled"))
+                },
+            );
+
+            receiver.await.map_err(|_| ApiError::from("Cancelled"))
         })
     }
 
@@ -862,19 +1054,19 @@ impl PerspectiveViewerElement {
         column_name: Option<String>,
         toggle: Option<bool>,
     ) -> ApiFuture<()> {
-        clone!(self.session, self.root);
+        let locator = self.get_column_locator(column_name);
+        clone!(self.root);
         ApiFuture::new(async move {
-            let locator = session.metadata().get_column_locator(column_name);
-            let task = root
-                .borrow()
-                .as_ref()
-                .into_apierror()?
-                .send_message_async(|sender| PerspectiveViewerMsg::OpenColumnSettings {
+            let (sender, receiver) = channel::<()>();
+            root.borrow().as_ref().into_apierror()?.send_message(
+                PerspectiveViewerMsg::OpenColumnSettings {
                     locator,
                     sender: Some(sender),
                     toggle: toggle.unwrap_or_default(),
-                });
-            task.await.map_err(|_| ApiError::from("Cancelled"))
+                },
+            );
+
+            receiver.await.map_err(|_| ApiError::from("Cancelled"))
         })
     }
 }

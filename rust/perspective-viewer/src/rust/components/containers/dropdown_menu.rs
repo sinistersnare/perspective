@@ -20,10 +20,6 @@ use super::select::SelectItem;
 use crate::components::style::LocalStyle;
 use crate::*;
 
-pub type DropDownMenuItem<T> = SelectItem<T>;
-
-pub type DropDownMenuMsg = ();
-
 #[derive(Properties, PartialEq)]
 pub struct DropDownMenuProps<T>
 where
@@ -44,7 +40,7 @@ impl<T> Component for DropDownMenu<T>
 where
     T: Into<Html> + Clone + PartialEq + 'static,
 {
-    type Message = DropDownMenuMsg;
+    type Message = ();
     type Properties = DropDownMenuProps<T>;
 
     fn create(_ctx: &Context<Self>) -> Self {
@@ -76,7 +72,7 @@ where
                     DropDownMenuItem::OptGroup(name, xs) => {
                         html! {
                             <>
-                                <span class="dropdown-group-label">{ name }</span>
+                                <span class="dropdown-group-label">{ name.as_ref() }</span>
                                 <div class="dropdown-group-container">
                                     { xs.iter().map(|x| {
                                     let click = ctx.props().callback.reform({
@@ -102,3 +98,5 @@ where
         html! { <><LocalStyle href={css!("containers/dropdown-menu")} />{ body }</> }
     }
 }
+
+pub type DropDownMenuItem<T> = SelectItem<T>;

@@ -10,6 +10,9 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
+//! Utility functions for dealing with datetime types.
+//! TODO These methods should use JavaSript `Intl`.
+
 use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
 use perspective_js::utils::*;
 use wasm_bindgen::prelude::*;
@@ -27,6 +30,7 @@ fn get_local_tz() -> FixedOffset {
     FixedOffset::west_opt(js_sys::Date::new(&0.into()).get_timezone_offset() as i32 * 60).unwrap()
 }
 
+/// Convert POSIX timestamp to a formatted string.
 pub fn posix_to_utc_str(x: f64) -> ApiResult<String> {
     let tz = get_local_tz();
     if x > 0_f64 {
@@ -42,6 +46,7 @@ pub fn posix_to_utc_str(x: f64) -> ApiResult<String> {
     }
 }
 
+/// Convert a `String` datetime representation to a POSIX timestamp.
 pub fn str_to_utc_posix(val: &str) -> Result<f64, ApiError> {
     let tz = get_local_tz();
     let posix = NaiveDateTime::parse_from_str(val, input_value_format(val)?)?;

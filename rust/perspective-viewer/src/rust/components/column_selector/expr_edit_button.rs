@@ -10,50 +10,43 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-use itertools::Itertools;
+use yew::prelude::*;
 
-use super::{HasPresentation, HasRenderer, HasSession, UpdateAndRender};
-use crate::config::{Expression, ViewConfigUpdate};
-use crate::utils::ApiFuture;
+use super::ColumnLocator;
 
-pub trait CreateColumn: HasSession + HasPresentation + HasRenderer + UpdateAndRender {
-    fn clone_column(&self, name: &str, in_place: bool, open_settings: bool) -> ApiFuture<()> {
-        // 1. Create a new expression.
-        let expr_name = self.session().metadata().make_new_column_name(Some(name));
-        let expr = Expression::new(Some(&expr_name), &format!("\"{name}\""));
-        let view_config = self.session().get_view_config();
-        let mut serde_exprs = view_config.expressions.clone();
-        serde_exprs.retain(|name, _expr| name != &expr_name);
-        serde_exprs.insert(&expr);
+#[derive(PartialEq, Clone, Properties)]
+pub struct ExprEditButtonProps {
+    /// Column name.
+    pub name: String,
 
-        // 2. Replace this column in the view configuration.
-        let mut cols = view_config.columns.clone();
-        if in_place {
-            let (idx, _val) = cols
-                .iter()
-                .find_position(|c| c.as_ref().map(|s| s == name).unwrap_or_default())
-                .unwrap_or_else(|| {
-                    web_sys::console::error_1(
-                        &format!("Couldn't find {name} in view config!").into(),
-                    );
-                    panic!();
-                });
-            cols[idx] = Some(expr_name.clone());
-        }
+    /// Is this an expression column?
+    pub is_expression: bool,
 
-        // 3. Ensure that the new column is opened
-        if open_settings {
-            self.presentation()
-                .set_open_column_settings(Some(expr_name));
-        }
+    /// Fires when the config/expresison button is clicked.
+    pub on_open_expr_panel: Callback<ColumnLocator>,
 
-        // 4. Update
-        drop(view_config);
-        self.update_and_render(ViewConfigUpdate {
-            expressions: Some(serde_exprs),
-            columns: Some(cols),
-            ..Default::default()
-        })
-    }
+    /// Is the expression/config panel open?
+    pub is_editing: bool,
 }
-impl<T: HasPresentation + HasSession + HasRenderer> CreateColumn for T {}
+
+/// A button that goes into a column-list for a custom expression
+/// when pressed, it opens up the expression editor side-panel.
+#[function_component]
+pub fn ExprEditButton(p: &ExprEditButtonProps) -> Html {
+    let onmousedown = yew::use_callback(p.clone(), |_, p| {
+        let name = if p.is_expression {
+            ColumnLocator::Expression(p.name.clone())
+        } else {
+            ColumnLocator::Table(p.name.clone())
+        };
+        p.on_open_expr_panel.emit(name)
+    });
+
+    let class = if p.is_editing {
+        "expression-edit-button is-editing"
+    } else {
+        "expression-edit-button"
+    };
+
+    html! { <span {onmousedown} {class} /> }
+}
