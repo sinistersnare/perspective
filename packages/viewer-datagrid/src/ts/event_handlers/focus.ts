@@ -1,0 +1,63 @@
+// ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+// ┃ ██████ ██████ ██████       █      █      █      █      █ █▄  ▀███ █       ┃
+// ┃ ▄▄▄▄▄█ █▄▄▄▄▄ ▄▄▄▄▄█  ▀▀▀▀▀█▀▀▀▀▀ █ ▀▀▀▀▀█ ████████▌▐███ ███▄  ▀█ █ ▀▀▀▀▀ ┃
+// ┃ █▀▀▀▀▀ █▀▀▀▀▀ █▀██▀▀ ▄▄▄▄▄ █ ▄▄▄▄▄█ ▄▄▄▄▄█ ████████▌▐███ █████▄   █ ▄▄▄▄▄ ┃
+// ┃ █      ██████ █  ▀█▄       █ ██████      █      ███▌▐███ ███████▄ █       ┃
+// ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+// ┃ Copyright (c) 2017, the Perspective Authors.                              ┃
+// ┃ ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ┃
+// ┃ This file is part of the Perspective library, distributed under the terms ┃
+// ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
+// ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+import { is_editable } from "./click.js";
+import { write_cell } from "./click/edit_click.js";
+import type {
+    RegularTable,
+    DatagridModel,
+    PerspectiveViewerElement,
+    SelectedPosition,
+} from "../types.js";
+
+type SelectedPositionMap = Map<RegularTable, SelectedPosition>;
+
+export function focusoutListener(
+    this: DatagridModel,
+    table: RegularTable,
+    viewer: PerspectiveViewerElement,
+    selected_position_map: SelectedPositionMap,
+    event: FocusEvent,
+): void {
+    if (is_editable.call(this, viewer) && selected_position_map.has(table)) {
+        const target = event.target as HTMLElement;
+        target.classList.remove("psp-error");
+        const selectedPosition = selected_position_map.get(table)!;
+        selected_position_map.delete(table);
+        if (selectedPosition.content !== target.textContent) {
+            if (!write_cell(table, this, target)) {
+                target.textContent = selectedPosition.content || "";
+                target.classList.add("psp-error");
+                target.focus();
+            }
+        }
+    }
+}
+
+export function focusinListener(
+    this: DatagridModel,
+    table: RegularTable,
+    _viewer: PerspectiveViewerElement,
+    selected_position_map: SelectedPositionMap,
+    event: FocusEvent,
+): void {
+    const target = event.target as HTMLElement;
+    const meta = table.getMeta(target);
+    if (meta) {
+        const new_state: SelectedPosition = {
+            x: meta.x,
+            y: meta.y,
+            content: target.textContent || undefined,
+        };
+        selected_position_map.set(table, new_state);
+    }
+}

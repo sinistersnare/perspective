@@ -6,16 +6,18 @@
     "jsdelivr": "dist/cdn/perspective-viewer-datagrid.js",
     "exports": {
         ".": {
-            "types": "./index.d.ts",
+            "types": "./dist/esm/index.d.ts",
             "default": "./dist/esm/perspective-viewer-datagrid.js"
         },
         "./dist/*": "./dist/*",
+        "./src/*": "./src/*",
         "./package.json": "./package.json"
     },
     "type": "module",
+    "types": "dist/esm/index.d.ts",
     "files": [
         "dist/**/*",
-        "index.d.ts"
+        "src/**/*"
     ],
     "scripts": {
         "build": "node ./build.mjs",
@@ -40,6 +42,9 @@
         "@prospective.co/procss": "catalog:",
         "@perspective-dev/esbuild-plugin": "workspace:",
         "@perspective-dev/test": "workspace:",
-        "prettier": "catalog:"
+        "@types/chroma-js": "catalog:",
+        "prettier": "catalog:",
+        "typescript": "catalog:",
+        "zx": "catalog:"
     }
 }
