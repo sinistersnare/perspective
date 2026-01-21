@@ -14,6 +14,7 @@ import perspective from "@perspective-dev/client";
 import perspective_viewer from "@perspective-dev/viewer";
 import "@perspective-dev/viewer-datagrid";
 import "@perspective-dev/viewer-d3fc";
+import "@perspective-dev/workspace";
 
 // @ts-ignore
 import SERVER_WASM from "@perspective-dev/server/dist/wasm/perspective-server.wasm?url";
@@ -26,11 +27,20 @@ await Promise.all([
     perspective_viewer.init_client(fetch(CLIENT_WASM)),
 ]);
 
-import type * as psp from "@perspective-dev/client";
+import * as psp from "@perspective-dev/client";
 import type * as pspViewer from "@perspective-dev/viewer";
 
 // @ts-ignore
 import SUPERSTORE_ARROW from "superstore-arrow/superstore.lz4.arrow?url";
+
+import * as React from "react";
+import {
+    PerspectiveViewer,
+    PerspectiveWorkspace,
+} from "@perspective-dev/react";
+
+import "@perspective-dev/viewer/dist/css/themes.css";
+import "./index.css";
 
 const WORKER = await perspective.worker();
 
@@ -44,12 +54,6 @@ async function createNewSuperstoreTable(): Promise<psp.Table> {
 const CONFIG: pspViewer.ViewerConfigUpdate = {
     group_by: ["State"],
 };
-
-import * as React from "react";
-import { PerspectiveViewer } from "@perspective-dev/react";
-
-import "@perspective-dev/viewer/dist/css/themes.css";
-import "./index.css";
 
 interface ToolbarState {
     mounted: boolean;

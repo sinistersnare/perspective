@@ -21,6 +21,7 @@
     "dependencies": {
         "@perspective-dev/client": "workspace:",
         "@perspective-dev/viewer": "workspace:",
+        "@perspective-dev/workspace": "workspace:",
         "@types/react": "catalog:",
         "react": "catalog:",
         "react-dom": "catalog:"
