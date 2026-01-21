@@ -54,19 +54,17 @@ function tests(context, compare) {
             const workspace = document.getElementById("workspace");
             await workspace.restore(config);
             await workspace.flush();
+            const timer = Promise.withResolvers();
+            workspace.addEventListener("workspace-layout-update", (x) => {
+                timer.resolve();
+            });
+
             document
                 .querySelector("perspective-viewer-d3fc-treemap")
                 .shadowRoot.querySelector("g.treemap > g")
                 .dispatchEvent(new Event("click"));
 
-            let resolve;
-            const timer = new Promise((x) => {
-                resolve = x;
-            });
-
-            workspace.addEventListener("workspace-layout-update", resolve);
-            await timer;
-
+            await timer.promise;
             return await workspace.save();
         }, config);
 
@@ -127,8 +125,8 @@ function tests(context, compare) {
             .locator(".workspace-master-widget perspective-viewer-datagrid")
             .locator("tbody tr:nth-child(6) th:last-of-type")
             .click();
-        let cfg = await cfgPromise;
 
+        let cfg = await cfgPromise;
         expect(cfg.viewers.Two.filter).toEqual([["State", "==", "Colorado"]]);
 
         cfgPromise = awaitConfigChange();
@@ -136,8 +134,8 @@ function tests(context, compare) {
             .locator(".workspace-master-widget perspective-viewer-datagrid")
             .locator("tbody tr:nth-child(6) th:last-of-type")
             .click();
-        cfg = await cfgPromise;
 
+        cfg = await cfgPromise;
         expect(cfg.viewers.Two.filter).toEqual([]);
 
         return compare(page, `${context}-datagrid-filters-work.txt`);

@@ -15,7 +15,8 @@ import * as d3 from "d3";
 const SI_MIN = 10000000;
 
 export const getValueFormatterForRange = (min: number, max: number) => {
-    let precision = Math.ceil(Math.abs(Math.log10(max - min))) + 1;
+    let precision =
+        min == max ? 0 : Math.ceil(Math.abs(Math.log10(max - min))) + 1;
 
     return (d: number) => {
         try {

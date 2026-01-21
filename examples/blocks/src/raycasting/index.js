@@ -127,6 +127,7 @@ const LAYOUT = {
     group_by: [`x`],
     split_by: [`y`],
     columns: ["color"],
+    table: "raycasting",
     expressions: {
         color: EXPRESSION,
         x: `floor(index() / ${RESOLUTION}) - ${RESOLUTION} / 2`,
@@ -140,6 +141,6 @@ const heatmap_plugin = await window.viewer.getPlugin("Heatmap");
 heatmap_plugin.max_cells = 100000;
 const worker = await perspective.worker();
 const index = new Array(Math.pow(RESOLUTION, 2)).fill(0);
-const table = worker.table({ index });
-window.viewer.load(table);
+worker.table({ index }, { name: "raycasting" });
+window.viewer.load(worker);
 await window.viewer.restore(LAYOUT);

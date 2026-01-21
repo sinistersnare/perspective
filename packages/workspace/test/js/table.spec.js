@@ -26,7 +26,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 function tests(context, compare) {
-    test("replaceTable() frees the `Table` before resolution", async ({
+    // TODO: 3.x `Client` has no exact `replaceTable`
+    test.skip("replaceTable() frees the `Table` before resolution", async ({
         page,
     }) => {
         const config = {
@@ -59,7 +60,7 @@ function tests(context, compare) {
         return compare(page, `${context}-replace-table-frees-table.txt`);
     });
 
-    test("replaceTable() works when previous table errored", async ({
+    test.skip("replaceTable() works when previous table errored", async ({
         page,
     }) => {
         const config = {
@@ -113,29 +114,42 @@ function tests(context, compare) {
     });
 
     test("removeTable() smoke test", async ({ page }) => {
-        const tables = await page.evaluate(async () => {
-            const table = await window.__WORKER__.table("x\n1\n");
+        await page.evaluate(async () => {
+            await window.__WORKER__.table("x\n1\n", { name: "temptable" });
             const workspace = document.getElementById("workspace");
-            await workspace.addTable("temptable", table);
-            return Array.from(workspace.tables.keys());
-        });
-        expect(tables).toEqual(["superstore", "temptable"]);
+            await workspace.load(window.__WORKER__);
+            await workspace.restore({
+                viewers: {
+                    One: { table: "temptable", name: "One" },
+                },
+                detail: {
+                    main: {
+                        currentIndex: 0,
+                        type: "tab-area",
+                        widgets: ["One"],
+                    },
+                },
+            });
 
-        const unknownTableResult = await page.evaluate(async () => {
-            return await workspace.removeTable("notatable");
+            await workspace.flush();
         });
-        expect(unknownTableResult).toBe(false);
 
-        const result = await page.evaluate(async () => {
-            return await workspace.removeTable("temptable");
-        });
-        expect(result).toBe(true);
+        await page.evaluate(async () => {
+            await workspace.restore({
+                viewers: {},
+                detail: {
+                    main: {
+                        currentIndex: 0,
+                        type: "tab-area",
+                        widgets: [],
+                    },
+                },
+            });
 
-        const tablesAfterRemove = await page.evaluate(async () => {
-            const workspace = document.getElementById("workspace");
-            return Array.from(workspace.tables.keys());
+            await workspace.flush();
         });
-        expect(tablesAfterRemove).toEqual(["superstore"]);
+
+        return compare(page, `${context}-table-delete-works.txt`);
     });
 }
 

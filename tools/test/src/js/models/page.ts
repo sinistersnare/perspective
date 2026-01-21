@@ -11,11 +11,11 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 import { Locator, Page, expect } from "@playwright/test";
-import { ColumnSettingsSidebar } from "./column_settings";
-import { ColumnSelector, ColumnType, SettingsPanel } from "./settings_panel";
-import { DataGridPlugin } from "./plugins";
+import { ColumnSettingsSidebar } from "./column_settings.js";
+import { ColumnSelector, ColumnType, SettingsPanel } from "./settings_panel.js";
+import { DataGridPlugin } from "./plugins.js";
 import type {
-    IPerspectiveViewerElement,
+    HTMLPerspectiveViewerElement,
     ViewerConfigUpdate,
 } from "@perspective-dev/viewer";
 
@@ -51,14 +51,14 @@ export class PageView {
 
     async save() {
         return this.container.evaluate(async (viewer) => {
-            let el = viewer as unknown as IPerspectiveViewerElement;
+            let el = viewer as unknown as HTMLPerspectiveViewerElement;
             return await el.save();
         });
     }
 
     async restore(config: ViewerConfigUpdate) {
         return this.container.evaluate(function (viewer, config) {
-            let el = viewer as unknown as IPerspectiveViewerElement;
+            let el = viewer as unknown as HTMLPerspectiveViewerElement;
             return el.restore(config);
         }, config as any);
     }

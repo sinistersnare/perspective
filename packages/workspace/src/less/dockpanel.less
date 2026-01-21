@@ -14,7 +14,7 @@
     overflow: var(--dock-panel--overflow, hidden);
     position: absolute;
     background-color: var(--detail--background-color, transparent);
-    padding: 3px;
+    padding: var(--workspace-spacing);
     top: 0;
     left: 0;
     right: 0;
@@ -82,6 +82,16 @@
     &:hover {
         background-color: rgba(0, 0, 0, 0.05);
     }
+}
+
+.lm-DockPanel-handle[data-orientation="horizontal"] {
+    width: 10px !important;
+    margin-left: -5px;
+}
+
+.lm-DockPanel-handle[data-orientation="vertical"] {
+    height: 10px !important;
+    margin-top: -5px;
 }
 
 .lm-DockPanel-overlay {

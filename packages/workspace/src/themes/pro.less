@@ -12,6 +12,10 @@
 
 @import url("ref://pro.less");
 
+.lm-cursor-backdrop {
+    display: none;
+}
+
 perspective-workspace,
 perspective-workspace[theme="Pro Light"],
 perspective-indicator[theme="Pro Light"] {
@@ -36,6 +40,7 @@ perspective-workspace perspective-viewer[settings] {
 
 perspective-workspace perspective-viewer {
     --status-bar--height: 39px;
+    --plugin-selector--height: 47px;
 }
 
 perspective-viewer[theme="Pro Light"].workspace-master-widget {
@@ -74,13 +79,17 @@ perspective-viewer[theme="Pro Light"].workspace-master-widget {
     --workspace-split-panel-handle--background-color: #f2f4f6;
 
     --workspace-tabbar--border: 1px solid var(--inactive--color);
-    --workspace-tabbar--border-width: 0px 1px 1px 1px;
+    --workspace-tabbar--border-width: 1px 1px 1px 1px;
     --workspace-tabbar--border-radius: 6px;
     --workspace-tabbar--border-color: var(--inactive--color);
     --workspace-tabbar-tab--border-width: 1px 1px 0px 1px;
 
     // Workspace
     --column-drag-handle--mask-image: url("../svg/drag-handle.svg");
+    --bookmarks--mask-image: url("../svg/bookmark-icon.svg");
+}
+
+perspective-viewer {
     --bookmarks--mask-image: url("../svg/bookmark-icon.svg");
 }
 

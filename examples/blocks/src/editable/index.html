@@ -17,9 +17,9 @@
             const resp = await fetch("/node_modules/superstore-arrow/superstore.lz4.arrow");
             const arrow = await resp.arrayBuffer();
             const viewer = document.getElementsByTagName("perspective-viewer")[0];
-            const table = worker.table(arrow);
-            viewer.load(table);
-            viewer.restore({ settings: true, plugin_config: { edit_mode: "EDIT" } });
+            await worker.table(arrow, { name: "superstore" });
+            await viewer.load(worker);
+            await viewer.restore({ table: "superstore", settings: true, plugin_config: { edit_mode: "EDIT" } });
         </script>
         <style>
             perspective-viewer {

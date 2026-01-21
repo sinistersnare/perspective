@@ -33,7 +33,7 @@ const BAD_LAYOUT = {
         PERSPECTIVE_GENERATED_ID_0: {
             plugin: "Sunburst",
             plugin_config: {},
-            settings: true,
+            settings: false,
             theme: null,
             group_by: ["State"],
             split_by: [],
@@ -50,7 +50,7 @@ const BAD_LAYOUT = {
         PERSPECTIVE_GENERATED_ID_1: {
             plugin: "Sunburst",
             plugin_config: {},
-            settings: true,
+            settings: false,
             theme: null,
             group_by: ["State"],
             split_by: [],
@@ -77,8 +77,9 @@ function tests(context, compare) {
             }, BAD_LAYOUT);
 
             await page.evaluate(async () => {
-                const viewer =
-                    document.body.querySelector("perspective-viewer");
+                const viewer = document.body.querySelector(
+                    "perspective-viewer[slot=PERSPECTIVE_GENERATED_ID_0]",
+                );
                 const workspace = document.getElementById("workspace");
                 workspace.removeChild(viewer);
                 await workspace.flush();

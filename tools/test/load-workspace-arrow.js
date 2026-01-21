@@ -21,11 +21,11 @@ async function load() {
     let arrow = await resp.arrayBuffer();
     const worker = await perspective.worker();
     window.__WORKER__ = worker;
-    const table = await worker.table(arrow);
+    const table = await worker.table(arrow, { name: "superstore" });
     let workspace = document.getElementById("workspace");
     window.__TABLE__ = table;
     if (workspace) {
-        workspace.addTable("superstore", table);
+        await workspace.load(worker);
     } else {
         window.__TABLE__ = table;
     }

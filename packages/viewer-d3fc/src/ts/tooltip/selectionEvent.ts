@@ -18,9 +18,7 @@ export const raiseEvent = (node, data, settings) => {
     const column_names = getDataValues(data, settings).map((d) => d.name);
     const groupFilters = getGroupValues(data, settings).map(mapToFilter);
     const splitFilters = getSplitValues(data, settings).map(mapToFilter);
-
     const filter = settings.filter.concat(groupFilters).concat(splitFilters);
-
     node.dispatchEvent(
         new CustomEvent("perspective-select", {
             bubbles: true,
@@ -28,7 +26,7 @@ export const raiseEvent = (node, data, settings) => {
             detail: {
                 column_names,
                 config: { filter },
-                row: data.row,
+                row: data === null ? null : data?.row,
             },
         }),
     );

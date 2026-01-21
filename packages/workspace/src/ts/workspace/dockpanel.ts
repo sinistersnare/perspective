@@ -36,11 +36,13 @@ class PerspectiveDockPanelRenderer extends DockPanel.Renderer {
 
 // @ts-ignore: extending a private member `_onTabDetachRequested`
 export class PerspectiveDockPanel extends DockPanel {
+    _workspace: PerspectiveWorkspace;
     constructor(workspace: PerspectiveWorkspace) {
         super({ renderer: new PerspectiveDockPanelRenderer(workspace) });
 
         // @ts-ignore: accessing a private member `_renderer`
         this._renderer.dock = this;
+        this._workspace = workspace;
     }
 
     _onTabDetachRequested(
@@ -64,7 +66,7 @@ export class PerspectiveDockPanel extends DockPanel {
         // @ts-ignore: accessing a private member `_drag`
         const drag = this._drag;
         if (drag) {
-            drag.dragImage?.parentElement.removeChild(drag.dragImage);
+            drag.dragImage?.parentElement?.removeChild?.(drag.dragImage);
             drag.dragImage = null;
             drag._promise.then(() => {
                 if (!widget.node.isConnected) {
@@ -107,12 +109,12 @@ export class PerspectiveDockPanel extends DockPanel {
         return super.widgets() as IterableIterator<PerspectiveViewerWidget>;
     }
 
-    static mapWidgets(
-        widgetFunc: (widget: any) => any,
+    static async mapWidgets(
+        widgetFunc: (widget: any) => Promise<any>,
         layout: any,
-    ): DockPanel.ILayoutConfig {
+    ): Promise<DockPanel.ILayoutConfig> {
         if (!!layout.main) {
-            layout.main = PerspectiveDockPanel.mapAreaWidgets(
+            layout.main = await PerspectiveDockPanel.mapAreaWidgets(
                 widgetFunc,
                 layout.main,
             );
@@ -121,18 +123,22 @@ export class PerspectiveDockPanel extends DockPanel {
         return layout;
     }
 
-    static mapAreaWidgets(
-        widgetFunc: (widget: any) => any,
+    static async mapAreaWidgets(
+        widgetFunc: (widget: any) => Promise<any>,
         layout: DockLayout.AreaConfig,
-    ): DockLayout.AreaConfig {
+    ): Promise<DockLayout.AreaConfig> {
         if (layout.hasOwnProperty("children")) {
             const split_panel = layout as DockLayout.ISplitAreaConfig;
-            split_panel.children = split_panel.children.map((widget) =>
-                PerspectiveDockPanel.mapAreaWidgets(widgetFunc, widget),
+            split_panel.children = await Promise.all(
+                split_panel.children.map((widget) =>
+                    PerspectiveDockPanel.mapAreaWidgets(widgetFunc, widget),
+                ),
             );
         } else if (layout.hasOwnProperty("widgets")) {
             const tab_panel = layout as DockLayout.ITabAreaConfig;
-            tab_panel.widgets = tab_panel.widgets.map(widgetFunc);
+            tab_panel.widgets = await Promise.all(
+                tab_panel.widgets.map(widgetFunc),
+            );
         }
 
         return layout;
@@ -140,6 +146,11 @@ export class PerspectiveDockPanel extends DockPanel {
 
     onAfterAttach() {
         this.spacing =
-            parseInt(window.getComputedStyle(this.node).padding) || 0;
+            parseInt(
+                window
+                    .getComputedStyle(this._workspace.element)
+                    .getPropertyValue("--workspace-spacing"),
+            ) || 0;
+        1;
     }
 }

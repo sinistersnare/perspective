@@ -46,6 +46,7 @@ export function getGroupValues(data, settings) {
 
 export function getSplitValues(data, settings: Settings) {
     if (settings.splitValues.length === 0) return [];
+    if (data === null) return [];
     let splitValues = [data.mainValue];
 
     if (data.key) {
@@ -68,6 +69,7 @@ export function getDataValues(data, settings) {
                 value: toValue(main.type, data.mainValues[i]),
             }));
         }
+
         return settings.mainValues.map((main) => ({
             name: main.name,
             value: toValue(
@@ -76,6 +78,16 @@ export function getDataValues(data, settings) {
             ),
         }));
     }
+
+    if (data === null) {
+        return [
+            {
+                name: settings.mainValues[0].name,
+                value: null,
+            },
+        ];
+    }
+
     return [
         {
             name: settings.mainValues[0].name,

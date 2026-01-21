@@ -53,39 +53,22 @@ export class PerspectiveTabBarRenderer extends TabBar.Renderer {
         const dataset = this.createTabDataset(data);
         const more: h.Child[] = [];
         if (onclick) {
-            more.push(
-                h.div(
-                    { onclick, className: "bookmarks-button" },
-                    h.div({ className: "bookmarks" }),
-                ),
-            );
+            data.title.owner.setCallback(onclick);
+            data.title.owner.addClass("bookmarks-container");
+        } else {
+            data.title.owner.setCallback(undefined);
+            data.title.owner.removeClass("bookmarks-container");
         }
 
         return h.li(
             { key, className, title, style, dataset },
-            this.renderDragHandle(),
-            ...more,
-            this.renderLabel(data),
-            this.renderCloseIcon(),
+            // this.renderDragHandle(),
         );
     }
 
-    renderDragHandle() {
-        return h.div({
-            className: "drag-handle",
-        });
-    }
-
-    // renderConfigIcon() {
+    // renderDragHandle() {
     //     return h.div({
-    //         className: "lm-TabBar-tabConfigIcon",
-    //         id: TabBarItems.Config,
+    //         className: "drag-handle",
     //     });
     // }
-
-    renderCloseIcon() {
-        return h.div({
-            className: "lm-TabBar-tabCloseIcon" + " p-TabBar-tabCloseIcon",
-        });
-    }
 }

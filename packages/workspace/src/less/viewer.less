@@ -12,7 +12,8 @@
 
 @border-color: 1px solid #eaeaea;
 
-.workspace-master-widget {
+::slotted(.workspace-master-widget) {
+    --status-bar--display: none;
     --config-button-icon--content: var(
         --open-settings-button--content,
         "\1F527"
@@ -64,6 +65,10 @@
     }
 }
 
+:host {
+    --bookmarks--mask-image: url("../svg/bookmark-icon.svg");
+}
+
 ::slotted(perspective-viewer) {
     flex: 1;
     position: relative;
@@ -74,6 +79,26 @@
     width: 100%;
     height: 100%;
     overflow: visible !important;
+    --close-button--display: flex;
+}
+
+::slotted(perspective-viewer.bookmarks-container:not([settings])) {
+    --status-ok-icon--mask-image: var(--bookmarks--mask-image) !important;
+    --status-ok-icon--border-color: var(--inactive--color);
+    --status-ok-icon--hover--border-color: var(--icon--color);
+    --status-ok-icon--hover--background-color: var(--icon--color);
+    --status-ok-icon--hover--color: var(--plugin--background);
+    --status-ok-icon--cursor: pointer;
+    --status-indicator--pointer-events: all;
+}
+
+::slotted(perspective-viewer::part(status-indicator)) {
+    background-color: red;
+    border: 1px solid red;
+}
+
+::slotted(perspective-viewer:not([settings])) {
+    --status-bar--padding: 0 36px 0 8px;
 }
 
 :host-context(.lm-mod-override-cursor) {

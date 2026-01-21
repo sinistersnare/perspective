@@ -24,8 +24,7 @@ async function createOneWorkspace(page) {
         `;
 
         const workspace = document.body.querySelector("perspective-workspace");
-        workspace.tables.set("superstore", window.__TABLE__);
-        await Promise.all(workspace.tables.values());
+        await workspace.load(window.__WORKER__);
         await workspace.flush();
     });
 }
@@ -38,7 +37,6 @@ async function createMultipleViewers(page) {
         `;
 
         const workspace = document.body.querySelector("perspective-workspace");
-        await Promise.all(workspace.tables.values());
         await workspace.flush();
     });
 }
@@ -51,7 +49,6 @@ async function createMultipleViewersWithNames(page) {
         `;
 
         const workspace = document.body.querySelector("perspective-workspace");
-        await Promise.all(workspace.tables.values());
         await workspace.flush();
     });
 }

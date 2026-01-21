@@ -10,32 +10,42 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import "/node_modules/@perspective-dev/viewer/dist/cdn/perspective-viewer.js";
-import perspective from "/node_modules/@perspective-dev/client/dist/cdn/perspective.js";
+import { HTMLPerspectiveWorkspaceElement } from "./perspective-workspace";
 
-async function load() {
-    let resp = await fetch(
-        "/node_modules/@perspective-dev/test/assets/superstore.csv",
-    );
+type ReactPerspectiveWorkspaceAttributes<T> = React.HTMLAttributes<T>;
 
-    let csv = await resp.text();
-    const viewer = document.querySelector("perspective-viewer");
-    const worker = await perspective.worker();
-    const table = worker.table(csv, { name: "load-viewer-superstore" });
-    await viewer.load(table);
-    const config = {
-        plugin: "datagrid",
-        group_by: ["Region", "State"],
-        split_by: ["Category", "Sub-Category"],
-        columns: ["Sales", "Profit"],
-        master: false,
-        name: "Sales Report",
-        table: "load-viewer-superstore",
-        linked: false,
-        title: "Sales Report 2",
-    };
-    await viewer.restore(config);
+type JsxPerspectiveWorkspaceElement = {
+    class?: string;
+} & React.DetailedHTMLProps<
+    ReactPerspectiveWorkspaceAttributes<HTMLPerspectiveWorkspaceElement>,
+    HTMLPerspectiveWorkspaceElement
+>;
+
+declare global {
+    namespace JSX {
+        interface IntrinsicElements {
+            "perspective-workspace": JsxPerspectiveWorkspaceElement;
+        }
+    }
 }
 
-await load();
-window.__TEST_PERSPECTIVE_READY__ = true;
+// Custom Elements extensions
+
+declare global {
+    interface Document {
+        createElement(
+            tagName: "perspective-workspace",
+            options?: ElementCreationOptions,
+        ): HTMLPerspectiveWorkspaceElement;
+        querySelector<E extends Element = Element>(selectors: string): E | null;
+        querySelector(
+            selectors: "perspective-workspace",
+        ): HTMLPerspectiveWorkspaceElement | null;
+    }
+
+    interface CustomElementRegistry {
+        get(
+            tagName: "perspective-workspace",
+        ): HTMLPerspectiveWorkspaceElement & typeof HTMLElement;
+    }
+}

@@ -12,58 +12,209 @@
 
 import { find, toArray } from "@lumino/algorithm";
 import { CommandRegistry } from "@lumino/commands";
+
 import { SplitPanel, Panel, DockPanel } from "@lumino/widgets";
 import uniqBy from "lodash/uniqBy";
-import { DebouncedFunc, isEqual } from "lodash";
+import { DebouncedFunc, DebouncedFuncLeading, isEqual } from "lodash";
+import { throttle } from "lodash";
 import debounce from "lodash/debounce";
 import type {
     HTMLPerspectiveViewerElement,
     ViewerConfigUpdate,
 } from "@perspective-dev/viewer";
 import type * as psp from "@perspective-dev/client";
+import type * as psp_viewer from "@perspective-dev/viewer";
 import injectedStyles from "../../../build/css/injected.css";
 import { PerspectiveDockPanel } from "./dockpanel";
 import { WorkspaceMenu } from "./menu";
 import { createCommands } from "./commands";
 import { PerspectiveViewerWidget } from "./widget";
-import { ObservableMap } from "../utils/observable_map";
+
+class AsyncMutex {
+    _lock: Promise<unknown> | null;
+
+    constructor() {
+        this._lock = null;
+    }
+
+    lock<A>(continuation: () => Promise<A>): Promise<A> {
+        if (this._lock !== null) {
+            return this._lock.then(() => this.lock(continuation));
+        }
+
+        this._lock = new Promise((x, y) =>
+            continuation()
+                .then((z) => {
+                    this._lock = null;
+                    x(z);
+                })
+                .catch((e) => {
+                    this._lock = null;
+                    y(e);
+                }),
+        );
+
+        return this._lock as Promise<A>;
+    }
+}
+
+export type PerspectiveSplitArea = {
+    type: "split-area";
+    sizes: number[];
+    orientation: "horizontal" | "vertical";
+    children: PerspectiveLayout[];
+};
+
+export type PerspectiveTabArea = {
+    type: "tab-area";
+    currentIndex: number;
+    widgets: string[];
+};
+
+export type PerspectiveLayout = PerspectiveSplitArea | PerspectiveTabArea;
+
+export interface PerspectiveWorkspaceConfig {
+    sizes: number[];
+    viewers: Record<string, psp_viewer.ViewerConfigUpdate>;
+    detail: { main: PerspectiveLayout | null };
+    master?: {
+        sizes: number[];
+        widgets: string[];
+    };
+}
 
 const DEFAULT_WORKSPACE_SIZE = [1, 3];
-
 let ID_COUNTER = 0;
 
-export interface PerspectiveLayout<T> {
-    children?: PerspectiveLayout<T>[];
-    widgets?: T[];
-    sizes: number[];
+export function genId(workspace: PerspectiveWorkspaceConfig) {
+    let i = `PERSPECTIVE_GENERATED_ID_${ID_COUNTER++}`;
+    if (Object.keys(workspace.viewers).includes(i)) {
+        i = genId(workspace);
+    }
+    return i;
 }
 
-export interface ViewerConfigUpdateExt extends ViewerConfigUpdate {
-    table: string;
-}
+/// This function takes a workspace config and viewer config and adds the
+/// viewer config to the workspace config, returning a new workspace config.
+/// This is a slightly different algorithm from the Lumino one,
+/// which will be used on internal workspace actions (such as duplication).
+/// It currently attaches the viewer using a split-right style,
+/// (see Lumino docklayout.ts for documentation on insert modes).
+export function addViewer(
+    workspace: PerspectiveWorkspaceConfig,
+    config: psp_viewer.ViewerConfigUpdate,
+    id: string,
+): PerspectiveWorkspaceConfig {
+    const GOLDEN_RATIO = 0.618;
+    /// ensures that the sum of the input is 1
+    /// keeps the relative size of the elements
+    function normalize(sizes: number[]) {
+        const sum = sizes.reduce((a, b) => a + b, 0);
+        return sum === 1 ? sizes : sizes.map((size) => size / sum);
+    }
 
-export interface PerspectiveWorkspaceConfig<T> {
-    sizes: number[];
-    master: PerspectiveLayout<T>;
-    detail: PerspectiveLayout<T>;
-    viewers: Record<string, ViewerConfigUpdateExt>;
+    if (workspace.detail.main === null) {
+        return {
+            sizes: workspace.sizes,
+            viewers: {
+                ...workspace.viewers,
+                [id]: config,
+            },
+            detail: {
+                main: {
+                    type: "split-area",
+                    sizes: [1],
+                    orientation: "horizontal",
+                    children: [
+                        {
+                            type: "tab-area",
+                            currentIndex: 0,
+                            widgets: [id],
+                        },
+                    ],
+                },
+            },
+            master: workspace.master,
+        };
+    } else if (
+        workspace.detail.main.type === "tab-area" ||
+        (workspace.detail.main.type === "split-area" &&
+            workspace.detail.main.orientation === "vertical")
+    ) {
+        return {
+            sizes: workspace.sizes,
+            viewers: {
+                ...workspace.viewers,
+                [id]: config,
+            },
+            detail: {
+                main: {
+                    type: "split-area",
+                    sizes: [0.5, 0.5],
+                    orientation: "horizontal",
+                    children: [
+                        workspace.detail.main,
+                        {
+                            type: "tab-area",
+                            currentIndex: 0,
+                            widgets: [id],
+                        },
+                    ],
+                },
+            },
+            master: workspace.master,
+        };
+    } else if (
+        workspace.detail.main.type === "split-area" &&
+        workspace.detail.main.orientation === "horizontal"
+    ) {
+        return {
+            sizes: workspace.sizes,
+            viewers: {
+                ...workspace.viewers,
+                [id]: config,
+            },
+            detail: {
+                main: {
+                    type: "split-area",
+                    sizes: normalize([
+                        ...normalize(workspace.detail.main.sizes),
+                        GOLDEN_RATIO,
+                    ]),
+                    orientation: "horizontal",
+                    children: [
+                        ...workspace.detail.main.children,
+                        {
+                            type: "tab-area",
+                            currentIndex: 0,
+                            widgets: [id],
+                        },
+                    ],
+                },
+            },
+            master: workspace.master,
+        };
+    } else {
+        throw new Error("Unknown workspace state");
+    }
 }
 
 export class PerspectiveWorkspace extends SplitPanel {
     private dockpanel: PerspectiveDockPanel;
     private detailPanel: Panel;
     private masterPanel: SplitPanel;
+    client: psp.Client[];
     element: HTMLElement;
     menu_elem: HTMLElement;
-    private _tables: ObservableMap<string, psp.Table | Promise<psp.Table>>;
     private listeners: WeakMap<PerspectiveViewerWidget, () => void>;
     private indicator: HTMLElement;
     private commands: CommandRegistry;
     private _menu?: WorkspaceMenu;
-    private _minimizedLayoutSlots?: DockPanel.ILayoutConfig;
+    private _minimizedLayoutSlots?: Promise<DockPanel.ILayoutConfig>;
     private _minimizedLayout?: DockPanel.ILayoutConfig;
     private _maximizedWidget?: PerspectiveViewerWidget;
-    private _last_updated_state?: PerspectiveWorkspaceConfig<string>;
+    private _last_updated_state?: PerspectiveWorkspaceConfig;
+    _mutex: AsyncMutex;
     // private _context_menu?: Menu & { init_overlay?: () => void };
 
     constructor(element: HTMLElement) {
@@ -76,17 +227,15 @@ export class PerspectiveWorkspace extends SplitPanel {
         this.detailPanel.addWidget(this.dockpanel);
         this.masterPanel = new SplitPanel({ orientation: "vertical" });
         this.masterPanel.addClass("master-panel");
+        this._mutex = new AsyncMutex();
         this.dockpanel.layoutModified.connect(() => {
             this.workspaceUpdated();
         });
 
         this.addWidget(this.detailPanel);
-        this.spacing = 6;
         this.element = element;
         this.listeners = new WeakMap();
-        this._tables = new ObservableMap();
-        this._tables.addSetListener(this._set_listener.bind(this));
-        this._tables.addDeleteListener(this._delete_listener.bind(this));
+        this.client = [];
         this.indicator = this.init_indicator();
         this.commands = createCommands(this, this.indicator);
         this.menu_elem = document.createElement("perspective-workspace-menu");
@@ -112,6 +261,10 @@ export class PerspectiveWorkspace extends SplitPanel {
     }
 
     init_indicator() {
+        const exists = document.querySelector("body > perspective-indicator");
+        if (exists) {
+            return exists as HTMLElement;
+        }
         const indicator = document.createElement("perspective-indicator");
         indicator.style.position = "fixed";
         indicator.style.pointerEvents = "none";
@@ -136,147 +289,158 @@ export class PerspectiveWorkspace extends SplitPanel {
      *
      */
 
-    addTable(name: string, table: Promise<psp.Table>) {
-        this.tables.set(name, table);
-    }
+    async save(): Promise<PerspectiveWorkspaceConfig> {
+        return await this._mutex.lock(async () => {
+            const is_settings = this.dockpanel.mode === "single-document";
+            let detail = is_settings
+                ? await this._minimizedLayoutSlots
+                : await PerspectiveDockPanel.mapWidgets(
+                      async (widget) =>
+                          (
+                              widget as PerspectiveViewerWidget
+                          ).viewer.getAttribute("slot"),
+                      this.dockpanel.saveLayout(),
+                  );
 
-    getTable(name: string): psp.Table | Promise<psp.Table> {
-        return this.tables.get(name);
-    }
-
-    removeTable(name: string) {
-        return this.tables.delete(name);
-    }
-
-    replaceTable(name: string, table: Promise<psp.Table>) {
-        this.tables.set(name, table);
-    }
-
-    get tables() {
-        return this._tables;
-    }
-
-    async save() {
-        const is_settings = this.dockpanel.mode === "single-document";
-        let detail = is_settings
-            ? this._minimizedLayoutSlots
-            : PerspectiveDockPanel.mapWidgets(
-                  (widget) =>
-                      // this.getWidgetByName(widget)!.viewer.getAttribute("slot")
-                      (widget as PerspectiveViewerWidget).viewer.getAttribute(
-                          "slot",
-                      ),
-                  this.dockpanel.saveLayout(),
-              );
-
-        const layout = {
-            sizes: [...this.relativeSizes()],
-            detail,
-            master: undefined as
-                | { widgets: string[]; sizes: number[] }
-                | undefined,
-        };
-
-        if (this.masterPanel.isAttached) {
-            const master = {
-                widgets: this.masterPanel.widgets.map(
-                    (widget) =>
-                        (widget as PerspectiveViewerWidget).viewer.getAttribute(
-                            "slot",
-                        )!,
-                ),
-                sizes: [...this.masterPanel.relativeSizes()],
+            const layout: PerspectiveWorkspaceConfig = {
+                sizes: [...this.relativeSizes()],
+                detail: detail as { main: PerspectiveLayout },
+                viewers: {},
+                master: undefined as
+                    | { widgets: string[]; sizes: number[] }
+                    | undefined,
             };
-            layout.master = master;
-        }
 
-        const viewers: Record<string, ViewerConfigUpdate> = {};
-        for (const widget of this.masterPanel.widgets) {
-            const psp_widget = widget as PerspectiveViewerWidget;
-            viewers[psp_widget.viewer.getAttribute("slot")!] =
-                await psp_widget.save();
-        }
+            if (this.masterPanel.isAttached) {
+                const master = {
+                    widgets: this.masterPanel.widgets.map(
+                        (widget) =>
+                            (
+                                widget as PerspectiveViewerWidget
+                            ).viewer.getAttribute("slot")!,
+                    ),
+                    sizes: [...this.masterPanel.relativeSizes()],
+                };
 
-        const widgets = PerspectiveDockPanel.getWidgets(
-            is_settings ? this._minimizedLayout! : this.dockpanel.saveLayout(),
-        );
+                layout.master = master;
+            }
 
-        await Promise.all(
-            widgets.map(async (widget) => {
+            // const viewers: Record<string, ViewerConfigUpdate> = {};
+            for (const widget of this.masterPanel.widgets) {
                 const psp_widget = widget as PerspectiveViewerWidget;
-                const slot = psp_widget.viewer.getAttribute("slot")!;
-                viewers[slot] = await psp_widget.save();
-                viewers[slot]!.settings = false;
-            }),
-        );
+                layout.viewers[psp_widget.viewer.getAttribute("slot")!] =
+                    await psp_widget.save();
+            }
 
-        return { ...layout, viewers };
+            const widgets = PerspectiveDockPanel.getWidgets(
+                is_settings
+                    ? this._minimizedLayout!
+                    : this.dockpanel.saveLayout(),
+            );
+
+            await Promise.all(
+                widgets.map(async (widget) => {
+                    const psp_widget = widget as PerspectiveViewerWidget;
+                    const slot = psp_widget.viewer.getAttribute("slot")!;
+                    layout.viewers[slot] = await psp_widget.save();
+                    layout.viewers[slot]!.settings = false;
+                }),
+            );
+
+            return layout;
+        });
     }
 
-    async restore(value: PerspectiveWorkspaceConfig<string>) {
-        const {
-            sizes,
-            master,
-            detail,
-            viewers: viewer_configs = {},
-        } = structuredClone(value);
+    async restore(value: PerspectiveWorkspaceConfig) {
+        await this._mutex.lock(async () => {
+            const {
+                sizes,
+                master,
+                detail,
+                viewers: viewer_configs = {},
+            } = structuredClone(value);
 
-        if (master && master.widgets!.length > 0) {
-            this.setupMasterPanel(sizes || DEFAULT_WORKSPACE_SIZE);
-        } else {
-            if (this.masterPanel.isAttached) {
-                this.detailPanel.removeClass("has-master-panel");
-                this.masterPanel.close();
+            if (master && master.widgets!.length > 0) {
+                this.setupMasterPanel(sizes || DEFAULT_WORKSPACE_SIZE);
+            } else {
+                if (this.masterPanel.isAttached) {
+                    this.detailPanel.removeClass("has-master-panel");
+                    this.masterPanel.close();
+                }
+
+                this.addWidget(this.detailPanel);
             }
 
-            this.addWidget(this.detailPanel);
-        }
+            let tasks: Promise<void>[] = [];
 
-        let tasks: Promise<void>[] = [];
+            // Using ES generators as context managers ..
+            for (const viewers of this._capture_viewers()) {
+                for (const widgets of this._capture_widgets()) {
+                    for (const v of viewers) {
+                        v.removeAttribute("class");
+                    }
 
-        // Using ES generators as context managers ..
-        for (const viewers of this._capture_viewers()) {
-            for (const widgets of this._capture_widgets()) {
-                for (const v of viewers) {
-                    v.removeAttribute("class");
-                }
-
-                const callback = this._restore_callback.bind(
-                    this,
-                    viewer_configs,
-                    viewers,
-                    widgets,
-                );
-
-                if (detail) {
-                    const detailLayout = PerspectiveDockPanel.mapWidgets(
-                        (name: string) => callback.bind(this, false)(name),
-                        detail,
+                    const callback = this._restore_callback.bind(
+                        this,
+                        viewer_configs,
+                        viewers,
+                        widgets,
                     );
 
-                    this.dockpanel.mode = "multiple-document";
-                    this.dockpanel.restoreLayout(detailLayout);
-                    tasks = tasks.concat(
-                        PerspectiveDockPanel.getWidgets(detailLayout).map(
-                            (x) => (x as PerspectiveViewerWidget).task!,
-                        ),
-                    );
-                }
+                    if (detail) {
+                        const detailLayout =
+                            await PerspectiveDockPanel.mapWidgets(
+                                (name: string) =>
+                                    callback.bind(this, false)(name),
+                                detail,
+                            );
 
-                if (master) {
-                    tasks = tasks.concat(
-                        master.widgets!.map(
-                            (name) => callback.bind(this, true)(name).task!,
-                        ),
-                    );
+                        this.dockpanel.mode = "multiple-document";
+                        this.dockpanel.restoreLayout(detailLayout);
+                        tasks = tasks.concat(
+                            PerspectiveDockPanel.getWidgets(detailLayout).map(
+                                (x) =>
+                                    (
+                                        x as PerspectiveViewerWidget
+                                    ).viewer.flush(),
+                            ),
+                        );
+                    }
 
-                    master.sizes &&
-                        this.masterPanel.setRelativeSizes(master.sizes);
+                    if (master) {
+                        // tasks = tasks.concat(
+
+                        const tasks2: any[] = [],
+                            names: string[] = [];
+                        master.widgets!.map((name) => {
+                            names.push(name);
+                            tasks2.push(callback.bind(this, true)(name));
+                            return name;
+                        });
+
+                        // return name;
+                        tasks.push(
+                            Promise.all(tasks2).then((x) => {
+                                master.widgets = master.widgets!.map((name) => {
+                                    const idx = names.indexOf(name);
+                                    const task = x[idx];
+                                    return task;
+                                });
+                            }),
+                        );
+
+                        // const widgets = await Promise.all(tasks);
+
+                        // );
+
+                        master.sizes &&
+                            this.masterPanel.setRelativeSizes(master.sizes);
+                    }
                 }
             }
-        }
 
-        await Promise.all(tasks);
+            await Promise.all(tasks);
+        });
     }
 
     *_capture_widgets() {
@@ -313,8 +477,8 @@ export class PerspectiveWorkspace extends SplitPanel {
         }
     }
 
-    _restore_callback(
-        viewers: Record<string, ViewerConfigUpdateExt>,
+    async _restore_callback(
+        viewers: Record<string, psp_viewer.ViewerConfigUpdate>,
         starting_viewers: HTMLPerspectiveViewerElement[],
         starting_widgets: PerspectiveViewerWidget[],
         master: boolean,
@@ -331,16 +495,15 @@ export class PerspectiveWorkspace extends SplitPanel {
         if (viewer) {
             widget = starting_widgets.find((x) => x.viewer === viewer);
             if (widget) {
-                widget.load(this.tables.get(viewer_config.table));
-                widget.restore({ ...viewer_config });
+                await widget.restore({ ...viewer_config });
             } else {
-                widget = this._createWidget({
+                widget = await this._createWidget({
                     config: { ...viewer_config },
                     viewer,
                 });
             }
         } else if (viewer_config) {
-            widget = this._createWidgetAndNode({
+            widget = await this._createWidgetAndNode({
                 config: { ...viewer_config },
                 slot: widgetName,
             });
@@ -380,13 +543,6 @@ export class PerspectiveWorkspace extends SplitPanel {
         } else {
             this._validate(table);
         }
-
-        this.getAllWidgets().forEach((widget) => {
-            const psp_widget = widget as PerspectiveViewerWidget;
-            if (psp_widget.viewer.getAttribute("table") === name) {
-                psp_widget.load(table);
-            }
-        });
     }
 
     _delete_listener(name: string) {
@@ -398,7 +554,7 @@ export class PerspectiveWorkspace extends SplitPanel {
         });
     }
 
-    update_widget_for_viewer(viewer: HTMLPerspectiveViewerElement) {
+    async update_widget_for_viewer(viewer: HTMLPerspectiveViewerElement) {
         let slot_name = viewer.getAttribute("slot");
         if (!slot_name) {
             slot_name = this._gen_id();
@@ -413,10 +569,8 @@ export class PerspectiveWorkspace extends SplitPanel {
                     `Undocked ${viewer.outerHTML}, creating default layout`,
                 );
 
-                const widget = this._createWidget({
-                    config: {
-                        table: viewer.getAttribute("table")!,
-                    },
+                const widget = await this._createWidget({
+                    // config: {},
                     viewer,
                 });
 
@@ -462,7 +616,7 @@ export class PerspectiveWorkspace extends SplitPanel {
         const config = await widget.save();
         config.settings = false;
         config.title = config.title ? `${config.title} (*)` : "";
-        const duplicate = this._createWidgetAndNode({
+        const duplicate = await this._createWidgetAndNode({
             config,
             slot: undefined,
         });
@@ -472,7 +626,7 @@ export class PerspectiveWorkspace extends SplitPanel {
             ref: widget,
         });
 
-        await duplicate.task;
+        await duplicate.viewer.flush();
     }
 
     toggleMasterDetail(widget: PerspectiveViewerWidget) {
@@ -498,12 +652,14 @@ export class PerspectiveWorkspace extends SplitPanel {
 
     _maximize(widget: PerspectiveViewerWidget) {
         widget.viewer.classList.add("widget-maximize");
-        this._minimizedLayout = this.dockpanel.saveLayout();
-        this._minimizedLayoutSlots = PerspectiveDockPanel.mapWidgets(
-            (widget: PerspectiveViewerWidget) =>
-                widget.viewer.getAttribute("slot"),
-            this.dockpanel.saveLayout(),
-        );
+        if (!this._minimizedLayout) {
+            this._minimizedLayout = this.dockpanel.saveLayout();
+            this._minimizedLayoutSlots = PerspectiveDockPanel.mapWidgets(
+                async (widget: PerspectiveViewerWidget) =>
+                    widget.viewer.getAttribute("slot"),
+                this.dockpanel.saveLayout(),
+            );
+        }
 
         this._maximizedWidget = widget;
         this.dockpanel.mode = "single-document";
@@ -514,6 +670,7 @@ export class PerspectiveWorkspace extends SplitPanel {
         this._maximizedWidget!.viewer.classList.remove("widget-maximize");
         this.dockpanel.mode = "multiple-document";
         this.dockpanel.restoreLayout(this._minimizedLayout!);
+        this._minimizedLayout = undefined;
     }
 
     toggleSingleDocument(widget: PerspectiveViewerWidget) {
@@ -657,22 +814,31 @@ export class PerspectiveWorkspace extends SplitPanel {
                         },
                     );
 
-                    for (const table of this.tables.keys()) {
-                        let args;
-                        if (widget !== null) {
-                            args = {
-                                table,
-                                widget_name: widget.viewer.getAttribute("slot"),
-                            };
-                        } else {
-                            args = { table };
-                        }
+                    (async () => {
+                        for (const table of (
+                            await Promise.all(
+                                this.client.map((client) =>
+                                    client.get_hosted_table_names(),
+                                ),
+                            )
+                        ).map((x) => x.flatMap((x: any) => x))) {
+                            let args;
+                            if (widget !== null) {
+                                args = {
+                                    table,
+                                    widget_name:
+                                        widget.viewer.getAttribute("slot"),
+                                };
+                            } else {
+                                args = { table };
+                            }
 
-                        submenu.addItem({
-                            command: "workspace:new",
-                            args,
-                        });
-                    }
+                            submenu.insertItem(0, {
+                                command: "workspace:new",
+                                args,
+                            });
+                        }
+                    })();
 
                     const widgets = PerspectiveDockPanel.getWidgets(
                         this.dockpanel.saveLayout(),
@@ -815,38 +981,43 @@ export class PerspectiveWorkspace extends SplitPanel {
         this.setRelativeSizes(sizes);
     }
 
-    addViewer(config: ViewerConfigUpdateExt, is_global_filter?: boolean) {
-        if (this.dockpanel.mode === "single-document") {
-            const _task = this._maximizedWidget!.viewer.toggleConfig(false);
-            this._unmaximize();
-        }
-
-        const widget = this._createWidgetAndNode({ config });
-        if (is_global_filter) {
-            if (!this.masterPanel.isAttached) {
-                this.setupMasterPanel(DEFAULT_WORKSPACE_SIZE);
+    async addViewer(
+        config: psp_viewer.ViewerConfigUpdate,
+        is_global_filter?: boolean,
+    ) {
+        await this._mutex.lock(async () => {
+            if (this.dockpanel.mode === "single-document") {
+                const _task = this._maximizedWidget!.viewer.toggleConfig(false);
+                this._unmaximize();
             }
 
-            this.masterPanel.addWidget(widget);
-        } else {
-            if (!this.detailPanel.isAttached) {
-                this.addWidget(this.detailPanel);
-            }
-            this.dockpanel.addWidget(widget, { mode: "split-right" });
-        }
+            const widget = await this._createWidgetAndNode({ config });
+            if (is_global_filter) {
+                if (!this.masterPanel.isAttached) {
+                    this.setupMasterPanel(DEFAULT_WORKSPACE_SIZE);
+                }
 
-        this.update();
+                this.masterPanel.addWidget(widget);
+            } else {
+                if (!this.detailPanel.isAttached) {
+                    this.addWidget(this.detailPanel);
+                }
+                this.dockpanel.addWidget(widget, { mode: "split-right" });
+            }
+
+            this.update();
+        });
     }
 
     /*********************************************************************
      * Widget helper methods
      */
 
-    _createWidgetAndNode({
+    async _createWidgetAndNode({
         config,
         slot: slotname,
     }: {
-        config: ViewerConfigUpdateExt;
+        config: psp_viewer.ViewerConfigUpdate;
         slot?: string;
     }) {
         const node = this._createNode(slotname);
@@ -861,11 +1032,19 @@ export class PerspectiveWorkspace extends SplitPanel {
             viewer.setAttribute("table", table);
         }
 
-        return this._createWidget({
-            config,
-            elem: node as HTMLElement,
-            viewer,
-        });
+        for (const client of this.client) {
+            const tables = await client.get_hosted_table_names();
+            if (tables.indexOf(table) > -1) {
+                await viewer.load(client);
+                return await this._createWidget({
+                    config,
+                    elem: node as HTMLElement,
+                    viewer,
+                });
+            }
+        }
+
+        throw new Error(`Table "${table}" not found`);
     }
 
     _gen_id() {
@@ -895,12 +1074,12 @@ export class PerspectiveWorkspace extends SplitPanel {
         return node as HTMLElement;
     }
 
-    _createWidget({
+    async _createWidget({
         config,
         elem,
         viewer,
     }: {
-        config: ViewerConfigUpdateExt;
+        config?: psp_viewer.ViewerConfigUpdate;
         elem?: Element;
         viewer: HTMLPerspectiveViewerElement;
     }) {
@@ -915,25 +1094,24 @@ export class PerspectiveWorkspace extends SplitPanel {
             }
         }
 
-        const table = this.tables.get(
-            viewer.getAttribute("table") || config.table,
-        );
-
-        const widget = new PerspectiveViewerWidget({ node, viewer });
-        widget.task = (async () => {
-            if (table) {
-                widget.load(table);
+        const onAttach = () => {
+            if (widget.viewer.parentElement !== this.element) {
+                this.element.appendChild(widget.viewer);
             }
 
-            await widget.restore(config);
-        })();
+            const event = new CustomEvent("workspace-new-view", {
+                detail: { config, widget },
+            });
 
-        const event = new CustomEvent("workspace-new-view", {
-            detail: { config, widget },
-        });
-        this.element.dispatchEvent(event);
+            this.element.dispatchEvent(event);
+        };
+
+        const widget = new PerspectiveViewerWidget({ node, viewer, onAttach });
+        if (config) {
+            await widget.restore(config);
+        }
+
         widget.title.closable = true;
-        this.element.appendChild(widget.viewer);
         this._addWidgetEventListeners(widget);
         return widget;
     }
@@ -942,12 +1120,6 @@ export class PerspectiveWorkspace extends SplitPanel {
         if (this.listeners.has(widget)) {
             this.listeners.get(widget)!();
         }
-
-        const settings = (event: CustomEvent) => {
-            if (!event.detail && this.dockpanel.mode === "single-document") {
-                this._unmaximize();
-            }
-        };
 
         const contextMenu = (event: MouseEvent) =>
             this.showContextMenu(widget, event);
@@ -962,11 +1134,62 @@ export class PerspectiveWorkspace extends SplitPanel {
                     : event.detail;
 
             widget.title.label = config.title;
+            widget._title = config.title;
             widget._is_pivoted = config.group_by?.length > 0;
         };
 
         widget.node.addEventListener("contextmenu", contextMenu);
-        widget.viewer.addEventListener("perspective-toggle-settings", settings);
+
+        // Settings
+        const settings_before = (event: CustomEvent) => {
+            if (event.detail && this.dockpanel.mode !== "single-document") {
+                this._maximize(widget);
+            }
+        };
+
+        const settings_after = (event: CustomEvent) => {
+            if (!event.detail && this.dockpanel.mode === "single-document") {
+                this._unmaximize();
+            }
+        };
+
+        widget.viewer.addEventListener(
+            "perspective-status-indicator-click",
+            (event) => {
+                widget._titlebar_callback?.(event as MouseEvent);
+            },
+        );
+
+        widget.viewer.addEventListener(
+            "perspective-toggle-settings-before",
+            settings_before,
+        );
+
+        widget.viewer.addEventListener(
+            "perspective-toggle-settings-before",
+            settings_after,
+        );
+
+        const delete_before = () => {
+            if (!widget._deleted) {
+                widget._deleted = true;
+                widget.close();
+            }
+        };
+
+        const delete_after = (event: CustomEvent) => {
+            widget._titlebar?.handleEvent(event.detail as PointerEvent);
+        };
+
+        widget.viewer.addEventListener(
+            "perspective-table-delete-before",
+            delete_before,
+        );
+
+        widget.viewer.addEventListener(
+            "perspective-statusbar-pointerdown",
+            delete_after,
+        );
 
         // @ts-ignore
         widget.viewer.addEventListener("perspective-config-update", updated);
@@ -974,8 +1197,23 @@ export class PerspectiveWorkspace extends SplitPanel {
         this.listeners.set(widget, () => {
             widget.node.removeEventListener("contextmenu", contextMenu);
             widget.viewer.removeEventListener(
+                "perspective-table-delete-before",
+                delete_before,
+            );
+
+            widget.viewer.removeEventListener(
+                "perspective-table-delete",
+                delete_after,
+            );
+
+            widget.viewer.removeEventListener(
                 "perspective-toggle-settings",
-                settings,
+                settings_before,
+            );
+
+            widget.viewer.removeEventListener(
+                "perspective-toggle-settings",
+                settings_after,
             );
 
             // @ts-ignore
@@ -1007,7 +1245,11 @@ export class PerspectiveWorkspace extends SplitPanel {
      *
      */
 
+    _throttle?: DebouncedFuncLeading<() => Promise<void>>;
+
     async workspaceUpdated() {
+        // if (!this._throttle) {
+        // this._throttle = throttle(async () => {
         const layout = await this.save();
         if (layout) {
             if (this._last_updated_state) {
@@ -1017,18 +1259,17 @@ export class PerspectiveWorkspace extends SplitPanel {
             }
 
             this._last_updated_state =
-                layout as any as PerspectiveWorkspaceConfig<string>;
-
-            const tables: Record<string, psp.Table | Promise<psp.Table>> = {};
-            this.tables.forEach((value, key) => {
-                tables[key] = value;
-            });
+                layout as any as PerspectiveWorkspaceConfig;
 
             this.element.dispatchEvent(
                 new CustomEvent("workspace-layout-update", {
-                    detail: { tables, layout },
+                    detail: { layout },
                 }),
             );
         }
+        // }, 0);
+        // }
+
+        // this._throttle();
     }
 }

@@ -10,32 +10,39 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import "/node_modules/@perspective-dev/viewer/dist/cdn/perspective-viewer.js";
-import perspective from "/node_modules/@perspective-dev/client/dist/cdn/perspective.js";
+import { expect, PageView, test } from "@perspective-dev/test";
 
-async function load() {
-    let resp = await fetch(
-        "/node_modules/@perspective-dev/test/assets/superstore.csv",
-    );
+test.describe("Regressions", () => {
+    test.beforeEach(async ({ page }) => {
+        await page.goto("/tools/test/src/html/basic-test.html");
+        await page.evaluate(async () => {
+            while (!window["__TEST_PERSPECTIVE_READY__"]) {
+                await new Promise((x) => setTimeout(x, 10));
+            }
+        });
 
-    let csv = await resp.text();
-    const viewer = document.querySelector("perspective-viewer");
-    const worker = await perspective.worker();
-    const table = worker.table(csv, { name: "load-viewer-superstore" });
-    await viewer.load(table);
-    const config = {
-        plugin: "datagrid",
-        group_by: ["Region", "State"],
-        split_by: ["Category", "Sub-Category"],
-        columns: ["Sales", "Profit"],
-        master: false,
-        name: "Sales Report",
-        table: "load-viewer-superstore",
-        linked: false,
-        title: "Sales Report 2",
-    };
-    await viewer.restore(config);
-}
+        await page.evaluate(async () => {
+            await document.querySelector("perspective-viewer")!.restore({
+                plugin: "Sunburst",
+            });
+        });
+    });
 
-await load();
-window.__TEST_PERSPECTIVE_READY__ = true;
+    test("Symbols Styles Close for table_col when Non-String", async ({
+        page,
+    }) => {
+        const view = new PageView(page);
+        await view.restore({
+            settings: true,
+            plugin: "X/Y Scatter",
+            columns: ["Row ID", "Postal Code", null, null, "Category"],
+        });
+        let col =
+            await view.settingsPanel.activeColumns.getColumnByName("Category");
+        await page.pause();
+        await col.editBtn.click();
+        await expect(view.columnSettingsSidebar.container).toBeVisible();
+        view.settingsPanel.groupby("City");
+        await expect(view.columnSettingsSidebar.container).toBeHidden();
+    });
+});
