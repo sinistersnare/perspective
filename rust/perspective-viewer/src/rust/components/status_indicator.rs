@@ -11,14 +11,113 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 use perspective_client::config::ViewConfigUpdate;
+use perspective_js::utils::ApiError;
+use wasm_bindgen::JsValue;
 use web_sys::*;
 use yew::prelude::*;
 
-use crate::model::UpdateAndRender;
+use crate::PerspectiveProperties;
+use crate::custom_events::CustomEvents;
+use crate::model::*;
 use crate::renderer::*;
 use crate::session::*;
 use crate::utils::*;
-use crate::*;
+
+#[derive(PartialEq, Properties, PerspectiveProperties!)]
+pub struct StatusIndicatorProps {
+    pub custom_events: CustomEvents,
+    pub renderer: Renderer,
+    pub session: Session,
+}
+
+/// An indicator component which displays the current status of the perspective
+/// server as an icon. This indicator also functions as a button to invoke the
+/// reconnect callback when in an error state.
+#[function_component]
+pub fn StatusIndicator(props: &StatusIndicatorProps) -> Html {
+    let state = use_reducer_eq(|| {
+        if let Some(err) = props.session.get_error() {
+            StatusIconState::Errored(err.message(), err.stacktrace(), err.kind())
+        } else {
+            StatusIconState::Normal
+        }
+    });
+
+    use_effect_with(
+        (props.session.clone(), state.dispatcher()),
+        |(session, set_state)| {
+            let subs = [
+                session
+                    .table_errored
+                    .add_listener(set_state.callback(StatusIconStateAction::SetError)),
+                session
+                    .stats_changed
+                    .add_listener(set_state.callback(StatusIconStateAction::Load)),
+                session
+                    .view_config_changed
+                    .add_listener(set_state.callback(|_| StatusIconStateAction::Increment)),
+                session
+                    .view_created
+                    .add_listener(set_state.callback(|_| StatusIconStateAction::Decrement)),
+            ];
+
+            move || drop(subs)
+        },
+    );
+
+    let class_name = match (&*state, props.session.is_reconnect()) {
+        (StatusIconState::Errored(..), true) => "errored",
+        (StatusIconState::Errored(..), false) => "errored disabled",
+        (StatusIconState::Normal, _) => "connected",
+        (StatusIconState::Updating(_), _) => "updating",
+        (StatusIconState::Loading, _) => "loading",
+        (StatusIconState::Unititialized, _) => "uninitialized",
+    };
+
+    let onclick = use_async_callback(
+        (props.clone_state(), state.clone()),
+        async move |_: MouseEvent, (props, state)| {
+            match &**state {
+                StatusIconState::Errored(..) => {
+                    props.session.reconnect().await?;
+                    let cfg = ViewConfigUpdate::default();
+                    props.update_and_render(cfg)?.await?;
+                },
+                StatusIconState::Normal => {
+                    props
+                        .custom_events
+                        .dispatch_event("status-indicator-click", JsValue::UNDEFINED)?;
+                },
+                _ => {},
+            };
+
+            // if let StatusIconState::Errored(..) = &**state {
+            //     props.session.reconnect().await?;
+            //     let cfg = ViewConfigUpdate::default();
+            //     props.update_and_render(cfg)?.await?;
+            // }
+
+            Ok::<_, ApiError>(())
+        },
+    );
+
+    html! {
+        <>
+            <div class="section">
+                <div id="status_reconnect" class={class_name} {onclick}>
+                    <span id="status" class={class_name} />
+                    <span id="status_updating" class={class_name} />
+                </div>
+                if let StatusIconState::Errored(err, stack, kind) = &*state {
+                    <div class="error-dialog">
+                        <div class="error-dialog-message">{ format!("{} {}", kind, err) }</div>
+                        <div class="error-dialog-stack">{ stack }</div>
+                    </div>
+                }
+            </div>
+        </>
+    }
+}
 
 #[derive(Clone, Default, Debug, PartialEq)]
 enum StatusIconState {
@@ -77,88 +176,5 @@ impl<T: Reducible + 'static> UseReducerDispatcher<T> {
     fn callback<U>(&self, action: impl Fn(U) -> T::Action + 'static) -> Callback<U> {
         let dispatcher = self.clone();
         Callback::from(move |event| dispatcher.dispatch(action(event)))
-    }
-}
-
-#[derive(Clone, Properties, PartialEq)]
-pub struct StatusIndicatorProps {
-    pub session: Session,
-    pub renderer: Renderer,
-}
-
-derive_model!(Session, Renderer for StatusIndicatorProps);
-
-/// An indicator component which displays the current status of the perspective
-/// server as an icon. This indicator also functions as a button to invoke the
-/// reconnect callback when in an error state.
-#[function_component]
-pub fn StatusIndicator(props: &StatusIndicatorProps) -> Html {
-    let state = use_reducer_eq(|| {
-        if let Some(err) = props.session.get_error() {
-            StatusIconState::Errored(err.message(), err.stacktrace(), err.kind())
-        } else {
-            StatusIconState::Normal
-        }
-    });
-
-    use_effect_with(
-        (props.session.clone(), state.dispatcher()),
-        |(session, set_state)| {
-            let subs = [
-                session
-                    .table_errored
-                    .add_listener(set_state.callback(StatusIconStateAction::SetError)),
-                session
-                    .stats_changed
-                    .add_listener(set_state.callback(StatusIconStateAction::Load)),
-                session
-                    .view_config_changed
-                    .add_listener(set_state.callback(|_| StatusIconStateAction::Increment)),
-                session
-                    .view_created
-                    .add_listener(set_state.callback(|_| StatusIconStateAction::Decrement)),
-            ];
-
-            move || drop(subs)
-        },
-    );
-
-    let onclick = use_async_callback(
-        (props.clone(), state.clone()),
-        async move |_: MouseEvent, (props, state)| {
-            if let StatusIconState::Errored(..) = &**state {
-                props.session.reconnect().await?;
-                let cfg = ViewConfigUpdate::default();
-                props.update_and_render(cfg)?.await?;
-            }
-
-            Ok::<_, ApiError>(())
-        },
-    );
-
-    let class_name = match (&*state, props.session.is_reconnect()) {
-        (StatusIconState::Errored(..), true) => "errored",
-        (StatusIconState::Errored(..), false) => "errored disabled",
-        (StatusIconState::Normal, _) => "connected",
-        (StatusIconState::Updating(_), _) => "updating",
-        (StatusIconState::Loading, _) => "loading",
-        (StatusIconState::Unititialized, _) => "uninitialized",
-    };
-
-    html! {
-        <>
-            <div class="section">
-                <div id="status_reconnect" class={class_name} {onclick}>
-                    <span id="status" class={class_name} />
-                    <span id="status_updating" class={class_name} />
-                </div>
-                if let StatusIconState::Errored(err, stack, kind) = &*state {
-                    <div class="error-dialog">
-                        <div class="error-dialog-message">{ format!("{} {}", kind, err) }</div>
-                        <div class="error-dialog-stack">{ stack }</div>
-                    </div>
-                }
-            </div>
-        </>
     }
 }

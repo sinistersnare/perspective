@@ -79,4 +79,59 @@ test.describe("Flush method", async () => {
             settings: true,
         });
     });
+
+    test("flush awaits perspective-config-update events trigger by restore", async ({
+        page,
+    }) => {
+        const result = await page.evaluate(async () => {
+            const viewer = document.querySelector("perspective-viewer");
+            await viewer.getTable();
+            let count = 0;
+            viewer.addEventListener("perspective-config-update", () => {
+                count++;
+            });
+
+            viewer.restore({
+                settings: true,
+                group_by: ["State", "City"],
+                split_by: ["Category"],
+            });
+
+            const first = count;
+            await viewer.flush();
+            const second = count;
+            return [first, second];
+        });
+
+        expect(result).toEqual([0, 1]);
+    });
+
+    test("flush awaits perspective-config-update events trigger by load, and does not repeat when connected", async ({
+        page,
+    }) => {
+        const result = await page.evaluate(async () => {
+            const viewer = document.querySelector("perspective-viewer");
+            const table = await viewer.getTable();
+            await viewer.delete();
+            viewer.parentElement.removeChild(viewer);
+
+            const new_viewer = document.createElement("perspective-viewer");
+            let count = 0;
+
+            new_viewer.addEventListener("perspective-config-update", () => {
+                count++;
+            });
+
+            new_viewer.load(table);
+            const first = count;
+            await new_viewer.flush();
+            const second = count;
+            document.body.appendChild(new_viewer);
+            await new_viewer.flush();
+            const third = count;
+            return [first, second, third];
+        });
+
+        expect(result).toEqual([0, 1, 1]);
+    });
 });

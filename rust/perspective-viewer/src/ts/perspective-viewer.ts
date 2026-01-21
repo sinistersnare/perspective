@@ -13,7 +13,7 @@
 /**
  * Module for the `<perspective-viewer>` custom element.  This module has no
  * (real) exports, but importing it has a side effect: the
- * `PerspectiveViewerElement`class is registered as a custom element, after
+ * `PerspectiveViewerElement` class is registered as a custom element, after
  * which it can be used as a standard DOM element.
  *
  * Though `<perspective-viewer>` is written mostly in Rust, the nature
@@ -33,20 +33,8 @@
 
 export { IPerspectiveViewerPlugin } from "./plugin";
 export { HTMLPerspectiveViewerPluginElement } from "./plugin";
-import {
-    ExportDropDownMenuElement,
-    CopyDropDownMenuElement,
-} from "../../dist/wasm/perspective-viewer";
 
-export interface HTMLPerspectiveViewerExportMenu
-    extends HTMLElement,
-        ExportDropDownMenuElement {}
-
-export interface HTMLPerspectiveViewerCopyMenu
-    extends HTMLElement,
-        CopyDropDownMenuElement {}
-
-export * from "./extensions";
+export type * from "./extensions.ts";
 export type * from "./ts-rs/ViewerConfigUpdate.d.ts";
 export type * from "./ts-rs/ColumnConfigValues.d.ts";
 export type * from "./ts-rs/Filter.d.ts";

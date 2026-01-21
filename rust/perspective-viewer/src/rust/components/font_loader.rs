@@ -17,20 +17,22 @@ use std::rc::Rc;
 
 use futures::future::{join_all, select_all};
 use perspective_js::utils::{global, *};
-use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::{JsCast, intern};
 use wasm_bindgen_futures::JsFuture;
 use yew::prelude::*;
 
 use crate::utils::*;
-
-const FONT_DOWNLOAD_TIMEOUT_MS: i32 = 1000;
 
 /// This test string is injected into the DOM with the target `font-family`
 /// applied. It is important for this string to contain the correct unicode
 /// range, as otherwise the browser may download the latin-only variant of the
 /// font which will later be invalidated.
 const FONT_TEST_SAMPLE: &str = "ABCDΔ";
+
+/// How long to wait for the test string to receive the font before proceeding
+/// anyway (with a consoel warning).
+const FONT_DOWNLOAD_TIMEOUT_MS: i32 = 1000;
 
 /// `state` is private to force construction of props with the `::new()` static
 /// method, which initializes the async `load_fonts_task()` method.
@@ -86,14 +88,14 @@ pub enum FontLoaderStatus {
     Finished,
 }
 
-type PromiseSet = Vec<ApiFuture<JsValue>>;
-
-pub struct FontLoaderState {
+struct FontLoaderState {
     status: Cell<FontLoaderStatus>,
     elem: web_sys::HtmlElement,
     on_update: Callback<()>,
     fonts: RefCell<Vec<(String, String)>>,
 }
+
+type PromiseSet = Vec<ApiFuture<JsValue>>;
 
 impl FontLoaderProps {
     pub fn new(elem: &web_sys::HtmlElement, on_update: Callback<()>) -> Self {
@@ -116,7 +118,7 @@ impl FontLoaderProps {
         self.state.status.get()
     }
 
-    fn get_fonts(&self) -> Ref<Vec<(String, String)>> {
+    fn get_fonts(&'_ self) -> Ref<'_, Vec<(String, String)>> {
         self.state.fonts.borrow()
     }
 
@@ -155,7 +157,7 @@ impl FontLoaderProps {
             let mut block_fonts: PromiseSet = vec![ApiFuture::new(task)];
 
             for entry in font_iter(global::document().fonts().values()) {
-                let font_face = js_sys::Reflect::get(&entry, js_intern::js_intern!("value"))?
+                let font_face = js_sys::Reflect::get(&entry, &intern("value").into())?
                     .dyn_into::<web_sys::FontFace>()?;
 
                 // Safari always has to be "different".
@@ -246,7 +248,7 @@ fn font_iter(
     repeat_with(move || iter.next())
         .filter_map(|x| x.ok())
         .take_while(|entry| {
-            !js_sys::Reflect::get(entry, js_intern::js_intern!("done"))
+            !js_sys::Reflect::get(entry, &intern("done").into())
                 .unwrap()
                 .as_bool()
                 .unwrap()

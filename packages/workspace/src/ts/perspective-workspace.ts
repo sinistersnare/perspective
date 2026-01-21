@@ -12,21 +12,20 @@
 
 import { MessageLoop } from "@lumino/messaging";
 import { Widget } from "@lumino/widgets";
-import { HTMLPerspectiveViewerElement } from "@perspective-dev/viewer";
+import type { HTMLPerspectiveViewerElement } from "@perspective-dev/viewer";
 import type * as psp from "@perspective-dev/client";
+import type * as psp_viewer from "@perspective-dev/viewer";
+import * as msg from "@lumino/messaging";
 
-export { PerspectiveWorkspace } from "./workspace";
+export { PerspectiveWorkspace, addViewer, genId } from "./workspace";
 export { PerspectiveViewerWidget } from "./workspace/widget";
-
-import "./external";
-import {
-    PerspectiveWorkspace,
-    PerspectiveWorkspaceConfig,
-    ViewerConfigUpdateExt,
-} from "./workspace";
+export * from "./extensions";
+import { PerspectiveWorkspace, PerspectiveWorkspaceConfig } from "./workspace";
 import { bindTemplate, CustomElementProto } from "./utils/custom_elements";
 import style from "../../build/css/workspace.css";
 import template from "../html/workspace.html";
+
+export { PerspectiveWorkspaceConfig };
 
 /**
  * A Custom Element for coordinating a set of `<perspective-viewer>` light DOM
@@ -46,24 +45,13 @@ import template from "../html/workspace.html";
  * express your initial view simply:
  *
  * ```html
- * <perspective-workspace>
- *     <perspective-viewer
- *         name="View One"
- *         table="superstore">
- *     </perspective-viewer>
- *     <perspective-viewer
- *         name="View Two"
- *         table="superstore">
- *     </perspective-viewer>
- * </perspective-workspace>
+ * <perspective-workspace></perspective-workspace>
  * ```
  *
  * You can also use the DOM API in Javascript:
  *
  * ```javascript
  * const workspace = document.createElement("perspective-workspace");
- * const viewer = document.createElement("perspective-viewer");
- * workspace.appendChild(viewer);
  * document.body.appendChild(workspace);
  * ```
  *
@@ -113,7 +101,7 @@ export class HTMLPerspectiveWorkspaceElement extends HTMLElement {
      * const workspace = document.querySelector("perspective-workspace");
      * localStorage.set("CONFIG", JSON.stringify(workspace.save()));
      */
-    save() {
+    save(): Promise<PerspectiveWorkspaceConfig> {
         return this.workspace!.save();
     }
 
@@ -137,15 +125,15 @@ export class HTMLPerspectiveWorkspaceElement extends HTMLElement {
      * // Add `Table` separately.
      * workspace.tables.set("superstore", await worker.table(data));
      */
-    async restore(layout: PerspectiveWorkspaceConfig<string>) {
+    async restore(layout: PerspectiveWorkspaceConfig) {
         await this.workspace!.restore(layout);
     }
 
     async clear() {
         await this.restore({
             sizes: [],
-            master: { sizes: [] },
-            detail: { sizes: [] },
+            master: undefined,
+            detail: { main: null },
             viewers: {},
         });
     }
@@ -156,75 +144,41 @@ export class HTMLPerspectiveWorkspaceElement extends HTMLElement {
      * are applied.
      */
     async flush() {
-        await Promise.all(
-            Array.from(this.querySelectorAll("perspective-viewer")).map((x) => {
-                const psp_widget = x as HTMLPerspectiveViewerElement;
-                return psp_widget.flush();
-            }),
-        );
+        if (!this.workspace) {
+            return;
+        }
+
+        msg.MessageLoop.flush();
+        await new Promise((x) => requestAnimationFrame(x));
+        await this.workspace._mutex.lock(async () => {
+            await Promise.all(
+                Array.from(this.querySelectorAll("perspective-viewer")).map(
+                    (x) => {
+                        const psp_widget = x as HTMLPerspectiveViewerElement;
+                        return psp_widget
+                            .flush()
+                            .then(() => psp_widget.flush());
+                    },
+                ),
+            );
+        });
     }
 
     /**
      * Add a new viewer to the workspace for a given `ViewerConfigUpdateExt`.
      * @param config
      */
-    async addViewer(config: ViewerConfigUpdateExt) {
-        this.workspace!.addViewer(config);
+    async addViewer(config: psp_viewer.ViewerConfigUpdate) {
+        await this.workspace!.addViewer(config);
         await this.flush();
     }
 
-    /**
-     * Add a new `Table` to the workspace, so that it can be bound by viewers.
-     * Each `Table` is identified by a unique `name`.
-     */
-    async addTable(name: string, table: Promise<psp.Table>) {
-        this.workspace!.addTable(name, table);
-        await this.flush();
-    }
-
-    /**
-     * Deleta a table by name from this workspace
-     * @param name
-     * @returns
-     */
-    getTable(name: string) {
-        return this.workspace!.getTable(name);
-    }
-
-    /**
-     * Replace a `Table` by name. As `Table` doe snot guarantee the same
-     * structure, this will wipe the viewer's state.
-     * @param name
-     * @param table
-     */
-    async replaceTable(name: string, table: Promise<psp.Table>) {
-        this.workspace!.replaceTable(name, table);
-        await this.flush();
-    }
-
-    /**
-     * Remove a `Table` by name.
-     * @param name
-     * @returns
-     */
-    removeTable(name: string) {
-        return this.workspace!.removeTable(name);
-    }
-
-    /**
-     * A `Map()` of `perspective.Table()` by name.  The names set here will auto
-     * wire any child `perspective-viewer` elements in this Workspace's subtree,
-     * by looking up their respective `table` attribute.
-     *
-     * Calling methods on this `Map()` may have side-effects, as
-     * `PerspectiveViewerHTMLElement.load()` is called when a new `Table()` is
-     * set with a name matching an existing child `perspective-viewer`.
-     *
-     * @readonly
-     * @memberof HTMLPerspectiveWorkspaceElement
-     */
-    get tables() {
-        return this.workspace!.tables;
+    async load(client: psp.Client | Promise<psp.Client>) {
+        if (this.workspace) {
+            this.workspace.client.push(await client);
+        } else {
+            throw new Error("Workspace not mounted");
+        }
     }
 
     /**
@@ -269,27 +223,33 @@ export class HTMLPerspectiveWorkspaceElement extends HTMLElement {
      */
 
     private _light_dom_changed() {
-        const viewers = Array.from(
-            this.childNodes,
-        ) as HTMLPerspectiveViewerElement[];
-
-        for (const viewer of viewers) {
-            if (viewer.nodeType !== Node.ELEMENT_NODE) {
-                continue;
-            }
-
-            if (viewer.tagName !== "PERSPECTIVE-VIEWER") {
-                console.warn("Not a <perspective-viewer>");
-                continue;
-            }
-
-            this.workspace!.update_widget_for_viewer(
-                viewer as HTMLPerspectiveViewerElement,
-            );
+        if (!this.workspace) {
+            return;
         }
 
-        this.workspace!.remove_unslotted_widgets(viewers);
-        this.workspace!.update_details_panel(viewers);
+        this.workspace._mutex.lock(async () => {
+            const viewers = Array.from(
+                this.childNodes,
+            ) as HTMLPerspectiveViewerElement[];
+
+            for (const viewer of viewers) {
+                if (viewer.nodeType !== Node.ELEMENT_NODE) {
+                    continue;
+                }
+
+                if (viewer.tagName !== "PERSPECTIVE-VIEWER") {
+                    console.warn("Not a <perspective-viewer>");
+                    continue;
+                }
+
+                let _task = this.workspace!.update_widget_for_viewer(
+                    viewer as HTMLPerspectiveViewerElement,
+                );
+            }
+
+            this.workspace!.remove_unslotted_widgets(viewers);
+            this.workspace!.update_details_panel(viewers);
+        });
     }
 
     private _register_light_dom_listener() {

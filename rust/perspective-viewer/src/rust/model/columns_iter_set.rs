@@ -19,6 +19,7 @@ use super::{HasRenderer, HasSession, IsInvalidDrop};
 use crate::dragdrop::*;
 use crate::renderer::*;
 use crate::session::*;
+use crate::utils::DragTarget;
 use crate::*;
 
 /// The possible states of a column (row) in the active columns list, including

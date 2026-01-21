@@ -17,26 +17,6 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use yew::prelude::*;
 
-#[derive(Clone, Eq, PartialEq)]
-pub enum SelectItem<T> {
-    Option(T),
-    OptGroup(Cow<'static, str>, Vec<T>),
-}
-
-impl<T: Display> SelectItem<T> {
-    pub fn name<'a>(&self) -> Cow<'a, str> {
-        match self {
-            Self::Option(x) => format!("{x}").into(),
-            Self::OptGroup(x, _) => x.clone(),
-        }
-    }
-}
-
-pub enum SelectMsg {
-    SelectedChanged(i32),
-    KeyboardInput(bool, i32, String),
-}
-
 #[derive(Properties)]
 pub struct SelectProps<T>
 where
@@ -71,6 +51,11 @@ where
     }
 }
 
+pub enum SelectMsg {
+    SelectedChanged(i32),
+    KeyboardInput(bool, i32, String),
+}
+
 /// A `<select>` HTML elements, lifted to support parameterization over a set of
 /// values of a type `T`.
 pub struct Select<T>
@@ -79,23 +64,6 @@ where
 {
     select_ref: NodeRef,
     selected: T,
-}
-
-fn find_nth<T>(mut count: i32, items: &[SelectItem<T>]) -> Option<&T> {
-    for ref item in items.iter() {
-        match item {
-            SelectItem::Option(_) if count > 0 => {
-                count -= 1;
-            },
-            SelectItem::OptGroup(_, items) if count >= items.len() as i32 => {
-                count -= items.len() as i32;
-            },
-            SelectItem::OptGroup(_, items) => return items.get(count as usize),
-            SelectItem::Option(x) => return Some(x),
-        }
-    }
-
-    None
 }
 
 impl<T> Component for Select<T>
@@ -132,12 +100,12 @@ where
                             ctx.props().on_select.emit(self.selected.clone());
                             return true;
                         }
-                    } else if code.as_str() == "ArrowDown"
-                        && let Some(x) = find_nth(idx + 1, &ctx.props().values)
-                    {
-                        self.selected = x.clone();
-                        ctx.props().on_select.emit(self.selected.clone());
-                        return true;
+                    } else if code.as_str() == "ArrowDown" {
+                        if let Some(x) = find_nth(idx + 1, &ctx.props().values) {
+                            self.selected = x.clone();
+                            ctx.props().on_select.emit(self.selected.clone());
+                            return true;
+                        }
                     }
                 }
 
@@ -259,11 +227,45 @@ where
 
         html! {
             if is_group_selected && ctx.props().label.is_some() {
-                <label>{ ctx.props().label.to_owned() }</label>
+                <label>
+                    { ctx.props().label.as_ref().map(|x| x.to_string()).unwrap_or_default() }
+                </label>
                 <div class={wrapper_class} data-value={value.clone()}>{ select }</div>
             } else {
                 <div class={wrapper_class} data-value={value}>{ select }</div>
             }
         }
     }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub enum SelectItem<T> {
+    Option(T),
+    OptGroup(Cow<'static, str>, Vec<T>),
+}
+
+impl<T: Display> SelectItem<T> {
+    pub fn name<'a>(&self) -> Cow<'a, str> {
+        match self {
+            Self::Option(x) => format!("{x}").into(),
+            Self::OptGroup(x, _) => x.clone(),
+        }
+    }
+}
+
+fn find_nth<T>(mut count: i32, items: &[SelectItem<T>]) -> Option<&T> {
+    for ref item in items.iter() {
+        match item {
+            SelectItem::Option(_) if count > 0 => {
+                count -= 1;
+            },
+            SelectItem::OptGroup(_, items) if count >= items.len() as i32 => {
+                count -= items.len() as i32;
+            },
+            SelectItem::OptGroup(_, items) => return items.get(count as usize),
+            SelectItem::Option(x) => return Some(x),
+        }
+    }
+
+    None
 }

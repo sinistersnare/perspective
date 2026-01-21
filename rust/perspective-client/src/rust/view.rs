@@ -61,14 +61,6 @@ impl FromStr for OnUpdateMode {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct Dimensions {
-    pub num_view_rows: usize,
-    pub num_view_columns: usize,
-    pub num_table_rows: usize,
-    pub num_table_columns: usize,
-}
-
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS, PartialEq)]
 pub struct ColumnWindow {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -84,32 +76,41 @@ pub struct ColumnWindow {
 /// [`View`].
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS, PartialEq)]
 pub struct ViewWindow {
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start_row: Option<f64>,
 
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start_col: Option<f64>,
 
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_row: Option<f64>,
 
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_col: Option<f64>,
 
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<bool>,
 
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub index: Option<bool>,
 
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub leaves_only: Option<bool>,
 
     /// Only impacts [`View::to_csv`]
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub formatted: Option<bool>,
 
     /// Only impacts [`View::to_arrow`]
+    #[ts(optional)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compression: Option<String>,
 }

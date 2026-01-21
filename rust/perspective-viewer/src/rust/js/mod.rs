@@ -20,7 +20,6 @@ mod intersection_observer;
 mod mimetype;
 pub mod plugin;
 pub mod resize_observer;
-mod testing;
 
 pub use self::clipboard::*;
 pub use self::intersection_observer::*;

@@ -21,14 +21,13 @@ use yew::{Callback, Component, Properties, html};
 
 use crate::components::style::LocalStyle;
 use crate::config::*;
-use crate::{css, max, min};
+use crate::css;
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct CustomNumberFormatProps {
     pub restored_config: CustomNumberFormatConfig,
     pub on_change: Callback<ColumnConfigValueUpdate>,
     pub view_type: ColumnType,
-    // just for rerendering
     pub column_name: String,
 }
 
@@ -61,46 +60,6 @@ pub struct CustomNumberFormat {
     // show_sig: bool,
     // disable_rounding_increment: bool,
     // disable_rounding_priority: bool,
-}
-
-impl CustomNumberFormat {
-    fn initialize(ctx: &yew::prelude::Context<Self>) -> Self {
-        let config = ctx.props().restored_config.clone();
-        // let show_frac = config
-        //     .minimum_fraction_digits
-        //     .or(config.maximum_fraction_digits)
-        //     .or(config.rounding_increment)
-        //     .is_some();
-        // let show_sig = config
-        //     .minimum_significant_digits
-        //     .or(config.maximum_significant_digits)
-        //     .is_some();
-        // let disable_rounding_increment = show_sig
-        //     || show_frac
-        //     || !matches!(
-        //         config.rounding_priority,
-        //         Some(RoundingPriority::Auto) | None
-        //     );
-        // let disable_rounding_priority = !(show_frac && show_sig);
-        Self {
-            style: config
-                ._style
-                .as_ref()
-                .map(|style| match style {
-                    NumberFormatStyle::Decimal => NumberStyle::Decimal,
-                    NumberFormatStyle::Currency(_) => NumberStyle::Currency,
-                    NumberFormatStyle::Percent => NumberStyle::Percent,
-                    NumberFormatStyle::Unit(_) => NumberStyle::Unit,
-                })
-                .unwrap_or_default(),
-            config,
-            // show_frac,
-            // show_sig,
-            // disable_rounding_increment,
-            // disable_rounding_priority,
-            notation: None,
-        }
-    }
 }
 
 impl Component for CustomNumberFormat {
@@ -195,23 +154,23 @@ impl Component for CustomNumberFormat {
                 self.config.rounding_increment = None;
                 self.config.maximum_fraction_digits = val.map(|(_, val)| {
                     let min = self.config.minimum_fraction_digits.unwrap_or(2.);
-                    max!(val, min)
+                    val.max(min)
                 });
 
                 self.config.minimum_fraction_digits = val.map(|(val, _)| {
                     let max = self.config.maximum_fraction_digits.unwrap_or(2.);
-                    min!(val, max)
+                    val.min(max)
                 });
             },
             CustomNumberFormatMsg::SigChange(val) => {
                 self.config.maximum_significant_digits = val.map(|(_, val)| {
                     let min = self.config.minimum_significant_digits.unwrap_or(1.);
-                    max!(val, min)
+                    val.max(min)
                 });
 
                 self.config.minimum_significant_digits = val.map(|(val, _)| {
                     let max = self.config.maximum_significant_digits.unwrap_or(21.);
-                    min!(val, max)
+                    val.min(max)
                 });
             },
             CustomNumberFormatMsg::RoundingIncrement(val) => {
@@ -254,6 +213,46 @@ impl Component for CustomNumberFormat {
                 { self.digits_section(ctx) }
                 { self.misc_section(ctx) }
             </>
+        }
+    }
+}
+
+impl CustomNumberFormat {
+    fn initialize(ctx: &yew::prelude::Context<Self>) -> Self {
+        let config = ctx.props().restored_config.clone();
+        // let show_frac = config
+        //     .minimum_fraction_digits
+        //     .or(config.maximum_fraction_digits)
+        //     .or(config.rounding_increment)
+        //     .is_some();
+        // let show_sig = config
+        //     .minimum_significant_digits
+        //     .or(config.maximum_significant_digits)
+        //     .is_some();
+        // let disable_rounding_increment = show_sig
+        //     || show_frac
+        //     || !matches!(
+        //         config.rounding_priority,
+        //         Some(RoundingPriority::Auto) | None
+        //     );
+        // let disable_rounding_priority = !(show_frac && show_sig);
+        Self {
+            style: config
+                ._style
+                .as_ref()
+                .map(|style| match style {
+                    NumberFormatStyle::Decimal => NumberStyle::Decimal,
+                    NumberFormatStyle::Currency(_) => NumberStyle::Currency,
+                    NumberFormatStyle::Percent => NumberStyle::Percent,
+                    NumberFormatStyle::Unit(_) => NumberStyle::Unit,
+                })
+                .unwrap_or_default(),
+            config,
+            // show_frac,
+            // show_sig,
+            // disable_rounding_increment,
+            // disable_rounding_priority,
+            notation: None,
         }
     }
 }

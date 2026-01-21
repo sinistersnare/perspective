@@ -19,7 +19,10 @@
         }
 
         #plugin_selector_container {
-            min-height: 48px;
+            min-height: var(
+                --plugin-selector--height,
+                var(--status-bar--height, 48px)
+            );
             display: flex;
             white-space: nowrap;
             flex-direction: column;
@@ -36,7 +39,7 @@
                 min-height: 2px;
                 width: 100%;
                 background-color: var(--inactive--color, #6e6e6e);
-                margin-top: 1px;
+                margin-top: 2px;
             }
 
             .plugin-selector-options {
@@ -76,11 +79,18 @@
             .plugin-select-item {
                 // width: 48px;
                 padding-left: 9px;
-                height: 48px;
-                min-height: 48px;
+                height: var(
+                    --plugin-selector--height,
+                    var(--status-bar--height, 48px)
+                );
+                min-height: var(
+                    --plugin-selector--height,
+                    var(--status-bar--height, 48px)
+                );
                 display: flex;
                 align-items: center;
-                border-bottom: 1px solid var(--inactive--color, #6e6e6e);
+                border-bottom: 1px solid transparent;
+                box-shadow: 0px 1px var(--inactive--color, #6e6e6e);
                 cursor: pointer;
             }
 

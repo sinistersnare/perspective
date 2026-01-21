@@ -57,7 +57,8 @@ impl Table {
 extern "C" {
     // TODO Fix me
     #[wasm_bindgen(typescript_type = "\
-        string | ArrayBuffer | Record<string, unknown[]> | Record<string, unknown>[]")]
+        string | ArrayBuffer | Record<string, unknown[]> | Record<string, unknown>[] | \
+                                      Record<string, ColumnType>")]
     pub type JsTableInitData;
 
     #[wasm_bindgen(typescript_type = "ViewConfigUpdate")]
@@ -179,7 +180,7 @@ impl Table {
     ///
     /// Note that all [`Table`] columns are _nullable_, regardless of the data
     /// type.
-    #[wasm_bindgen]
+    #[wasm_bindgen(unchecked_return_type = "Record<string, ColumnType>")]
     pub async fn schema(&self) -> ApiResult<JsValue> {
         let schema = self.0.schema().await?;
         Ok(JsValue::from_serde_ext(&schema)?)

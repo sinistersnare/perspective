@@ -565,6 +565,7 @@ namespace server {
         t_id get_table_id_for_view(const t_id& view_id);
         std::vector<t_id> get_view_ids(const t_id& table_id);
         bool has_view(const t_id& id);
+        bool has_table(const t_id& id);
         std::shared_ptr<ErasedView> get_view(const t_id& id);
         std::vector<t_id> get_table_ids();
 

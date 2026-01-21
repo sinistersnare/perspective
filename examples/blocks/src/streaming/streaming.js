@@ -68,12 +68,13 @@ var elem = document.getElementsByTagName("perspective-viewer")[0];
 var worker = await perspective.worker();
 
 // Create a new Perspective table in our `worker`, and limit it it 500 rows.
-var table = await worker.table(newRows(), {
+const table = await worker.table(newRows(), {
+    name: "streaming",
     limit: 500,
 });
 
 // Load the `table` in the `<perspective-viewer>` DOM reference.
-await elem.load(Promise.resolve(table));
+await elem.load(worker);
 
 elem.restore({
     plugin: "Datagrid",
@@ -87,6 +88,7 @@ elem.restore({
         scroll_lock: true,
     },
     settings: true,
+    table: "streaming",
     theme: "Pro Light",
     group_by: ["name"],
     split_by: ["client"],

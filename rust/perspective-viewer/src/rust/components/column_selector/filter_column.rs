@@ -16,6 +16,7 @@ use std::rc::Rc;
 use chrono::{Datelike, NaiveDate, TimeZone, Utc};
 use perspective_client::config::*;
 use perspective_client::utils::PerspectiveResultExt;
+use perspective_js::utils::ApiFuture;
 use wasm_bindgen::JsCast;
 use web_sys::*;
 use yew::prelude::*;
@@ -29,30 +30,17 @@ use crate::dragdrop::*;
 use crate::model::*;
 use crate::renderer::*;
 use crate::session::*;
-use crate::utils::{posix_to_utc_str, str_to_utc_posix};
+use crate::utils::*;
 use crate::*;
 
-/// A control for a single filter condition.
-pub struct FilterColumn {
-    input: String,
-    input_ref: NodeRef,
-    filter_ops: Rc<Vec<SelectItem<String>>>,
-}
-
-#[derive(Debug)]
-pub enum FilterColumnMsg {
-    FilterInput((usize, String), String),
-    Close,
-    FilterOpSelect(String),
-    FilterKeyDown(u32),
-}
-
-#[derive(Properties, Clone)]
+#[derive(Clone, Properties, PerspectiveProperties!)]
 pub struct FilterColumnProps {
     pub filter: Filter,
     pub idx: usize,
     pub filter_dropdown: FilterDropDownElement,
     pub on_keydown: Callback<String>,
+
+    // State
     pub session: Session,
     pub renderer: Renderer,
     pub dragdrop: DragDrop,
@@ -64,8 +52,6 @@ impl PartialEq for FilterColumnProps {
     }
 }
 
-derive_model!(Renderer, Session for FilterColumnProps);
-
 impl DragDropListItemProps for FilterColumnProps {
     type Item = Filter;
 
@@ -74,179 +60,42 @@ impl DragDropListItemProps for FilterColumnProps {
     }
 }
 
-impl FilterColumnProps {
-    /// Does this filter item get a "suggestions" auto-complete modal?
-    fn is_suggestable(&self) -> bool {
-        // TODO This needs to be moved to Features API. Or ... we just do this
-        // all string column type filters, or otherwise "fix" this in the UI?
-        (self.filter.op() == "=="
-            || self.filter.op() == "!="
-            || self.filter.op() == "in"
-            || self.filter.op() == "not in")
-            && self.get_filter_type() == Some(ColumnType::String)
-    }
-
-    /// Get this filter's type, e.g. the type of the column.
-    fn get_filter_type(&self) -> Option<ColumnType> {
-        self.session
-            .metadata()
-            .get_column_table_type(self.filter.column())
-    }
-
-    // Get the string value, suitable for the `value` field of a `FilterColumns`'s
-    // `<input>`.
-    fn get_filter_input(&self) -> Option<String> {
-        let filter_type = self.get_filter_type()?;
-        match (&filter_type, &self.filter.term()) {
-            (ColumnType::Date, FilterTerm::Scalar(Scalar::Float(x))) => {
-                if *x > 0_f64 {
-                    Some(
-                        Utc.timestamp_opt(*x as i64 / 1000, (*x as u32 % 1000) * 1000)
-                            .earliest()?
-                            .format("%Y-%m-%d")
-                            .to_string(),
-                    )
-                } else {
-                    None
-                }
-            },
-            (ColumnType::Datetime, FilterTerm::Scalar(Scalar::Float(x))) => {
-                posix_to_utc_str(*x).ok()
-            },
-            (ColumnType::Boolean, FilterTerm::Scalar(Scalar::Bool(x))) => {
-                Some((if *x { "true" } else { "false" }).to_owned())
-            },
-            (ColumnType::Boolean, _) => Some("true".to_owned()),
-            (_, x) => Some(format!("{x}")),
-        }
-    }
-
-    /// Get the allowed `FilterOp`s for this filter.
-    fn get_filter_ops(&self, col_type: ColumnType) -> Option<Vec<String>> {
-        let metadata = self.session.metadata();
-        let features = metadata.get_features()?;
-        features
-            .filter_ops
-            .get(&(col_type as u32))
-            .map(|x| x.options.clone())
-    }
-
-    /// Update the filter comparison operator.
-    ///
-    /// # Arguments
-    /// - `op` The new `FilterOp`.
-    fn update_filter_op(&self, op: String) {
-        let mut filter = self.session.get_view_config().filter.clone();
-        let filter_column = &mut filter.get_mut(self.idx).expect("Filter on no column");
-        *filter_column.op_mut() = op;
-        let update = ViewConfigUpdate {
-            filter: Some(filter),
-            ..ViewConfigUpdate::default()
-        };
-
-        self.update_and_render(update)
-            .map(ApiFuture::spawn)
-            .unwrap_or_log();
-    }
-
-    /// Update the filter value from the string input read from the DOM.
-    ///
-    /// # Arguments
-    /// - `val` The new filter value.
-    fn update_filter_input(&self, val: String) {
-        let mut filter = self.session.get_view_config().filter.clone();
-        let filter_column = &mut filter.get_mut(self.idx).expect("Filter on no column");
-
-        // TODO This belongs in the Features API.
-        let filter_input = if filter_column.op() == "in" || filter_column.op() == "not in" {
-            Some(FilterTerm::Array(
-                val.split(',')
-                    .map(|x| Scalar::String(x.trim().to_owned()))
-                    .collect(),
-            ))
-        } else {
-            match self.get_filter_type() {
-                Some(ColumnType::String) => Some(FilterTerm::Scalar(Scalar::String(val))),
-                Some(ColumnType::Integer) => {
-                    if val.is_empty() {
-                        None
-                    } else if let Ok(num) = val.parse::<f64>() {
-                        Some(FilterTerm::Scalar(Scalar::Float(num.floor())))
-                    } else {
-                        None
-                    }
-                },
-                Some(ColumnType::Float) => {
-                    if val.is_empty() {
-                        None
-                    } else if let Ok(num) = val.parse::<f64>() {
-                        Some(FilterTerm::Scalar(Scalar::Float(num)))
-                    } else {
-                        None
-                    }
-                },
-                Some(ColumnType::Date) => match NaiveDate::parse_from_str(&val, "%Y-%m-%d") {
-                    Ok(ref posix) => Some(FilterTerm::Scalar(Scalar::String(format!(
-                        "{:0>4}-{:0>2}-{:0>2}",
-                        posix.year(),
-                        posix.month(),
-                        posix.day(),
-                    )))),
-                    _ => None,
-                },
-                Some(ColumnType::Datetime) => match str_to_utc_posix(&val) {
-                    Ok(x) => Some(FilterTerm::Scalar(Scalar::Float(x))),
-                    _ => None,
-                },
-                Some(ColumnType::Boolean) => Some(FilterTerm::Scalar(match val.as_str() {
-                    "true" => Scalar::Bool(true),
-                    _ => Scalar::Bool(false),
-                })),
-
-                // shouldn't be reachable ..
-                _ => None,
-            }
-        };
-
-        if let Some(input) = filter_input
-            && &input != filter_column.term()
-        {
-            *filter_column.term_mut() = input;
-            let update = ViewConfigUpdate {
-                filter: Some(filter),
-                ..ViewConfigUpdate::default()
-            };
-
-            self.update_and_render(update)
-                .map(ApiFuture::spawn)
-                .unwrap_or_log();
-        }
-    }
+#[derive(Debug)]
+pub enum FilterColumnMsg {
+    FilterInput((usize, String), String),
+    Close,
+    FilterOpSelect(String),
+    FilterKeyDown(u32),
 }
 
-type FilterOpSelector = Select<String>;
+/// A control for a single filter condition.
+pub struct FilterColumn {
+    input: String,
+    input_ref: NodeRef,
+    filter_ops: Rc<Vec<SelectItem<String>>>,
+}
 
 impl Component for FilterColumn {
     type Message = FilterColumnMsg;
     type Properties = FilterColumnProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        // css!(ctx, "filter-item");
-        let input = ctx
+        let input_ref = NodeRef::default();
+        let mut this = Self {
+            input: "".to_string(),
+            input_ref,
+            filter_ops: Rc::default(),
+        };
+
+        let col_type = ctx.props().get_current_filter_type();
+        this.input = ctx
             .props()
             .get_filter_input()
             .unwrap_or_else(|| "".to_owned());
-        let input_ref = NodeRef::default();
-        let col_type = ctx.props().get_filter_type();
-        if col_type == Some(ColumnType::Boolean) {
-            ctx.props().update_filter_input(input.clone());
-        }
 
-        let filter_ops = Rc::new(
+        this.filter_ops = Rc::new(
             maybe! {
-                Some(ctx
-                    .props()
-                    .get_filter_ops(col_type?)?
+                Some(get_filter_ops(ctx.props().session(), col_type?)?
                     .into_iter()
                     .map(SelectItem::Option)
                     .collect::<Vec<_>>())
@@ -254,18 +103,18 @@ impl Component for FilterColumn {
             .unwrap_or_default(),
         );
 
-        Self {
-            input,
-            input_ref,
-            filter_ops,
+        if col_type == Some(ColumnType::Boolean) {
+            ctx.props().update_filter_input(this.input.clone());
         }
+
+        this
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: FilterColumnMsg) -> bool {
         match msg {
             FilterColumnMsg::FilterInput(column, input) => {
                 let target = self.input_ref.cast::<HtmlInputElement>().unwrap();
-                let input = if ctx.props().get_filter_type() == Some(ColumnType::Boolean) {
+                let input = if ctx.props().get_current_filter_type() == Some(ColumnType::Boolean) {
                     if target.checked() {
                         "true".to_owned()
                     } else {
@@ -320,23 +169,21 @@ impl Component for FilterColumn {
             },
             FilterColumnMsg::FilterKeyDown(_) => false,
             FilterColumnMsg::FilterOpSelect(op) => {
-                ctx.props().update_filter_op(op);
+                ctx.props().update_filter_op(ctx.props().idx, op);
                 true
             },
         }
     }
 
     fn changed(&mut self, ctx: &Context<Self>, old: &Self::Properties) -> bool {
-        let col_type = ctx.props().get_filter_type();
-        let old_col_type = old.get_filter_type();
+        let col_type = ctx.props().get_current_filter_type();
+        let old_col_type = ctx.props().get_filter_type(&old.filter);
         let mut changed = false;
         if col_type != old_col_type {
             changed = true;
             self.filter_ops = Rc::new(
                 maybe! {
-                    Some(ctx
-                        .props()
-                        .get_filter_ops(col_type?)?
+                    Some(get_filter_ops(&ctx.props().session, col_type?)?
                         .into_iter()
                         .map(SelectItem::Option)
                         .collect::<Vec<_>>())
@@ -362,9 +209,7 @@ impl Component for FilterColumn {
             .session
             .metadata()
             .get_column_table_type(&column);
-
         let select = ctx.link().callback(FilterColumnMsg::FilterOpSelect);
-
         let noderef = &self.input_ref;
         let input = ctx.link().callback({
             let column = column.clone();
@@ -505,7 +350,7 @@ impl Component for FilterColumn {
                     // <TypeIcon ty={ColumnType::String} />
                     <TypeIcon ty={final_col_type} />
                     <span class="column_name">{ filter.column().to_owned() }</span>
-                    <FilterOpSelector
+                    <Select<String>
                         class="filterop-selector"
                         is_autosize=true
                         values={self.filter_ops.clone()}
@@ -514,7 +359,9 @@ impl Component for FilterColumn {
                     />
                     // TODO: Move this to the Features API.
                     if filter.op() != "is not null" && filter.op() != "is null" {
-                        if col_type == Some(ColumnType::Boolean) { { input_elem } } else {
+                        if col_type == Some(ColumnType::Boolean) {
+                            { input_elem }
+                        } else {
                             <label
                                 class={format!("input-sizer {}", type_class)}
                                 data-value={format!("{}", filter.term())}
@@ -525,6 +372,160 @@ impl Component for FilterColumn {
                     }
                 </div>
             </div>
+        }
+    }
+}
+
+/// Get the allowed `FilterOp`s for this filter.
+fn get_filter_ops(session: &Session, col_type: ColumnType) -> Option<Vec<String>> {
+    let metadata = session.metadata();
+    let features = metadata.get_features()?;
+    features
+        .filter_ops
+        .get(&(col_type as u32))
+        .map(|x| x.options.clone())
+}
+
+impl FilterColumnProps {
+    /// Does this filter item get a "suggestions" auto-complete modal?
+    fn is_suggestable(&self) -> bool {
+        // TODO This needs to be moved to Features API. Or ... we just do this
+        // all string column type filters, or otherwise "fix" this in the UI?
+        (self.filter.op() == "=="
+            || self.filter.op() == "!="
+            || self.filter.op() == "in"
+            || self.filter.op() == "not in")
+            && self.get_filter_type(&self.filter) == Some(ColumnType::String)
+    }
+
+    fn get_current_filter_type(&self) -> Option<ColumnType> {
+        self.get_filter_type(&self.filter)
+    }
+
+    /// Get this filter's type, e.g. the type of the column.
+    fn get_filter_type(&self, filter: &Filter) -> Option<ColumnType> {
+        self.session
+            .metadata()
+            .get_column_table_type(filter.column())
+    }
+
+    // Get the string value, suitable for the `value` field of a `FilterColumns`'s
+    // `<input>`.
+    fn get_filter_input(&self) -> Option<String> {
+        let filter_type = self.get_current_filter_type()?;
+        match (&filter_type, &self.filter.term()) {
+            (ColumnType::Date, FilterTerm::Scalar(Scalar::Float(x))) => {
+                if *x > 0_f64 {
+                    Some(
+                        Utc.timestamp_opt(*x as i64 / 1000, (*x as u32 % 1000) * 1000)
+                            .earliest()?
+                            .format("%Y-%m-%d")
+                            .to_string(),
+                    )
+                } else {
+                    None
+                }
+            },
+            (ColumnType::Datetime, FilterTerm::Scalar(Scalar::Float(x))) => {
+                posix_to_utc_str(*x).ok()
+            },
+            (ColumnType::Boolean, FilterTerm::Scalar(Scalar::Bool(x))) => {
+                Some((if *x { "true" } else { "false" }).to_owned())
+            },
+            (ColumnType::Boolean, _) => Some("true".to_owned()),
+            (_, x) => Some(format!("{x}")),
+        }
+    }
+
+    /// Update the filter comparison operator.
+    ///
+    /// # Arguments
+    /// - `op` The new `FilterOp`.
+    fn update_filter_op(&self, idx: usize, op: String) {
+        let mut filter = self.session.get_view_config().filter.clone();
+        let filter_column = &mut filter.get_mut(idx).expect("Filter on no column");
+        *filter_column.op_mut() = op;
+        let update = ViewConfigUpdate {
+            filter: Some(filter),
+            ..ViewConfigUpdate::default()
+        };
+
+        self.update_and_render(update)
+            .map(ApiFuture::spawn)
+            .unwrap_or_log();
+    }
+
+    /// Update the filter value from the string input read from the DOM.
+    ///
+    /// # Arguments
+    /// - `val` The new filter value.
+    fn update_filter_input(&self, val: String) {
+        let mut filters = self.session.get_view_config().filter.clone();
+        let filter_column = &mut filters.get_mut(self.idx).expect("Filter on no column");
+
+        // TODO This belongs in the Features API.
+        let filter_input = if filter_column.op() == "in" || filter_column.op() == "not in" {
+            Some(FilterTerm::Array(
+                val.split(',')
+                    .map(|x| Scalar::String(x.trim().to_owned()))
+                    .collect(),
+            ))
+        } else {
+            match self.get_current_filter_type() {
+                Some(ColumnType::String) => Some(FilterTerm::Scalar(Scalar::String(val))),
+                Some(ColumnType::Integer) => {
+                    if val.is_empty() {
+                        None
+                    } else if let Ok(num) = val.parse::<f64>() {
+                        Some(FilterTerm::Scalar(Scalar::Float(num.floor())))
+                    } else {
+                        None
+                    }
+                },
+                Some(ColumnType::Float) => {
+                    if val.is_empty() {
+                        None
+                    } else if let Ok(num) = val.parse::<f64>() {
+                        Some(FilterTerm::Scalar(Scalar::Float(num)))
+                    } else {
+                        None
+                    }
+                },
+                Some(ColumnType::Date) => match NaiveDate::parse_from_str(&val, "%Y-%m-%d") {
+                    Ok(ref posix) => Some(FilterTerm::Scalar(Scalar::String(format!(
+                        "{:0>4}-{:0>2}-{:0>2}",
+                        posix.year(),
+                        posix.month(),
+                        posix.day(),
+                    )))),
+                    _ => None,
+                },
+                Some(ColumnType::Datetime) => match str_to_utc_posix(&val) {
+                    Ok(x) => Some(FilterTerm::Scalar(Scalar::Float(x))),
+                    _ => None,
+                },
+                Some(ColumnType::Boolean) => Some(FilterTerm::Scalar(match val.as_str() {
+                    "true" => Scalar::Bool(true),
+                    _ => Scalar::Bool(false),
+                })),
+
+                // shouldn't be reachable ..
+                _ => None,
+            }
+        };
+
+        if let Some(input) = filter_input {
+            if &input != filter_column.term() {
+                *filter_column.term_mut() = input;
+                let update = ViewConfigUpdate {
+                    filter: Some(filters),
+                    ..ViewConfigUpdate::default()
+                };
+
+                self.update_and_render(update)
+                    .map(ApiFuture::spawn)
+                    .unwrap_or_log();
+            }
         }
     }
 }

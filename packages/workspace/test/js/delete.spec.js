@@ -38,7 +38,7 @@ test.describe("Workspace table functions", () => {
 
         await page.evaluate(async (config) => {
             const workspace = document.getElementById("workspace");
-            const table = await workspace.getTable("superstore");
+            const table = await window.__WORKER__.open_table("superstore");
             await workspace.restore(config);
             const viewer_removed =
                 workspace.querySelector("perspective-viewer");
@@ -67,7 +67,7 @@ test.describe("Workspace table functions", () => {
 
         await page.evaluate(async (config) => {
             const workspace = document.getElementById("workspace");
-            const table = await workspace.getTable("superstore");
+            const table = await window.__WORKER__.open_table("superstore");
             workspace.restore(config); // no await
             await workspace.flush();
             const viewer_removed =

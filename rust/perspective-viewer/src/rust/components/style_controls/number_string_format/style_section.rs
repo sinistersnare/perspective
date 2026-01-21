@@ -13,7 +13,7 @@
 use yew::html;
 
 use super::CustomNumberFormat;
-use crate::components::form::select_field::SelectEnumField;
+use crate::components::form::select_enum_field::SelectEnumField;
 use crate::components::style_controls::{CustomNumberFormatMsg, NumberStyle};
 use crate::config::*;
 

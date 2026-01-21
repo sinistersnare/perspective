@@ -161,14 +161,14 @@ pub impl<T> Result<T, ApiError> {
     /// case (instead of whatever the `async` returns), which is helpful for
     /// detecting this condition when debugging.
     fn ignore_view_delete(self) -> Result<Option<T>, ApiError> {
-        self.map(|x| Some(x)).or_else(|x| match x.inner() {
+        self.map(|x| Some(x)).or_else(|err| match err.inner() {
             ApiErrorType::ClientError(ClientError::ViewNotFound) => Ok(None),
             ApiErrorType::JsRawError(..) | ApiErrorType::JsError(..)
-                if format!("{x}").contains("View not found") =>
+                if format!("{err}").contains("View not found") =>
             {
                 Ok(None)
             },
-            x => Err(x.clone().into()),
+            _ => Err(err),
         })
     }
 }

@@ -31,7 +31,8 @@ use std::pin::Pin;
 use std::rc::Rc;
 
 use futures::future::{join_all, select_all};
-use perspective_client::ViewWindow;
+use perspective_client::utils::*;
+use perspective_client::{View, ViewWindow};
 use perspective_js::json;
 use perspective_js::utils::ApiResult;
 use wasm_bindgen::prelude::*;
@@ -46,11 +47,7 @@ use self::render_timer::*;
 use crate::config::*;
 use crate::js::plugin::*;
 use crate::presentation::ColumnConfigMap;
-use crate::session::*;
 use crate::utils::*;
-
-#[derive(Clone)]
-pub struct Renderer(Rc<RendererData>);
 
 /// Immutable state
 pub struct RendererData {
@@ -74,6 +71,10 @@ pub struct RendererMutData {
 }
 
 type RenderLimits = (usize, usize, Option<usize>, Option<usize>);
+
+/// The state object responsible for the active [`JsPerspectiveViewerPlugin`].
+#[derive(Clone)]
+pub struct Renderer(Rc<RendererData>);
 
 impl Deref for Renderer {
     type Target = RendererData;
@@ -135,10 +136,8 @@ impl Renderer {
     }
 
     pub fn delete(&self) -> ApiResult<()> {
-        //        self.get_active_plugin()?.delete();
-        self.0.plugin_data.borrow().viewer_elem.set_inner_text("");
-
-        // self.plugin_data.borrow_mut().metadata = ViewConfigRequirements::default();
+        self.get_active_plugin().map(|x| x.delete()).unwrap_or_log();
+        self.plugin_data.borrow().viewer_elem.set_inner_text("");
         let new_state = Self::new(&self.plugin_data.borrow().viewer_elem);
         std::mem::swap(
             &mut *self.plugin_data.borrow_mut(),
@@ -193,6 +192,13 @@ impl Renderer {
         Ok(result.unwrap())
     }
 
+    pub fn is_plugin_activated(&self) -> ApiResult<bool> {
+        Ok(self
+            .get_active_plugin()?
+            .unchecked_ref::<HtmlElement>()
+            .is_connected())
+    }
+
     pub async fn restyle_all(&self, view: &perspective_client::View) -> ApiResult<JsValue> {
         let plugins = self.get_all_plugins();
         let tasks = plugins
@@ -235,7 +241,6 @@ impl Renderer {
         };
 
         let idx = self.find_plugin_idx(name).expect("f");
-
         let changed = !matches!(
             self.0.borrow().plugins_idx,
             Some(selected_idx) if selected_idx == idx
@@ -318,19 +323,23 @@ impl Renderer {
     }
 
     /// This will take a future which _should_ create a new view and then will
-    /// draw it.
-    pub async fn draw(&self, session: impl Future<Output = ApiResult<&Session>>) -> ApiResult<()> {
+    /// draw it. As the `session` closure is asynchronous, it can be cancelled
+    /// by returning `None`.
+    pub async fn draw(
+        &self,
+        session: impl Future<Output = ApiResult<Option<View>>>,
+    ) -> ApiResult<()> {
         self.draw_plugin(session, false).await
     }
 
     /// This will update an already existing view
-    pub async fn update(&self, session: &Session) -> ApiResult<()> {
+    pub async fn update(&self, session: Option<View>) -> ApiResult<()> {
         self.draw_plugin(async { Ok(session) }, true).await
     }
 
     async fn draw_plugin(
         &self,
-        session: impl Future<Output = ApiResult<&Session>>,
+        session: impl Future<Output = ApiResult<Option<View>>>,
         is_update: bool,
     ) -> ApiResult<()> {
         let timer = self.render_timer();
@@ -339,9 +348,10 @@ impl Renderer {
                 set_timeout(timer.get_throttle()).await?;
             }
 
-            if let Some(view) = session.await?.get_view() {
+            if let Some(view) = session.await? {
                 timer.capture_time(self.draw_view(&view, is_update)).await
             } else {
+                tracing::debug!("Render skipped, no `View` attached");
                 Ok(())
             }
         };
@@ -362,17 +372,23 @@ impl Renderer {
         let viewer_elem = &self.0.borrow().viewer_elem.clone();
         if is_update {
             let task = plugin.update(view.clone().into(), limits.2, limits.3, false);
-            activate_plugin(viewer_elem, &plugin, task).await
+            activate_plugin(viewer_elem, &plugin, task).await?;
         } else {
             let task = plugin.draw(view.clone().into(), limits.2, limits.3, false);
-            activate_plugin(viewer_elem, &plugin, task).await
+            activate_plugin(viewer_elem, &plugin, task).await?;
         }
+
+        remove_inactive_plugin(
+            viewer_elem,
+            &plugin,
+            self.plugin_data.borrow_mut().plugin_store.plugins(),
+        )
     }
 
     /// Decide whether to draw plugin or self first based on whether the panel
     /// is opening or closing, then draw with a timeout.  If the timeout
     /// triggers, draw self and resolve `on_toggle` but still await the
-    /// completion of the draw task
+    /// completion of the draw task.
     pub async fn presize(
         &self,
         open: bool,

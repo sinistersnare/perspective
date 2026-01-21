@@ -155,6 +155,7 @@ impl Drop for Server {
     }
 }
 
+// These types' thread safety is enforced on the C++ side, free-hand.
 unsafe impl Send for Server {}
 unsafe impl Sync for Server {}
 

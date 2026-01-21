@@ -16,14 +16,13 @@ use futures::join;
 use itertools::Itertools;
 use perspective_client::ViewWindow;
 use perspective_js::utils::ApiResult;
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{JsCast, JsValue, intern};
 use wasm_bindgen_futures::JsFuture;
 
 use super::export_app;
 use super::export_method::*;
 use super::get_viewer_config::*;
 use super::structural::*;
-use crate::config::*;
 use crate::js::JsPerspectiveViewerPlugin;
 use crate::utils::*;
 
@@ -43,7 +42,7 @@ fn tag_name_to_package(plugin: &JsPerspectiveViewerPlugin) -> String {
 pub trait CopyExportModel:
     HasSession + HasRenderer + HasPresentation + GetViewerConfigModel
 {
-    async fn html_as_jsvalue(&self) -> ApiResult<web_sys::Blob> {
+    async fn html_as_jsvalue(&self) -> ApiResult<JsValue> {
         let view_config = self.get_viewer_config();
         let session = self.session().clone();
         let plugins = self
@@ -61,7 +60,7 @@ pub trait CopyExportModel:
         config.settings = false;
         let js_config = serde_json::to_string(&config)?;
         let html = export_app::render(&base64::encode(arrow), &js_config, &plugins);
-        js_sys::JsString::from(html.trim()).as_blob()
+        Ok(js_sys::JsString::from(html.trim()).into())
     }
 
     /// Create a blob of this plugin's `.png` rendering by calling the
@@ -75,7 +74,7 @@ pub trait CopyExportModel:
     async fn png_as_jsvalue(&self) -> ApiResult<web_sys::Blob> {
         let renderer = self.renderer().clone();
         let plugin = renderer.get_active_plugin()?;
-        let render = js_sys::Reflect::get(&plugin, js_intern::js_intern!("render"))?;
+        let render = js_sys::Reflect::get(&plugin, &intern("render").into())?;
         let render_fun = render.unchecked_into::<js_sys::Function>();
         let png = render_fun.call0(&plugin)?;
         let result = JsFuture::from(png.unchecked_into::<js_sys::Promise>())
@@ -87,7 +86,7 @@ pub trait CopyExportModel:
     async fn txt_as_jsvalue(&self, viewport: Option<ViewWindow>) -> ApiResult<web_sys::Blob> {
         let renderer = self.renderer().clone();
         let plugin = renderer.get_active_plugin()?;
-        let render = js_sys::Reflect::get(&plugin, js_intern::js_intern!("render"))?;
+        let render = js_sys::Reflect::get(&plugin, &intern("render").into())?;
         let render_fun = render.unchecked_into::<js_sys::Function>();
         let txt = render_fun.call1(&plugin, &serde_wasm_bindgen::to_value(&viewport)?)?;
         let result = JsFuture::from(txt.unchecked_into::<js_sys::Promise>())
@@ -97,7 +96,7 @@ pub trait CopyExportModel:
     }
 
     /// Generate a result `Blob` for all types of `ExportMethod`.
-    async fn export_method_to_jsvalue(&self, method: ExportMethod) -> ApiResult<web_sys::Blob> {
+    async fn export_method_to_blob(&self, method: ExportMethod) -> ApiResult<web_sys::Blob> {
         let viewport = self.renderer().get_selection();
 
         match method {
@@ -141,16 +140,53 @@ pub trait CopyExportModel:
                 .await?
                 .as_blob(),
             ExportMethod::ArrowAll => self.session().arrow_as_jsvalue(true, None).await?.as_blob(),
-            ExportMethod::Html => self.html_as_jsvalue().await,
+            ExportMethod::Html => self.html_as_jsvalue().await?.as_blob(),
             ExportMethod::Plugin if self.renderer().is_chart() => self.png_as_jsvalue().await,
             ExportMethod::Plugin => self.txt_as_jsvalue(viewport).await,
-            ExportMethod::JsonConfig => self
-                .get_viewer_config()
-                .await?
-                .encode(&Some(ViewerConfigEncoding::JSONString))?
-                .dyn_into::<js_sys::JsString>()?
-                .as_blob(),
+            ExportMethod::JsonConfig => {
+                js_sys::JSON::stringify(&self.get_viewer_config().await?.encode()?)?.as_blob()
+            },
         }
+    }
+
+    /// Generate a result `Blob` for all types of `ExportMethod`.
+    async fn export_method_to_jsvalue(&self, method: ExportMethod) -> ApiResult<JsValue> {
+        let viewport = self.renderer().get_selection();
+
+        Ok(match method {
+            ExportMethod::Csv => self.session().csv_as_jsvalue(false, None).await?.into(),
+            ExportMethod::CsvSelected => {
+                self.session().csv_as_jsvalue(false, viewport).await?.into()
+            },
+            ExportMethod::CsvAll => self.session().csv_as_jsvalue(true, None).await?.into(),
+            ExportMethod::Json => self.session().json_as_jsvalue(false, None).await?.into(),
+            ExportMethod::JsonSelected => self
+                .session()
+                .json_as_jsvalue(false, viewport)
+                .await?
+                .into(),
+            ExportMethod::JsonAll => self.session().json_as_jsvalue(true, None).await?.into(),
+            ExportMethod::Ndjson => self.session().ndjson_as_jsvalue(false, None).await?.into(),
+            ExportMethod::NdjsonSelected => self
+                .session()
+                .ndjson_as_jsvalue(false, viewport)
+                .await?
+                .into(),
+            ExportMethod::NdjsonAll => self.session().ndjson_as_jsvalue(true, None).await?.into(),
+            ExportMethod::Arrow => self.session().arrow_as_jsvalue(false, None).await?.into(),
+            ExportMethod::ArrowSelected => self
+                .session()
+                .arrow_as_jsvalue(false, viewport)
+                .await?
+                .into(),
+            ExportMethod::ArrowAll => self.session().arrow_as_jsvalue(true, None).await?.into(),
+            ExportMethod::Html => self.html_as_jsvalue().await?,
+            ExportMethod::Plugin if self.renderer().is_chart() => {
+                self.png_as_jsvalue().await?.into()
+            },
+            ExportMethod::Plugin => self.txt_as_jsvalue(viewport).await?.into(),
+            ExportMethod::JsonConfig => self.get_viewer_config().await?.encode()?,
+        })
     }
 }
 

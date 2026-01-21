@@ -18,6 +18,18 @@ use crate::utils::WeakScope;
 
 static CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/css/filter-dropdown.css"));
 
+#[derive(Properties, PartialEq)]
+pub struct FilterDropDownProps {
+    #[prop_or_default]
+    pub weak_link: WeakScope<FilterDropDown>,
+}
+
+impl ModalLink<FilterDropDown> for FilterDropDownProps {
+    fn weak_link(&self) -> &'_ WeakScope<FilterDropDown> {
+        &self.weak_link
+    }
+}
+
 pub enum FilterDropDownMsg {
     SetValues(Vec<String>),
     SetCallback(Callback<String>),
@@ -30,18 +42,6 @@ pub struct FilterDropDown {
     values: Option<Vec<String>>,
     selected: usize,
     on_select: Option<Callback<String>>,
-}
-
-#[derive(Properties, PartialEq)]
-pub struct FilterDropDownProps {
-    #[prop_or_default]
-    pub weak_link: WeakScope<FilterDropDown>,
-}
-
-impl ModalLink<FilterDropDown> for FilterDropDownProps {
-    fn weak_link(&self) -> &'_ WeakScope<FilterDropDown> {
-        &self.weak_link
-    }
 }
 
 impl Component for FilterDropDown {
@@ -87,20 +87,20 @@ impl Component for FilterDropDown {
             },
             FilterDropDownMsg::ItemDown => {
                 self.selected += 1;
-                if let Some(ref values) = self.values
-                    && self.selected >= values.len()
-                {
-                    self.selected = 0;
+                if let Some(ref values) = self.values {
+                    if self.selected >= values.len() {
+                        self.selected = 0;
+                    }
                 };
 
                 true
             },
             FilterDropDownMsg::ItemUp => {
-                if let Some(ref values) = self.values
-                    && self.selected < 1
-                {
-                    self.selected = values.len();
-                }
+                if let Some(ref values) = self.values {
+                    if self.selected < 1 {
+                        self.selected = values.len();
+                    }
+                };
 
                 self.selected -= 1;
                 true
@@ -139,6 +139,6 @@ impl Component for FilterDropDown {
             }
         };
 
-        html! { <><style>{ &CSS }</style>{ body }</> }
+        html! { <><style>{ CSS }</style>{ body }</> }
     }
 }

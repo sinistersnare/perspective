@@ -11,16 +11,28 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 import type { HTMLPerspectiveViewerPluginElement } from "./plugin";
-import { PerspectiveViewerElement } from "../../dist/wasm/perspective-viewer.js";
+import type { PerspectiveViewerElement } from "../../dist/wasm/perspective-viewer.js";
 import type React from "react";
-import { ViewerConfigUpdate } from "./ts-rs/ViewerConfigUpdate.js";
+import type { ViewerConfigUpdate } from "./ts-rs/ViewerConfigUpdate.js";
 import type { ViewWindow } from "@perspective-dev/client";
+import type {
+    ExportDropDownMenuElement,
+    CopyDropDownMenuElement,
+} from "../../dist/wasm/perspective-viewer.d.ts";
 
-// JSX / React extensions
+// DOM extensions
 
 export type HTMLPerspectiveViewerElement = PerspectiveViewerElement &
     PerspectiveViewerElementExt &
     HTMLElement;
+
+export interface HTMLPerspectiveViewerExportMenuElement
+    extends HTMLElement,
+        ExportDropDownMenuElement {}
+
+export interface HTMLPerspectiveViewerCopyMenuElement
+    extends HTMLElement,
+        CopyDropDownMenuElement {}
 
 export type PerspectiveClickEventDetail = {
     config: ViewerConfigUpdate;
@@ -31,6 +43,8 @@ export type PerspectiveClickEventDetail = {
 export type PerspectiveSelectEventDetail = {
     view_window: ViewWindow;
 };
+
+// JSX / React extensions
 
 type ReactPerspectiveViewerAttributes<T> = React.HTMLAttributes<T>;
 
@@ -112,7 +126,31 @@ export interface PerspectiveViewerElementExt {
     ): void;
 
     addEventListener(
+        name: "perspective-toggle-settings-before",
+        cb: (e: CustomEvent) => void,
+        options?: { signal: AbortSignal },
+    ): void;
+
+    addEventListener(
         name: "perspective-config-update",
+        cb: (e: CustomEvent) => void,
+        options?: { signal: AbortSignal },
+    ): void;
+
+    addEventListener(
+        name: "perspective-statusbar-pointerdown",
+        cb: (e: CustomEvent) => void,
+        options?: { signal: AbortSignal },
+    ): void;
+
+    addEventListener(
+        name: "perspective-table-delete",
+        cb: (e: CustomEvent) => void,
+        options?: { signal: AbortSignal },
+    ): void;
+
+    addEventListener(
+        name: "perspective-table-delete-before",
         cb: (e: CustomEvent) => void,
         options?: { signal: AbortSignal },
     ): void;
@@ -120,5 +158,15 @@ export interface PerspectiveViewerElementExt {
     removeEventListener(name: "perspective-click", cb: any): void;
     removeEventListener(name: "perspective-select", cb: any): void;
     removeEventListener(name: "perspective-toggle-settings", cb: any): void;
+    removeEventListener(
+        name: "perspective-toggle-settings-before",
+        cb: any,
+    ): void;
     removeEventListener(name: "perspective-config-update", cb: any): void;
+    removeEventListener(
+        name: "perspective-statusbar-pointerdown",
+        cb: any,
+    ): void;
+    removeEventListener(name: "perspective-table-delete", cb: any): void;
+    removeEventListener(name: "perspective-table-delete-before", cb: any): void;
 }

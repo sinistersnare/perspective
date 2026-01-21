@@ -15,6 +15,7 @@
 
 mod columns_config;
 mod datetime_column_style;
+mod kvpair;
 mod number_column_style;
 mod number_string_format;
 mod string_column_style;

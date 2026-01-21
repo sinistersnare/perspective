@@ -25,7 +25,7 @@ use crate::js::clipboard_item::*;
 use crate::*;
 
 pub async fn paste_from_clipboard() -> Option<String> {
-    JsFuture::from(global::clipboard().read_text())
+    JsFuture::from(global::navigator().clipboard().read_text())
         .await
         .ok()
         .and_then(|x| x.as_string())
@@ -58,7 +58,7 @@ fn poll(
         js_sys::Reflect::set(&options, &mimetype.into(), js_val)?;
         let item = ClipboardItem::new(&options);
         let items = std::iter::once(item).collect::<js_sys::Array>();
-        let _promise = global::clipboard().write(&items.into());
+        let _promise = global::navigator().clipboard().write(&items.into());
     } else {
         clone!(js_ref);
         if count == 200 {

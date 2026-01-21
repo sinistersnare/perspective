@@ -19,6 +19,18 @@ use crate::utils::WeakScope;
 
 static CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/css/column-dropdown.css"));
 
+#[derive(Properties, PartialEq)]
+pub struct ColumnDropDownProps {
+    #[prop_or_default]
+    pub weak_link: WeakScope<ColumnDropDown>,
+}
+
+impl ModalLink<ColumnDropDown> for ColumnDropDownProps {
+    fn weak_link(&self) -> &'_ WeakScope<ColumnDropDown> {
+        &self.weak_link
+    }
+}
+
 pub enum ColumnDropDownMsg {
     SetValues(Vec<InPlaceColumn>, f64),
     SetCallback(Callback<InPlaceColumn>),
@@ -32,18 +44,6 @@ pub struct ColumnDropDown {
     selected: usize,
     width: f64,
     on_select: Option<Callback<InPlaceColumn>>,
-}
-
-#[derive(Properties, PartialEq)]
-pub struct ColumnDropDownProps {
-    #[prop_or_default]
-    pub weak_link: WeakScope<ColumnDropDown>,
-}
-
-impl ModalLink<ColumnDropDown> for ColumnDropDownProps {
-    fn weak_link(&self) -> &'_ WeakScope<ColumnDropDown> {
-        &self.weak_link
-    }
 }
 
 impl Component for ColumnDropDown {
@@ -91,19 +91,19 @@ impl Component for ColumnDropDown {
             },
             ColumnDropDownMsg::ItemDown => {
                 self.selected += 1;
-                if let Some(ref values) = self.values
-                    && self.selected >= values.len()
-                {
-                    self.selected = 0;
+                if let Some(ref values) = self.values {
+                    if self.selected >= values.len() {
+                        self.selected = 0;
+                    }
                 }
 
                 true
             },
             ColumnDropDownMsg::ItemUp => {
-                if let Some(ref values) = self.values
-                    && self.selected < 1
-                {
-                    self.selected = values.len();
+                if let Some(ref values) = self.values {
+                    if self.selected < 1 {
+                        self.selected = values.len();
+                    }
                 }
 
                 self.selected -= 1;
@@ -157,6 +157,6 @@ impl Component for ColumnDropDown {
             self.width, self.width
         );
 
-        html! { <><style>{ &CSS }</style><style>{ position }</style>{ body }</> }
+        html! { <><style>{ CSS }</style><style>{ position }</style>{ body }</> }
     }
 }

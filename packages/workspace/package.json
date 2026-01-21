@@ -33,7 +33,6 @@
     "license": "Apache-2.0",
     "dependencies": {
         "@perspective-dev/client": "workspace:",
-        "@perspective-dev/viewer": "workspace:",
         "@lumino/algorithm": ">=2 <3",
         "@lumino/commands": ">=2 <3",
         "@lumino/domutils": ">=2 <3",
@@ -45,6 +44,7 @@
         "lodash": "catalog:"
     },
     "devDependencies": {
+        "@perspective-dev/viewer": "workspace:",
         "@prospective.co/procss": "catalog:",
         "@perspective-dev/esbuild-plugin": "workspace:",
         "@perspective-dev/test": "workspace:",

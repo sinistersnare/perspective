@@ -21,7 +21,7 @@ use crate::proto::scalar;
 
 /// This type represents the ViewConfig serializable type, which must be JSON
 /// safe.
-#[derive(Clone, Deserialize, Debug, PartialEq, Serialize, TS)]
+#[derive(Clone, Default, Deserialize, Debug, PartialEq, Serialize, TS)]
 #[serde(untagged)]
 pub enum Scalar {
     Float(f64),
@@ -30,6 +30,7 @@ pub enum Scalar {
     // DateTime(i64),
     // Date(String),
     // Int(i32),
+    #[default]
     Null,
 }
 
@@ -39,14 +40,8 @@ impl From<&str> for Scalar {
     }
 }
 
-impl Default for Scalar {
-    fn default() -> Self {
-        Self::Null
-    }
-}
-
 impl Display for Scalar {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Self::Float(x) => write!(fmt, "{x}"),
             Self::String(x) => write!(fmt, "{x}"),
@@ -79,7 +74,7 @@ impl Default for FilterTerm {
 }
 
 impl Display for FilterTerm {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Self::Scalar(x) => {
                 write!(fmt, "{x}")?;
@@ -139,18 +134,13 @@ impl Filter {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq, TS)]
 pub enum FilterReducer {
+    #[default]
     #[serde(rename = "and")]
     And,
     #[serde(rename = "or")]
     Or,
-}
-
-impl Default for FilterReducer {
-    fn default() -> Self {
-        Self::And
-    }
 }
 
 impl From<Scalar> for proto::Scalar {

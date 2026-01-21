@@ -123,15 +123,17 @@ export default (): NearbyTip => {
             .attr("r", (d) =>
                 size ? scale_factor * Math.sqrt(size(d.size)) : 10,
             )
-            .attr(
-                "transform",
-                (d) =>
-                    `translate(${xScale(d[xValueName])},${useYScale(
+            .attr("transform", (d) => {
+                if (d !== null) {
+                    return `translate(${xScale(d[xValueName])},${useYScale(
                         d[yValueName],
-                    )})`,
-            )
+                    )})`;
+                } else {
+                    return ``;
+                }
+            })
             .style("stroke", "none")
-            .style("fill", (d) => color && d.key && withOpacity(color(d.key)));
+            .style("fill", (d) => color && d?.key && withOpacity(color(d.key)));
 
         base(tips);
     };

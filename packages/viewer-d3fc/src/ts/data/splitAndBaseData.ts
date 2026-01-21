@@ -44,8 +44,8 @@ export function splitAndBaseData(
                 return {
                     key,
                     crossValue: labelfn(col, i),
-                    mainValue: value,
-                    baseValue: baseValue,
+                    mainValue: isNaN(value) ? 0 : value,
+                    baseValue: isNaN(baseValue) ? 0 : baseValue,
                     row: col,
                 };
             });

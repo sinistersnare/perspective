@@ -15,22 +15,10 @@ use std::rc::Rc;
 use yew::prelude::*;
 
 use crate::components::form::number_field::NumberField;
-use crate::components::form::select_field::SelectValueField;
+use crate::components::form::select_value_field::SelectValueField;
 use crate::components::modal::{ModalLink, SetModalLink};
 use crate::config::*;
 use crate::utils::WeakScope;
-
-pub enum DatetimeStyleCustomMsg {
-    FractionalSeconds(Option<f64>),
-    Year(CustomDatetimeFormat),
-    Month(CustomDatetimeFormat),
-    Day(CustomDatetimeFormat),
-    Weekday(CustomDatetimeFormat),
-    Hour(CustomDatetimeFormat),
-    Minute(CustomDatetimeFormat),
-    Second(CustomDatetimeFormat),
-    Hour12(bool),
-}
 
 #[derive(Properties)]
 pub struct DatetimeStyleCustomProps {
@@ -57,16 +45,22 @@ impl PartialEq for DatetimeStyleCustomProps {
     }
 }
 
+pub enum DatetimeStyleCustomMsg {
+    FractionalSeconds(Option<f64>),
+    Year(CustomDatetimeFormat),
+    Month(CustomDatetimeFormat),
+    Day(CustomDatetimeFormat),
+    Weekday(CustomDatetimeFormat),
+    Hour(CustomDatetimeFormat),
+    Minute(CustomDatetimeFormat),
+    Second(CustomDatetimeFormat),
+    Hour12(bool),
+}
+
 /// The custom variation of the options parameter for `Intl.DatetimeFormat`.
 /// Complement to `DatetimeStyleSimple`.
 pub struct DatetimeStyleCustom {
     config: CustomDatetimeStyleConfig,
-}
-
-impl DatetimeStyleCustom {
-    fn dispatch_config(&self, ctx: &Context<Self>) {
-        ctx.props().on_change.emit(self.config.clone());
-    }
 }
 
 impl Component for DatetimeStyleCustom {
@@ -218,5 +212,11 @@ impl Component for DatetimeStyleCustom {
                 }
             </>
         }
+    }
+}
+
+impl DatetimeStyleCustom {
+    fn dispatch_config(&self, ctx: &Context<Self>) {
+        ctx.props().on_change.emit(self.config.clone());
     }
 }

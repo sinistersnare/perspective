@@ -17,7 +17,6 @@ use std::ops::{Deref, DerefMut};
 use perspective_client::config::*;
 use perspective_js::apierror;
 
-use crate::components::viewer::ColumnLocator;
 use crate::*;
 
 struct SessionViewExpressionMetadata {
@@ -45,6 +44,9 @@ impl DerefMut for SessionMetadata {
         &mut self.0
     }
 }
+
+pub type MetadataRef<'a> = std::cell::Ref<'a, SessionMetadata>;
+pub type MetadataMutRef<'a> = std::cell::RefMut<'a, SessionMetadata>;
 
 /// TODO the multiple `Option` types could probably be merged since they are
 /// populated within an async lock
@@ -191,22 +193,6 @@ impl SessionMetadata {
         ));
 
         is_expr.unwrap_or_default()
-    }
-
-    /// This function will find a currently existing column. If you want to
-    /// create a new expression column, use ColumnLocator::Expr(None)
-    pub fn get_column_locator(&self, name: Option<String>) -> Option<ColumnLocator> {
-        name.and_then(|name| {
-            self.as_ref().and_then(|meta| {
-                if self.is_column_expression(&name) {
-                    Some(ColumnLocator::Expression(name))
-                } else {
-                    meta.column_names
-                        .iter()
-                        .find_map(|n| (n == &name).then_some(ColumnLocator::Table(name.clone())))
-                }
-            })
-        })
     }
 
     /// Creates a new column name by appending a numeral corresponding to the

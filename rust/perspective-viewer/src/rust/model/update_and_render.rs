@@ -33,7 +33,7 @@ pub trait UpdateAndRender: HasRenderer + HasSession {
         Callback::from(move |_| {
             clone!(session, renderer);
             ApiFuture::spawn(async move {
-                renderer.draw(async { Ok(&session) }).await?;
+                renderer.draw(async { Ok(session.get_view()) }).await?;
                 Ok(())
             })
         })
@@ -41,11 +41,16 @@ pub trait UpdateAndRender: HasRenderer + HasSession {
 
     /// Create a `Callback` that resizes from the current `View` and `Plugin`.
     fn resize_callback(&self) -> Callback<()> {
-        clone!(self.renderer());
+        clone!(self.renderer(), self.session());
         Callback::from(move |_| {
-            clone!(renderer);
+            clone!(renderer, session);
             ApiFuture::spawn(async move {
-                renderer.resize().await?;
+                if !renderer.is_plugin_activated()? {
+                    update_and_render(session, renderer).await?
+                } else {
+                    renderer.resize().await?;
+                }
+
                 Ok(())
             })
         })
@@ -54,6 +59,11 @@ pub trait UpdateAndRender: HasRenderer + HasSession {
     /// Apply a `ViewConfigUpdate` to the current `View` and render.
     fn update_and_render(&self, update: ViewConfigUpdate) -> ApiResult<ApiFuture<()>> {
         self.session().update_view_config(update)?;
+        clone!(self.session(), self.renderer());
+        Ok(ApiFuture::new(update_and_render(session, renderer)))
+    }
+
+    fn just_render(&self) -> ApiResult<ApiFuture<()>> {
         clone!(self.session(), self.renderer());
         Ok(ApiFuture::new(update_and_render(session, renderer)))
     }

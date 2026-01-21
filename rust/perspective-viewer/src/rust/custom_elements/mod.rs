@@ -10,6 +10,9 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
+//! Each file in `custom_elements` exports a single struct which will be the
+//! public [`wasm_bindgen`] API to a JavaScript Custom Element.
+
 mod column_dropdown;
 pub mod copy_dropdown;
 pub mod debug_plugin;

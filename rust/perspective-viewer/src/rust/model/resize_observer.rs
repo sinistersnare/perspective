@@ -16,9 +16,13 @@ use wasm_bindgen::prelude::*;
 use web_sys::*;
 use yew::prelude::*;
 
+use crate::PerspectiveProperties;
 use crate::components::viewer::{PerspectiveViewer, PerspectiveViewerMsg};
 use crate::js::*;
+use crate::model::*;
 use crate::renderer::*;
+use crate::root::Root;
+use crate::session::Session;
 use crate::utils::*;
 
 pub struct ResizeObserverHandle {
@@ -31,20 +35,26 @@ impl ResizeObserverHandle {
     pub fn new(
         elem: &HtmlElement,
         renderer: &Renderer,
-        root: &AppHandle<PerspectiveViewer>,
+        session: &Session,
+        root: &Root<PerspectiveViewer>,
     ) -> Self {
-        let on_resize = root.callback(|()| PerspectiveViewerMsg::Resize);
+        let on_resize = root
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .callback(|()| PerspectiveViewerMsg::Resize);
+
         let mut state = ResizeObserverState {
             elem: elem.clone(),
             renderer: renderer.clone(),
+            session: session.clone(),
             width: elem.offset_width(),
             height: elem.offset_height(),
             on_resize,
         };
 
-        let _callback = Closure::new(move |xs| state.on_resize(&xs));
-        let func = _callback.as_ref().unchecked_ref::<js_sys::Function>();
-        let observer = ResizeObserver::new(func);
+        let _callback = Closure::new(move |xs: js_sys::Array| state.on_resize(&xs));
+        let observer = ResizeObserver::new(_callback.as_ref().unchecked_ref::<js_sys::Function>());
         observer.observe(elem);
         Self {
             elem: elem.clone(),
@@ -60,9 +70,11 @@ impl Drop for ResizeObserverHandle {
     }
 }
 
+#[derive(PerspectiveProperties!)]
 struct ResizeObserverState {
     elem: HtmlElement,
     renderer: Renderer,
+    session: Session,
     width: i32,
     height: i32,
     on_resize: Callback<()>,
@@ -83,9 +95,24 @@ impl ResizeObserverState {
             let content_height = content.height().floor() as i32;
             let resized = self.width != content_width || self.height != content_height;
             if resized && is_visible {
-                clone!(self.on_resize, self.renderer);
+                let state = self.clone_state();
+                clone!(self.on_resize);
                 ApiFuture::spawn(async move {
-                    renderer.resize().await?;
+                    let needs_render = state
+                        .renderer()
+                        .clone()
+                        .with_lock(async {
+                            Ok(!state.renderer().is_plugin_activated()?
+                                && state.session().has_table())
+                        })
+                        .await?;
+
+                    if needs_render {
+                        state.update_and_render(Default::default())?.await?;
+                    } else {
+                        state.renderer().resize().await?;
+                    }
+
                     on_resize.emit(());
                     Ok(())
                 });

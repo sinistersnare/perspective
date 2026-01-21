@@ -115,17 +115,32 @@
 }
 
 .lm-TabBar-tab .drag-handle {
+    pointer-events: all;
     height: 12px;
-    width: 5px;
+    width: 14px;
     -webkit-mask-image: var(--column-drag-handle--mask-image);
     mask-image: var(--column-drag-handle--mask-image);
-    margin: 0px 0 0 21.5px;
+    padding: 12px 0 12px 12px;
     background-repeat: no-repeat;
-    background-color: var(--inactive--color, red);
+    background-color: var(--icon--color, red);
     content: "";
     display: inline-block;
     -webkit-mask-size: cover;
-    mask-size: cover;
+    mask-size: auto;
+    mask-position: center;
+    mask-repeat: no-repeat;
+}
+
+.lm-TabBar {
+    // z-index: -1;
+    pointer-events: none;
+    .lm-TabBar-tabCloseIcon {
+        pointer-events: all;
+    }
+
+    .bookmarks-button {
+        pointer-events: all;
+    }
 }
 
 .lm-TabBar-tab.lm-mod-hidden {
@@ -141,9 +156,9 @@
 //     height: 18px;
 // }
 
-.lm-TabBar {
-    min-height: 40px !important;
-}
+// .lm-TabBar {
+//     // min-height: 0px !important;
+// }
 
 @border-color: 1px solid #eaeaea;
 @night-border-color: 1px solid #ddd;
@@ -239,6 +254,7 @@
     color: #737373;
     height: 40px !important;
     max-height: 40px !important;
+    margin-bottom: -40px;
     transform: none !important;
     transition: color 0.2s ease-out;
 }
@@ -296,14 +312,18 @@
 
 .lm-TabBar-content > .lm-TabBar-tab.lm-mod-current {
     color: var(--workspace-tabbar--color, #666) !important;
-    border: var(--workspace-tabbar--border, 1px solid #ddd);
-    border-width: var(--workspace-tabbar-tab--border-width);
-    box-shadow: 0 13px 0 -12px var(--inactive--border-color);
-    border-radius: var(--workspace-tabbar--border-radius, 6px)
-        var(--workspace-tabbar--border-radius, 6px) 0 0;
-    background-color: var(--workspace-tabbar--background-color, white);
+    // border: var(--workspace-tabbar--border, 1px solid #ddd);
+    // border-width: var(--workspace-tabbar-tab--border-width);
+    // box-shadow: 0 13px 0 -12px var(--inactive--border-color);
+    // border-radius: var(--workspace-tabbar--border-radius, 6px)
+    //     var(--workspace-tabbar--border-radius, 6px) 0 0;
+    // background-color: var(--workspace-tabbar--background-color, white);
+    background: none;
     height: 40px !important;
     max-height: 40px !important;
+    margin-bottom: -40px;
+    border: 0 solid transparent;
+    border-width: 1px 1px 0px 1px;
 }
 
 .bottom .lm-TabBar-tab.lm-mod-current {
@@ -337,18 +357,21 @@
 .bookmarks-button {
     margin-left: 11px;
     margin-right: -13px;
+    height: 20px;
     border-radius: 3px;
-    height: 22px;
+    border: 1px solid var(--inactive--color);
+    background-color: var(--plugin--background);
 
     &:hover {
         background-color: var(--icon--color);
+        border-color: var(--icon--color);
     }
 }
 
 .bookmarks {
-    cursor: pointer;
     @include icon;
-    width: 26px;
+    cursor: pointer;
+    width: 20px;
     height: 12px;
     -webkit-mask-image: var(--bookmarks--mask-image);
     mask-image: var(--bookmarks--mask-image);
@@ -358,7 +381,7 @@
     mask-size: auto;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
-    padding: 5px;
+    padding: 4px 6px;
 
     &:hover {
         background-color: var(--plugin--background);

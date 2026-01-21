@@ -458,6 +458,12 @@ ServerResources::has_view(const t_id& id) {
     return m_views.contains(id);
 }
 
+bool
+ServerResources::has_table(const t_id& id) {
+    PSP_READ_LOCK(m_write_lock);
+    return m_tables.contains(id);
+}
+
 std::shared_ptr<ErasedView>
 ServerResources::get_view(const t_id& id) {
     PSP_READ_LOCK(m_write_lock);
@@ -1515,6 +1521,16 @@ ProtoServer::_handle_request(std::uint32_t client_id, Request&& req) {
         }
         case proto::Request::kMakeTableReq: {
             const auto& r = req.make_table_req();
+            if (m_resources.has_table(entity_id)) {
+                proto::Response resp;
+                auto* err = resp.mutable_server_error()->mutable_message();
+                std::stringstream ss;
+                ss << "Table \"" << entity_id << "\" already exists";
+                *err = ss.str();
+                push_resp(std::move(resp));
+                break;
+            }
+
             std::string index;
             std::uint32_t limit = std::numeric_limits<int>::max();
             std::shared_ptr<Table> table;

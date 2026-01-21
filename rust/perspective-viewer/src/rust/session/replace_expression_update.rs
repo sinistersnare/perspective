@@ -37,8 +37,7 @@ pub impl ViewConfig {
             sort,
             filter,
             aggregates,
-            filter_op: _,
-            group_by_depth: _,
+            ..
         } = self.clone();
 
         let expressions = expressions

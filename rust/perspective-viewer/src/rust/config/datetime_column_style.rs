@@ -24,8 +24,6 @@ pub use simple::*;
 pub use simple_format::*;
 use ts_rs::TS;
 
-use crate::*;
-
 /// `Simple` case has all default-able keys and must be last!
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
 // #[serde(tag = "format", content = "date_format")]
@@ -65,6 +63,7 @@ impl DatetimeFormatType {
 /// A model for the JSON serialized style configuration for a column of type
 /// `datetime`.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+// #[derive(WasmDescribe!, FromWasmAbi!)]
 pub struct DatetimeColumnStyleConfig {
     #[serde(default)]
     #[serde(skip_serializing_if = "DatetimeFormatType::is_simple")]
@@ -94,11 +93,7 @@ impl Default for DatetimeColumnStyleConfig {
     }
 }
 
-derive_wasm_abi!(DatetimeColumnStyleConfig, FromWasmAbi, IntoWasmAbi);
-
 #[derive(Clone, Default, Deserialize, Eq, PartialEq, Serialize, Debug)]
 pub struct DatetimeColumnStyleDefaultConfig {
     pub color: String,
 }
-
-derive_wasm_abi!(DatetimeColumnStyleDefaultConfig, FromWasmAbi);

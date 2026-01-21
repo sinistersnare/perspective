@@ -10,13 +10,14 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-use perspective_client::config::ViewConfigUpdate;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::*;
 
+use crate::config::ViewerConfigUpdate;
 use crate::js::*;
 use crate::model::*;
+use crate::presentation::Presentation;
 use crate::renderer::*;
 use crate::session::Session;
 use crate::utils::*;
@@ -29,16 +30,25 @@ pub struct IntersectionObserverHandle {
 }
 
 impl IntersectionObserverHandle {
-    pub fn new(elem: &HtmlElement, session: &Session, renderer: &Renderer) -> Self {
-        clone!(session, renderer);
+    pub fn new(
+        elem: &HtmlElement,
+        presentation: &Presentation,
+        session: &Session,
+        renderer: &Renderer,
+    ) -> Self {
+        clone!(session, renderer, presentation);
         let _callback = Closure::new(move |xs: js_sys::Array| {
             let intersect = xs
                 .get(0)
                 .unchecked_into::<IntersectionObserverEntry>()
                 .is_intersecting();
 
-            clone!(session, renderer);
-            let state = IntersectionObserverState { session, renderer };
+            clone!(session, renderer, presentation);
+            let state = IntersectionObserverState {
+                presentation,
+                session,
+                renderer,
+            };
             ApiFuture::spawn(state.set_pause(intersect));
         });
 
@@ -59,16 +69,20 @@ impl Drop for IntersectionObserverHandle {
     }
 }
 
+#[derive(PerspectiveProperties!)]
 struct IntersectionObserverState {
     session: Session,
     renderer: Renderer,
+    presentation: Presentation,
 }
 
 impl IntersectionObserverState {
     async fn set_pause(self, intersect: bool) -> ApiResult<()> {
         if intersect {
             if self.session.set_pause(false) {
-                self.update_and_render(ViewConfigUpdate::default())?.await?;
+                self.presentation.visibility_changed.emit(intersect);
+                self.restore_and_render(ViewerConfigUpdate::default(), async move { Ok(()) })
+                    .await?;
             }
         } else {
             self.session.set_pause(true);
@@ -77,5 +91,3 @@ impl IntersectionObserverState {
         Ok(())
     }
 }
-
-derive_model!(Renderer, Session for IntersectionObserverState);

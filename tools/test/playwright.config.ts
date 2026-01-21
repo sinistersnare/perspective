@@ -199,14 +199,16 @@ export default defineConfig({
     expect: {
         timeout: 30_000,
     },
+    repeatEach: process.env.PSP_SATURATE ? parseInt(process.env.PSP_SATURATE) : 0,
     forbidOnly: !!process.env.CI,
+    workers: process.env.PSP_DEBUG ? 1 : "50%",
     retries: 0,
     quiet: !process.env.PSP_DEBUG,
     reporter: process.env.CI ? [["github"], ["html"]] : [["dot"]],
     projects: PROJECTS,
     outputDir: "dist/results",
     use: {
-        headless: true,
+        headless: !process.env.PSP_HEADED,
         ctPort: 3100,
         viewport: { width: 1280, height: 720 },
         actionTimeout: 0,

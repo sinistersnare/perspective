@@ -60,11 +60,11 @@ async function cwd_static_file_handler(
             let filePath = root + url;
             let content = await read_promise(filePath);
             if (typeof content !== "undefined") {
-                console.log(`200 ${url}`);
                 response.writeHead(200, {
                     "Content-Type": contentType,
                     "Access-Control-Allow-Origin": "*",
                 });
+
                 if (extname === ".arrow" || extname === ".feather") {
                     response.end(content, "utf-8");
                 } else {

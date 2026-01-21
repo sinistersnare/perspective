@@ -10,21 +10,24 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-//! The API for the [`@perspective-dev/viewer`]() JavaScript
-//! library.
+//! The API for the [`@perspective-dev/viewer`](https://perspective-dev.github.io)
+//! JavaScript library.
 
 // Required by yew's `html` macro.
 #![recursion_limit = "1024"]
 #![feature(const_type_name)]
-#![feature(let_chains)]
 #![feature(macro_metavar_expr)]
 #![feature(iter_intersperse)]
 #![feature(stmt_expr_attributes)]
+#![feature(try_blocks)]
 #![allow(async_fn_in_trait)]
+#![feature(more_qualified_paths)]
 #![warn(
     clippy::all,
     clippy::panic_in_result_fn,
-    clippy::await_holding_refcell_ref
+    clippy::await_holding_refcell_ref,
+    clippy::fallible_impl_from,
+    clippy::unneeded_field_pattern
 )]
 
 pub mod components;
@@ -34,6 +37,7 @@ mod custom_events;
 mod dragdrop;
 pub mod exprtk;
 mod js;
+mod root;
 
 #[doc(hidden)]
 pub mod model;
@@ -41,6 +45,10 @@ mod presentation;
 mod renderer;
 mod session;
 pub mod utils;
+
+#[macro_use]
+extern crate macro_rules_attribute;
+extern crate alloc;
 
 use perspective_js::utils::*;
 use wasm_bindgen::prelude::*;
@@ -54,6 +62,7 @@ use crate::utils::define_web_component;
 #[wasm_bindgen(typescript_custom_section)]
 const TS_APPEND_CONTENT: &'static str = r#"
 import type {
+    ColumnType,
     TableInitOptions, 
     ColumnWindow,
     ViewWindow, 
@@ -96,11 +105,14 @@ pub fn js_init() {
 pub fn bootstrap_web_components(psp: &JsValue) {
     define_web_component::<PerspectiveViewerElement>(psp);
     define_web_component::<PerspectiveDebugPluginElement>(psp);
-
     define_web_component::<ExportDropDownMenuElement>(psp);
     define_web_component::<CopyDropDownMenuElement>(psp);
 }
 
+/// Defining the web components needs an extern struct to reference the
+/// generated JavaSript glue. This is parameterized by an attribute macro which
+/// needs to be determined by the top-level compiled module - the JavaScript
+/// glue code emitted by `wasm-bindgen-cli`.
 #[macro_export]
 macro_rules! define_web_components {
     ($x:expr) => {{

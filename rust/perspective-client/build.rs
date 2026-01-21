@@ -56,6 +56,7 @@ fn prost_build() -> Result<()> {
             .type_attribute("ViewOnUpdateResp", "#[derive(ts_rs::TS)]")
             .field_attribute("ViewOnUpdateResp.delta", "#[ts(as = \"Vec::<u8>\")]")
             .field_attribute("ViewOnUpdateResp.delta", "#[serde(with = \"serde_bytes\")]")
+            .type_attribute("ColumnType", "#[derive(ts_rs::TS)]")
             .field_attribute("ViewToArrowResp.arrow", "#[serde(skip)]")
             .field_attribute("from_arrow", "#[serde(skip)]")
             .type_attribute(".", "#[derive(serde::Serialize)]")

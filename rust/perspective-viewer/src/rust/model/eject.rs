@@ -10,45 +10,32 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-use extend::ext;
-use futures::channel::oneshot::*;
-use perspective_js::utils::ApiResult;
-use yew::html::Scope;
-use yew::prelude::*;
+use perspective_client::clone;
+use yew::Component;
 
-#[ext]
-pub impl<T> Scope<T>
-where
-    T: Component,
-{
-    /// Send a message with a callback, then suspend until the callback is
-    /// invoked.
-    fn send_message_async<F, U>(&self, f: F) -> Receiver<U>
-    where
-        F: FnOnce(Sender<U>) -> T::Message,
-    {
-        let (sender, receiver) = channel::<U>();
-        self.send_message(f(sender));
-        receiver
+use super::{HasRenderer, HasSession};
+use crate::ApiFuture;
+use crate::root::Root;
+use crate::session::ResetOptions;
+
+pub trait DeleteAll: HasSession + HasRenderer {
+    fn delete_all<T: Component>(&self, root: &Root<T>) -> ApiFuture<()> {
+        self.session().table_unloaded.emit(false);
+        clone!(self.renderer(), self.session(), root);
+        ApiFuture::new(self.renderer().clone().with_lock(async move {
+            renderer.delete()?;
+            root.borrow_mut().take().ok_or("Already deleted")?.destroy();
+            session
+                .reset(ResetOptions {
+                    config: true,
+                    expressions: true,
+                    table: true,
+                    ..ResetOptions::default()
+                })
+                .await?;
+            Ok(())
+        }))
     }
 }
 
-#[ext]
-pub(crate) impl<T> Callback<Sender<T>>
-where
-    T: 'static,
-{
-    /// This is "safe" because `emit()` is not called synchronously.  Normally
-    /// we want this to minimize the async by doing as much work synchronous
-    /// as possible (see `send_message_async()` e.g.), but this method calls
-    /// `Yew` which _never_ wants to be called synchronously.
-    ///
-    /// TODO Need test coverage for this - error behavior is that presize/render
-    /// blocking calls are out-of-order, e.g. toggle config `presize()` call.
-    /// Engineering the test to capture this faulty behavior may be difficult
-    async fn emit_async_safe(&self) -> ApiResult<T> {
-        let (sender, receiver) = channel::<T>();
-        self.emit(sender);
-        Ok(receiver.await?)
-    }
-}
+impl<T: HasSession + HasRenderer> DeleteAll for T {}

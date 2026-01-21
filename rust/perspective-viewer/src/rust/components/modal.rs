@@ -21,36 +21,14 @@ use yew::virtual_dom::VChild;
 
 use crate::utils::WeakScope;
 
-#[derive(Clone, Default, Eq, PartialEq)]
-pub struct ModalOrientation(Rc<Cell<bool>>);
-
-impl ImplicitClone for ModalOrientation {}
-
-impl From<ModalOrientation> for bool {
-    fn from(x: ModalOrientation) -> Self {
-        x.0.get()
-    }
-}
-
-pub trait ModalLink<T>
-where
-    T: Component,
-{
-    fn weak_link(&self) -> &'_ WeakScope<T>;
-}
-
-pub trait SetModalLink {
-    fn set_modal_link(&self);
-}
-
-impl<T> SetModalLink for &Context<T>
+#[derive(Properties, Derivative)]
+#[derivative(PartialEq(bound = ""))]
+pub struct ModalProps<T>
 where
     T: Component,
     T::Properties: ModalLink<T>,
 {
-    fn set_modal_link(&self) {
-        *self.props().weak_link().borrow_mut() = Some(self.link().clone());
-    }
+    pub child: Option<VChild<T>>,
 }
 
 #[derive(Debug)]
@@ -65,16 +43,6 @@ where
         rev_vert: bool,
     },
     SubMsg(T::Message),
-}
-
-#[derive(Properties, Derivative)]
-#[derivative(PartialEq(bound = ""))]
-pub struct ModalProps<T>
-where
-    T: Component,
-    T::Properties: ModalLink<T>,
-{
-    pub child: Option<VChild<T>>,
 }
 
 #[derive(Default)]
@@ -114,10 +82,10 @@ where
                 true
             },
             ModalMsg::SubMsg(msg) => {
-                if let Some(child) = &ctx.props().child
-                    && let Some(link) = child.props.weak_link().borrow().as_ref()
-                {
-                    link.send_message(msg);
+                if let Some(child) = &ctx.props().child {
+                    if let Some(link) = child.props.weak_link().borrow().as_ref() {
+                        link.send_message(msg);
+                    }
                 }
 
                 false
@@ -144,8 +112,40 @@ where
     }
 }
 
+#[derive(Clone, Default, Eq, PartialEq)]
+pub struct ModalOrientation(Rc<Cell<bool>>);
+
+impl ImplicitClone for ModalOrientation {}
+
+impl From<ModalOrientation> for bool {
+    fn from(x: ModalOrientation) -> Self {
+        x.0.get()
+    }
+}
+
+pub trait ModalLink<T>
+where
+    T: Component,
+{
+    fn weak_link(&self) -> &'_ WeakScope<T>;
+}
+
+pub trait SetModalLink {
+    fn set_modal_link(&self);
+}
+
+impl<T> SetModalLink for &Context<T>
+where
+    T: Component,
+    T::Properties: ModalLink<T>,
+{
+    fn set_modal_link(&self) {
+        *self.props().weak_link().borrow_mut() = Some(self.link().clone());
+    }
+}
+
 #[derive(Properties, Clone)]
-pub struct NoRenderProps {
+struct NoRenderProps {
     pub children: Children,
 }
 
@@ -155,7 +155,7 @@ impl PartialEq for NoRenderProps {
     }
 }
 
-pub struct NoRender {}
+struct NoRender {}
 
 impl Component for NoRender {
     type Message = ();

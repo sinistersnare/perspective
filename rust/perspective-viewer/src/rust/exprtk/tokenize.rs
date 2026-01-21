@@ -35,22 +35,39 @@ use self::symbol::*;
 /// frequent pattern matching necessary when handling enum tokens.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Token<'a> {
+    /// `//``
     Comment(&'a str),
+
+    /// ` `
     Whitespace(&'a str),
+
+    /// `\n`
     Break(&'a str),
+
+    /// `x`
     Symbol(&'a str),
+
+    /// `12`
     Literal(&'a str),
+
+    /// `+`
     Operator(&'a str),
+
+    /// `#`
     Unknown(&'a str),
+
+    /// `"Sales"`
     Column(&'a str),
 }
 
 use Token::*;
 
-impl ToHtml for Token<'_> {
-    fn to_html(&self) -> Html {
+impl Token<'_> {
+    pub fn to_html(&self) -> Html {
         html! {
-            if matches!(self, Break(_)) { <br /> } else {
+            if matches!(self, Break(_)) {
+                <br />
+            } else {
                 <span class={self.class_name()}>{ self.content() }</span>
             }
         }

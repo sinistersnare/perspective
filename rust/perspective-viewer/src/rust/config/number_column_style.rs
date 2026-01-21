@@ -16,8 +16,6 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter};
 use ts_rs::TS;
 
-use crate::*;
-
 #[derive(
     Clone, Copy, Debug, Default, Deserialize, Display, EnumIter, Eq, PartialEq, Serialize, TS,
 )]
@@ -116,8 +114,6 @@ pub struct NumberColumnStyleConfig {
     pub bg_gradient: Option<f64>,
 }
 
-derive_wasm_abi!(NumberColumnStyleConfig, FromWasmAbi, IntoWasmAbi);
-
 /// Exactly like a `ColumnStyleConfig`, except without `Option<>` fields.
 ///
 /// Necessary because this struct represents the default values we should use in
@@ -134,5 +130,3 @@ pub struct NumberColumnStyleDefaultConfig {
     pub number_fg_mode: NumberForegroundMode,
     pub number_bg_mode: NumberBackgroundMode,
 }
-
-derive_wasm_abi!(NumberColumnStyleDefaultConfig, FromWasmAbi);

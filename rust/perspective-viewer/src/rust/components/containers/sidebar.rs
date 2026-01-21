@@ -13,10 +13,11 @@
 use perspective_client::clone;
 use web_sys::Element;
 use yew::{
-    AttrValue, Callback, Children, Html, Properties, function_component, html, use_effect_with,
-    use_node_ref, use_state_eq,
+    Callback, Children, Html, Properties, function_component, html, use_effect_with, use_node_ref,
+    use_state_eq,
 };
 
+use crate::components::containers::sidebar_close_button::SidebarCloseButton;
 use crate::components::editable_header::{EditableHeader, EditableHeaderProps};
 
 #[derive(PartialEq, Clone, Properties)]
@@ -67,23 +68,6 @@ pub fn Sidebar(p: &SidebarProps) -> Html {
             <div class="sidebar_border" id={format!("{id}_border")} />
             { p.children.iter().collect::<Html>() }
             <div class="sidebar-auto-width" style={width_style} />
-        </div>
-    }
-}
-
-#[derive(PartialEq, Clone, Properties)]
-pub struct SidebarCloseButtonProps {
-    pub on_close_sidebar: Callback<()>,
-    pub id: AttrValue,
-}
-
-#[function_component]
-pub fn SidebarCloseButton(p: &SidebarCloseButtonProps) -> Html {
-    let onclick = yew::use_callback(p.on_close_sidebar.clone(), |_, cb| cb.emit(()));
-    let id = &p.id;
-    html! {
-        <div {onclick} {id} class="sidebar_close_button">
-            <div class="sidebar_close_button_inner" />
         </div>
     }
 }

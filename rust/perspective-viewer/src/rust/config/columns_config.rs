@@ -13,7 +13,6 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 use ts_rs::TS;
 
 use super::{
@@ -28,7 +27,6 @@ fn is_zero(x: &u32) -> bool {
 
 /// The value de/serialized and stored in the viewer config.
 /// Also passed to the plugin via `plugin.save()`.
-#[skip_serializing_none]
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, TS)]
 pub struct ColumnConfigValues {
     #[serde(default)]
@@ -130,3 +128,5 @@ pub struct KeyValueOpts {
     pub keys: KvPairKeys,
     pub values: Vec<String>,
 }
+
+pub type SymbolKVPair = super::kvpair::KVPair<Option<String>, String>;

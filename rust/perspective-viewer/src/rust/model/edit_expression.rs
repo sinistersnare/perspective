@@ -14,20 +14,17 @@ use perspective_client::config::{Expression, ViewConfigUpdate};
 
 use super::UpdateAndRender;
 use super::structural::*;
-use crate::components::column_settings_sidebar::ColumnSettingsTab;
-use crate::components::viewer::ColumnLocator;
-use crate::presentation::{OpenColumnSettings, Presentation};
+use crate::presentation::{ColumnLocator, ColumnSettingsTab, OpenColumnSettings, Presentation};
 use crate::renderer::Renderer;
 use crate::session::Session;
 use crate::*;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, PerspectiveProperties!)]
 pub struct ExpressionUpdater {
     presentation: Presentation,
     renderer: Renderer,
     session: Session,
 }
-derive_model!(Presentation, Renderer, Session for ExpressionUpdater);
 
 pub trait EditExpression: HasPresentation + HasRenderer + HasSession + UpdateAndRender {
     fn get_expression_updater(&self) -> ExpressionUpdater {

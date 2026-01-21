@@ -63,8 +63,9 @@ test("View conflation is silenced", async ({ page }) => {
         await viewer.load(table);
         await viewer.restore({ plugin: "pause-plugin" });
         is_paused = true;
-        const restore_task = viewer.restore({});
 
+        // Change in 4.1.0 - empty restore now does not render
+        const restore_task = viewer.restore({ plugin: "pause-plugin" });
         while (!resolve) {
             await new Promise((x) => setTimeout(x, 0));
         }
@@ -72,6 +73,8 @@ test("View conflation is silenced", async ({ page }) => {
         const load_task = viewer.load(table);
         await new Promise((x) => setTimeout(x, 0));
         resolve();
+        resolve = undefined;
+        is_paused = false;
         await restore_task;
         await load_task;
     });

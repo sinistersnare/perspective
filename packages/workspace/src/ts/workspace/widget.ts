@@ -15,26 +15,31 @@ import { Message } from "@lumino/messaging";
 
 import type * as psp_viewer from "@perspective-dev/viewer";
 import type * as psp from "@perspective-dev/client";
+import { PerspectiveTabBar } from "./tabbar";
 
 interface IPerspectiveViewerWidgetOptions {
     node: HTMLElement;
     viewer: psp_viewer.HTMLPerspectiveViewerElement;
+    onAttach?: () => void;
 }
 
 export class PerspectiveViewerWidget extends Widget {
     viewer: psp_viewer.HTMLPerspectiveViewerElement;
     _title: string;
-    _is_table_loaded: boolean;
     _is_pivoted: boolean;
     _restore_config?: () => Promise<void>;
-    task?: Promise<void>;
+    _onAttach?: () => void;
+    _titlebar?: PerspectiveTabBar;
+    _deleted: boolean;
+    _titlebar_callback?: (event: MouseEvent) => {};
 
-    constructor({ viewer, node }: IPerspectiveViewerWidgetOptions) {
+    constructor({ viewer, node, onAttach }: IPerspectiveViewerWidgetOptions) {
         super({ node });
         this.viewer = viewer;
         this._title = "";
-        this._is_table_loaded = false;
         this._is_pivoted = false;
+        this._onAttach = onAttach;
+        this._deleted = false;
     }
 
     get name(): string {
@@ -46,7 +51,6 @@ export class PerspectiveViewerWidget extends Widget {
     }
 
     async load(table: psp.Table | Promise<psp.Table>) {
-        this._is_table_loaded = true;
         let promises = [this.viewer.load(table)];
         if (this._restore_config) {
             promises.push(this._restore_config());
@@ -55,47 +59,52 @@ export class PerspectiveViewerWidget extends Widget {
         await Promise.all(promises);
     }
 
-    restore(
-        config: psp_viewer.ViewerConfigUpdate & {
-            table: string;
-        },
-    ) {
-        const { table, ...viewerConfig } = config;
+    restore(config: psp_viewer.ViewerConfigUpdate) {
         this._title = config.title as string;
         this.title.label = config.title as string;
-        if (table) {
-            this.viewer.setAttribute("table", table);
-        }
-
-        const restore_config = () => this.viewer.restore({ ...viewerConfig });
-        if (this._is_table_loaded) {
-            return restore_config();
-        } else {
-            this._restore_config = restore_config;
-        }
+        this._is_pivoted = (config.group_by?.length || 0) > 0;
+        return this.viewer.restore({ ...config });
     }
 
     async save() {
         let config = {
             ...(await this.viewer.save()),
-            table: this.viewer.getAttribute("table"),
         };
 
         delete config["settings"];
         return config;
     }
 
-    removeClass(name: string) {
-        super.removeClass(name);
-        this.viewer && this.viewer.classList.remove(name);
+    addClass(name: string) {
+        super.addClass(name);
+        this.viewer?.classList?.add?.(name);
     }
 
-    async onCloseRequest(msg: Message) {
-        super.onCloseRequest(msg);
-        if (this.viewer.parentElement) {
-            this.viewer.parentElement.removeChild(this.viewer);
-        }
+    removeClass(name: string) {
+        super.removeClass(name);
+        this.viewer?.classList?.remove?.(name);
+    }
 
-        await this.viewer.delete();
+    setCallback(callback?: (event: MouseEvent) => {}) {
+        this._titlebar_callback = callback;
+    }
+
+    protected onAfterAttach(msg: Message) {
+        super.onAfterAttach(msg);
+        this._onAttach?.();
+    }
+
+    onCloseRequest(msg: Message) {
+        super.onCloseRequest(msg);
+        return (async () => {
+            if (this.viewer.parentElement) {
+                this.viewer.parentElement.removeChild(this.viewer);
+            }
+
+            if (!this._deleted) {
+                await this.viewer.delete();
+                this._deleted = true;
+            }
+        })();
     }
 }

@@ -13,6 +13,7 @@
 use perspective_js::utils::{global, *};
 use wasm_bindgen::JsCast;
 
+/// Given a blob, invoke the Browser's download popup.
 pub fn download(name: &str, value: &web_sys::Blob) -> ApiResult<()> {
     let element: web_sys::HtmlElement = global::document().create_element("a")?.unchecked_into();
     let blob_url = web_sys::Url::create_object_url_with_blob(value)?;

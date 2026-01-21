@@ -341,7 +341,7 @@ class HTMLPerspectiveViewerD3fcPluginElement extends HTMLElement {
         }
 
         metadata = await Promise.all([
-            viewer.save(),
+            viewer.getViewConfig(),
             viewer.getTable().then((table) => table.schema()),
             view.expression_schema(false),
             view.schema(false),

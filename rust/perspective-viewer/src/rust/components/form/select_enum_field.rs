@@ -10,36 +10,50 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-use yew::prelude::*;
+use std::fmt::{Debug, Display};
 
-use super::ColumnLocator;
+use itertools::Itertools;
+use strum::IntoEnumIterator;
+use yew::{Callback, Properties, function_component, html};
 
-#[derive(PartialEq, Clone, Properties)]
-pub struct ExprEditButtonProps {
-    pub name: String,
-    pub is_expression: bool,
-    pub on_open_expr_panel: Callback<ColumnLocator>,
-    pub is_editing: bool,
+use crate::components::containers::select::{Select, SelectItem};
+use crate::components::form::optional_field::OptionalField;
+
+#[derive(Properties, Debug, PartialEq, Clone)]
+pub struct SelectEnumFieldProps<T>
+where
+    T: IntoEnumIterator + Display + Default + PartialEq + Clone + 'static,
+{
+    pub current_value: Option<T>,
+    pub label: String,
+    pub on_change: Callback<Option<T>>,
+
+    #[prop_or_default]
+    pub default_value: Option<T>,
+
+    #[prop_or_default]
+    pub disabled: bool,
 }
 
-/// A button that goes into a column-list for a custom expression
-/// when pressed, it opens up the expression editor side-panel.
-#[function_component]
-pub fn ExprEditButton(p: &ExprEditButtonProps) -> Html {
-    let onmousedown = yew::use_callback(p.clone(), |_, p| {
-        let name = if p.is_expression {
-            ColumnLocator::Expression(p.name.clone())
-        } else {
-            ColumnLocator::Table(p.name.clone())
-        };
-        p.on_open_expr_panel.emit(name)
-    });
-
-    let class = if p.is_editing {
-        "expression-edit-button is-editing"
-    } else {
-        "expression-edit-button"
-    };
-
-    html! { <span {onmousedown} {class} /> }
+#[function_component(SelectEnumField)]
+pub fn select_enum_field<T>(props: &SelectEnumFieldProps<T>) -> yew::Html
+where
+    T: IntoEnumIterator + Debug + Display + Default + PartialEq + Clone + 'static,
+{
+    let values = yew::use_memo((), |_| T::iter().map(SelectItem::Option).collect_vec());
+    let selected = props.current_value.clone().unwrap_or_default();
+    let checked = selected != props.default_value.clone().unwrap_or_default();
+    let reset_value = props.default_value.clone();
+    html! {
+        <div class="row">
+            <OptionalField
+                label={props.label.clone()}
+                on_check={props.on_change.reform(move |_| reset_value.clone())}
+                {checked}
+                disabled={props.disabled}
+            >
+                <Select<T> {values} {selected} on_select={props.on_change.reform(Option::Some)} />
+            </OptionalField>
+        </div>
+    }
 }

@@ -16,11 +16,12 @@ import {
     shadow_click,
 } from "./utils.ts";
 import { test, expect } from "./index.js";
-import type { PerspectiveViewerConfig } from "@perspective-dev/viewer";
+import type { ViewerConfigUpdate } from "@perspective-dev/viewer";
+import { ViewConfigUpdate } from "@perspective-dev/client";
 
 export type ContentExtractor = (page: any) => Promise<string>;
 
-async function restoreViewer(page, viewerConfig: PerspectiveViewerConfig) {
+async function restoreViewer(page, viewerConfig: ViewerConfigUpdate) {
     return await page.evaluate(async (viewerConfig) => {
         const viewer = document.querySelector("perspective-viewer")!;
         await viewer.restore(viewerConfig);
@@ -28,7 +29,7 @@ async function restoreViewer(page, viewerConfig: PerspectiveViewerConfig) {
 }
 
 function runSimpleCompareTest(
-    viewerConfig: PerspectiveViewerConfig,
+    viewerConfig: ViewerConfigUpdate,
     extractContent: ContentExtractor,
     snapshotPath: string[],
 ) {
@@ -41,11 +42,11 @@ function runSimpleCompareTest(
 
 export function runPerspectiveEventClickTest() {
     return async ({ page }) => {
-        const viewerConfig = {
+        const viewerConfig: ViewConfigUpdate = {
             filter: [["date", "<", "2025-01-01"]],
         };
-        await restoreViewer(page, viewerConfig);
 
+        await restoreViewer(page, viewerConfig);
         const viewer = await page.$("perspective-viewer")!;
         const perspectiveClick = viewer.evaluate(
             (element) =>

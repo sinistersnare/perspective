@@ -15,6 +15,7 @@ use std::rc::Rc;
 
 use perspective_client::config::*;
 use perspective_client::utils::PerspectiveResultExt;
+use perspective_js::utils::ApiFuture;
 use yew::prelude::*;
 
 use crate::components::containers::select::*;
@@ -22,17 +23,20 @@ use crate::components::style::LocalStyle;
 use crate::model::*;
 use crate::renderer::*;
 use crate::session::*;
-use crate::*;
+use crate::{PerspectiveProperties, css};
 
-#[derive(Properties)]
+#[derive(Properties, PerspectiveProperties!)]
 pub struct AggregateSelectorProps {
+    /// The name of this aggregate.
     pub column: String,
+
+    /// Which aggregate is currently selected.
     pub aggregate: Option<Aggregate>,
+
+    // State
     pub renderer: Renderer,
     pub session: Session,
 }
-
-derive_model!(Renderer, Session for AggregateSelectorProps);
 
 impl PartialEq for AggregateSelectorProps {
     fn eq(&self, rhs: &Self) -> bool {

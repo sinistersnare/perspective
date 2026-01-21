@@ -19,8 +19,13 @@ use crate::*;
 /// but `Deref` makes them fall through, so it is important that this method
 /// be called on the correct struct type!
 pub trait CaretPosition {
+    /// Select the entired clip
     fn select_all(&self) -> ApiResult<()>;
+
+    /// Set the caret to a specific offset.
     fn set_caret_position(&self, offset: usize) -> ApiResult<()>;
+
+    /// Get the caret's offset (if it has focus)
     fn get_caret_position(&self) -> Option<u32>;
 }
 

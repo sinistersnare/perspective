@@ -16,9 +16,12 @@
 
 pub mod column_dropdown;
 pub mod column_selector;
+pub mod column_settings_sidebar;
 pub mod containers;
 pub mod copy_dropdown;
 pub mod datetime_column_style;
+pub mod editable_header;
+pub mod empty_row;
 pub mod error_message;
 pub mod export_dropdown;
 pub mod expression_editor;
@@ -26,20 +29,17 @@ pub mod filter_dropdown;
 pub mod font_loader;
 pub mod form;
 pub mod function_dropdown;
+pub mod main_panel;
 pub mod modal;
 pub mod number_column_style;
 pub mod plugin_selector;
 pub mod render_warning;
+pub mod settings_panel;
 pub mod status_bar;
 pub mod status_bar_counter;
 pub mod status_indicator;
 pub mod string_column_style;
 pub mod style;
+pub mod style_controls;
 pub mod type_icon;
 pub mod viewer;
-
-pub mod column_settings_sidebar;
-pub mod style_controls;
-// pub mod empty_row;
-pub mod editable_header;
-pub mod empty_row;

@@ -106,8 +106,8 @@ macro_rules! json_internal {
 
     // Insert the current entry followed by trailing comma.
     (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
-        let k = js_intern::js_intern!($($key)+);
-        js_sys::Reflect::set(&$object, k, &$value).unwrap();
+        let k = JsValue::from(wasm_bindgen::intern($($key)+));
+        js_sys::Reflect::set(&$object, &k, &$value).unwrap();
         $crate::json_internal!(@object $object () ($($rest)*) ($($rest)*));
     };
 
@@ -118,8 +118,8 @@ macro_rules! json_internal {
 
     // Insert the last entry without trailing comma.
     (@object $object:ident [$($key:tt)+] ($value:expr)) => {
-        let k = js_intern::js_intern!($($key)+);
-        js_sys::Reflect::set(&$object, k, &$value).unwrap();
+        let k = JsValue::from(wasm_bindgen::intern($($key)+));
+        js_sys::Reflect::set(&$object, &k, &$value).unwrap();
     };
 
     // Next value is `null`.

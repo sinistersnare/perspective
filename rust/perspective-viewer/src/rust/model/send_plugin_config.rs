@@ -10,52 +10,42 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-/// A macro for implementing the `wasm_bindgen` boilerplate for types which
-/// implement `serde::{Serialize, Deserialize}`.
-///
-/// # Examples
-///
-/// ```
-/// struct MyStruct { .. }
-/// derive_wasm_abi!(MyStruct, FromWasmAbi);
-///
-/// #[wasm_bindgen]
-/// pub fn process_my_struct(s: MyStruct) {}
-/// ```
-#[macro_export]
-macro_rules! derive_wasm_abi {
-    ($type:ty) => {
-        impl wasm_bindgen::describe::WasmDescribe for $type {
-            fn describe() {
-                <js_sys::Object as wasm_bindgen::describe::WasmDescribe>::describe()
-            }
-        }
-    };
+use perspective_js::utils::*;
 
-    ($type:ty, FromWasmAbi $(, $symbols:tt)*) => {
-        impl wasm_bindgen::convert::FromWasmAbi for $type {
-            type Abi = <js_sys::Object as wasm_bindgen::convert::IntoWasmAbi>::Abi;
-            #[inline]
-            unsafe fn from_abi(js: Self::Abi) -> Self {
-                let obj = unsafe { js_sys::Object::from_abi(js) };
-                use ::perspective_js::utils::JsValueSerdeExt;
-                wasm_bindgen::JsValue::from(obj).into_serde_ext().unwrap()
-            }
-        }
+use crate::config::ColumnConfigValueUpdate;
+use crate::model::*;
 
-        derive_wasm_abi!($type $(, $symbols)*);
-    };
+pub trait SendPluginConfig {
+    /// Update te urrent plugin with a [`ColumnonfigValueUpdate`]
+    fn send_plugin_config(&self, column_name: &str, update: ColumnConfigValueUpdate);
+}
 
-    ($type:ty, IntoWasmAbi $(, $symbols:tt)*) => {
-        impl wasm_bindgen::convert::IntoWasmAbi for $type {
-            type Abi = <js_sys::Object as wasm_bindgen::convert::IntoWasmAbi>::Abi;
-            #[inline]
-            fn into_abi(self) -> Self::Abi {
-                use wasm_bindgen::JsCast;
-                <wasm_bindgen::JsValue as ::perspective_js::utils::JsValueSerdeExt>::from_serde_ext(&self).unwrap().unchecked_into::<js_sys::Object>().into_abi()
-            }
-        }
+impl<A> SendPluginConfig for A
+where
+    A: Clone + HasCustomEvents + HasPresentation + HasRenderer + HasSession + 'static,
+{
+    fn send_plugin_config(&self, column_name: &str, update: ColumnConfigValueUpdate) {
+        let name = column_name.to_string();
+        let props = self.clone();
+        ApiFuture::spawn(async move {
+            props
+                .presentation()
+                .update_columns_config_value(name.clone(), update);
 
-        derive_wasm_abi!($type $(, $symbols)*);
-    };
+            let columns_configs = props.presentation().all_columns_configs();
+            let plugin_config = props.renderer().get_active_plugin()?.save()?;
+            props
+                .renderer()
+                .get_active_plugin()?
+                .restore(&plugin_config, Some(&columns_configs))?;
+
+            props.renderer().update(props.session().get_view()).await?;
+            let detail = serde_wasm_bindgen::to_value(&columns_configs).unwrap();
+            props
+                .custom_events()
+                .dispatch_column_style_changed(&detail)?;
+
+            Ok(())
+        })
+    }
 }

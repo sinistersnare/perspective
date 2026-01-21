@@ -35,7 +35,7 @@ class TestUpdate(object):
         # write arrow to stream
         stream = pa.BufferOutputStream()
         writer = pa.RecordBatchStreamWriter(
-            stream, arrow_table.schema, use_legacy_format=False
+            stream, arrow_table.schema
         )
         writer.write_table(arrow_table)
         writer.close()

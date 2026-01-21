@@ -21,4 +21,7 @@ function get_host() {
     return /host\: (.+?)$/gm.exec(execSync(`rustc -vV`).toString())[1];
 }
 
-execSync(`PSP_ROOT_DIR=../.. cargo run --target=${get_host()}`, INHERIT);
+execSync(
+    `PSP_ROOT_DIR=../.. TS_RS_IMPORT_EXTENSION=js cargo run --target=${get_host()}`,
+    INHERIT,
+);

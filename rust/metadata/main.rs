@@ -64,6 +64,7 @@ fn generate_exprtk_docs() -> Result<(), Box<dyn Error>> {
 #[doc(hidden)]
 pub fn generate_type_bindings_js() -> Result<(), Box<dyn Error>> {
     let path = std::env::current_dir()?.join("../perspective-js/src/ts/ts-rs");
+    ColumnType::export_all_to(&path)?;
     ColumnWindow::export_all_to(&path)?;
     ViewWindow::export_all_to(&path)?;
     TableInitOptions::export_all_to(&path)?;
@@ -74,6 +75,7 @@ pub fn generate_type_bindings_js() -> Result<(), Box<dyn Error>> {
     DeleteOptions::export_all_to(&path)?;
     ViewWindow::export_all_to(&path)?;
     SystemInfo::<f64>::export_all_to(&path)?;
+    ViewConfig::export_all_to(&path)?;
     Ok(())
 }
 

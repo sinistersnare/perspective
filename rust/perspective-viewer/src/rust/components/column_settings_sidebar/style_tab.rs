@@ -10,78 +10,56 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-pub mod stub;
+mod agg_depth_selector;
+mod stub;
 mod symbol;
 
 use itertools::Itertools;
-use perspective_client::clone;
 use perspective_client::config::ColumnType;
-use perspective_js::utils::*;
-use yew::{Callback, Html, Properties, function_component, html};
+use yew::{Html, Properties, function_component, html};
 
+use self::agg_depth_selector::*;
 use crate::components::column_settings_sidebar::style_tab::stub::Stub;
 use crate::components::column_settings_sidebar::style_tab::symbol::SymbolStyle;
 use crate::components::datetime_column_style::DatetimeColumnStyle;
-use crate::components::form::number_field::NumberField;
 use crate::components::number_column_style::NumberColumnStyle;
 use crate::components::string_column_style::StringColumnStyle;
 use crate::components::style_controls::CustomNumberFormat;
-use crate::config::ColumnConfigValueUpdate;
 use crate::custom_events::CustomEvents;
-use crate::derive_model;
-use crate::model::PluginColumnStyles;
+use crate::model::*;
 use crate::presentation::Presentation;
 use crate::renderer::Renderer;
 use crate::session::Session;
+use crate::*;
 
-#[derive(Clone, PartialEq, Properties)]
+#[derive(Clone, PartialEq, Properties, PerspectiveProperties!)]
 pub struct StyleTabProps {
-    pub custom_events: CustomEvents,
-    pub session: Session,
-    pub renderer: Renderer,
-    pub presentation: Presentation,
-
     pub ty: Option<ColumnType>,
     pub column_name: String,
     pub group_by_depth: u32,
-}
-derive_model!(Session, Renderer, Presentation for StyleTabProps);
 
-impl StyleTabProps {
-    fn send_plugin_config(&self, update: ColumnConfigValueUpdate) {
-        clone!(props = self);
-        ApiFuture::spawn(async move {
-            props
-                .presentation
-                .update_columns_config_value(props.column_name.clone(), update);
-            let columns_configs = props.presentation.all_columns_configs();
-            let plugin_config = props.renderer.get_active_plugin()?.save()?;
-            props
-                .renderer
-                .get_active_plugin()?
-                .restore(&plugin_config, Some(&columns_configs))?;
-
-            props.renderer.update(&props.session).await?;
-            let detail = serde_wasm_bindgen::to_value(&columns_configs).unwrap();
-            props.custom_events.dispatch_column_style_changed(&detail);
-            Ok(())
-        })
-    }
+    // State
+    pub custom_events: CustomEvents,
+    pub presentation: Presentation,
+    pub renderer: Renderer,
+    pub session: Session,
 }
 
 #[function_component]
 pub fn StyleTab(props: &StyleTabProps) -> Html {
-    let on_change = yew::use_callback(props.clone(), |config, props| {
-        props.send_plugin_config(config);
-    });
+    let config = props.presentation().get_columns_config(&props.column_name);
+    let on_change = yew::use_callback(
+        (props.clone_state(), props.column_name.clone()),
+        |config, (state, column_name)| {
+            state.send_plugin_config(column_name, config);
+        },
+    );
 
-    let config = props.presentation.get_columns_config(&props.column_name);
     let components = props
         .get_column_style_control_options(&props.column_name)
         .map(|opts| {
             let mut components = vec![];
-
-            if !props.session.get_view_config().group_by.is_empty() {
+            if !props.session().get_view_config().group_by.is_empty() {
                 let aggregate_depth = config.as_ref().map(|x| x.aggregate_depth as f64);
                 components.push(("Aggregate Depth", html! {
                     <AggregateDepthSelector
@@ -100,11 +78,11 @@ pub fn StyleTab(props: &StyleTabProps) -> Html {
 
                 components.push(("Number Styles", html! {
                     <NumberColumnStyle
-                        session={props.session.clone()}
                         column_name={props.column_name.clone()}
                         {config}
                         {default_config}
                         on_change={on_change.clone()}
+                        session={props.session()}
                     />
                 }));
             }
@@ -146,7 +124,7 @@ pub fn StyleTab(props: &StyleTabProps) -> Html {
                         {restored_config}
                         on_change={on_change.clone()}
                         column_name={props.column_name.clone()}
-                        session={props.session.clone()}
+                        session={props.session().clone()}
                     />
                 }))
             }
@@ -189,43 +167,5 @@ pub fn StyleTab(props: &StyleTabProps) -> Html {
         <div id="style-tab">
             <div id="column-style-container" class="tab-section">{ components }</div>
         </div>
-    }
-}
-
-#[derive(Properties, PartialEq)]
-pub struct AggregateDepthSelectorProps {
-    pub on_change: Callback<ColumnConfigValueUpdate>,
-    pub value: u32,
-    pub group_by_depth: u32,
-    pub column_name: String,
-}
-
-#[function_component]
-fn AggregateDepthSelector(props: &AggregateDepthSelectorProps) -> Html {
-    let state = yew::use_state_eq(|| 0);
-    yew::use_effect_with((props.column_name.to_owned(), props.group_by_depth), {
-        clone!(state, props.value);
-        move |deps| state.set(std::cmp::min(deps.1, value))
-    });
-
-    let on_change = yew::use_callback(
-        (state.setter(), props.on_change.clone()),
-        |x: Option<f64>, deps| {
-            deps.0.set(x.unwrap_or_default() as u32);
-            deps.1.emit(ColumnConfigValueUpdate::AggregateDepth(
-                x.unwrap_or_default() as u32,
-            ))
-        },
-    );
-
-    html! {
-        <NumberField
-            label="aggregate-depth"
-            {on_change}
-            min=0.0
-            max={props.group_by_depth as f64}
-            default=0.0
-            current_value={*state as f64}
-        />
     }
 }

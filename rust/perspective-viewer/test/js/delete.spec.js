@@ -27,7 +27,7 @@ test.beforeEach(async ({ page }) => {
     });
 });
 
-test.describe("Save/Restore", async () => {
+test.describe("Delete", async () => {
     test("Delete shouldn't return until underlying view is deleted", async ({
         page,
     }) => {

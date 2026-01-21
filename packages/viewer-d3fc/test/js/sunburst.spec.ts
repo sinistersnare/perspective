@@ -10,7 +10,7 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import { test } from "@perspective-dev/test";
+import { expect, PageView, test } from "@perspective-dev/test";
 import { getSvgContentString, run_standard_tests } from "@perspective-dev/test";
 
 test.describe("Sunburst Tests", () => {
@@ -27,6 +27,24 @@ test.describe("Sunburst Tests", () => {
                 plugin: "Sunburst",
             });
         });
+    });
+
+    test("Symbols Styles Close for table_col when Non-String", async ({
+        page,
+    }) => {
+        const view = new PageView(page);
+        await view.restore({
+            settings: true,
+            plugin: "X/Y Scatter",
+            columns: ["Row ID", "Postal Code", null, null, "Category"],
+        });
+        let col =
+            await view.settingsPanel.activeColumns.getColumnByName("Category");
+        await page.pause();
+        await col.editBtn.click();
+        await expect(view.columnSettingsSidebar.container).toBeVisible();
+        view.settingsPanel.groupby("City");
+        await expect(view.columnSettingsSidebar.container).toBeHidden();
     });
 
     run_standard_tests(

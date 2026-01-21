@@ -12,7 +12,7 @@
 
 use std::rc::Rc;
 
-use presentation::Presentation;
+use session::Session;
 use yew::prelude::*;
 
 use super::containers::dropdown_menu::*;
@@ -28,7 +28,7 @@ pub type ExportDropDownMenuItem = DropDownMenuItem<ExportFile>;
 #[derive(Properties, PartialEq)]
 pub struct ExportDropDownMenuProps {
     pub renderer: Renderer,
-    pub presentation: Presentation,
+    pub session: Session,
     pub callback: Callback<ExportFile>,
     pub root: web_sys::HtmlElement,
 
@@ -42,51 +42,16 @@ impl ModalLink<ExportDropDownMenu> for ExportDropDownMenuProps {
     }
 }
 
+pub enum ExportDropDownMenuMsg {
+    TitleChange,
+}
+
 #[derive(Default)]
 pub struct ExportDropDownMenu {
     title: String,
     _sub: Option<Subscription>,
     input_ref: NodeRef,
     invalid: bool,
-}
-
-pub enum ExportDropDownMenuMsg {
-    TitleChange,
-}
-
-fn get_menu_items(name: &str, is_chart: bool) -> Vec<ExportDropDownMenuItem> {
-    vec![
-        ExportDropDownMenuItem::OptGroup(
-            "Current View".into(),
-            if is_chart {
-                vec![
-                    ExportMethod::Csv.new_file(name, is_chart),
-                    ExportMethod::Json.new_file(name, is_chart),
-                    ExportMethod::Ndjson.new_file(name, is_chart),
-                    ExportMethod::Arrow.new_file(name, is_chart),
-                    ExportMethod::Html.new_file(name, is_chart),
-                    ExportMethod::Plugin.new_file(name, is_chart),
-                ]
-            } else {
-                vec![
-                    ExportMethod::Csv.new_file(name, is_chart),
-                    ExportMethod::Json.new_file(name, is_chart),
-                    ExportMethod::Ndjson.new_file(name, is_chart),
-                    ExportMethod::Arrow.new_file(name, is_chart),
-                    ExportMethod::Html.new_file(name, is_chart),
-                ]
-            },
-        ),
-        ExportDropDownMenuItem::OptGroup("All".into(), vec![
-            ExportMethod::CsvAll.new_file(name, is_chart),
-            ExportMethod::JsonAll.new_file(name, is_chart),
-            ExportMethod::NdjsonAll.new_file(name, is_chart),
-            ExportMethod::ArrowAll.new_file(name, is_chart),
-        ]),
-        ExportDropDownMenuItem::OptGroup("Config".into(), vec![
-            ExportMethod::JsonConfig.new_file(name, is_chart),
-        ]),
-    ]
 }
 
 impl Component for ExportDropDownMenu {
@@ -143,11 +108,46 @@ impl Component for ExportDropDownMenu {
         Self {
             title: ctx
                 .props()
-                .presentation
+                .session
                 .get_title()
                 .unwrap_or_else(|| "untitled".to_owned()),
             _sub,
             ..Default::default()
         }
     }
+}
+
+fn get_menu_items(name: &str, is_chart: bool) -> Vec<ExportDropDownMenuItem> {
+    vec![
+        ExportDropDownMenuItem::OptGroup(
+            "Current View".into(),
+            if is_chart {
+                vec![
+                    ExportMethod::Csv.new_file(name, is_chart),
+                    ExportMethod::Json.new_file(name, is_chart),
+                    ExportMethod::Ndjson.new_file(name, is_chart),
+                    ExportMethod::Arrow.new_file(name, is_chart),
+                    ExportMethod::Html.new_file(name, is_chart),
+                    ExportMethod::Plugin.new_file(name, is_chart),
+                ]
+            } else {
+                vec![
+                    ExportMethod::Csv.new_file(name, is_chart),
+                    ExportMethod::Json.new_file(name, is_chart),
+                    ExportMethod::Ndjson.new_file(name, is_chart),
+                    ExportMethod::Arrow.new_file(name, is_chart),
+                    ExportMethod::Html.new_file(name, is_chart),
+                ]
+            },
+        ),
+        ExportDropDownMenuItem::OptGroup("All".into(), vec![
+            ExportMethod::CsvAll.new_file(name, is_chart),
+            ExportMethod::JsonAll.new_file(name, is_chart),
+            ExportMethod::NdjsonAll.new_file(name, is_chart),
+            ExportMethod::ArrowAll.new_file(name, is_chart),
+        ]),
+        ExportDropDownMenuItem::OptGroup("Config".into(), vec![
+            ExportMethod::JsonConfig.new_file(name, is_chart),
+        ]),
+    ]
 }

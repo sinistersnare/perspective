@@ -111,7 +111,7 @@ pub impl ViewConfigUpdate {
             }
         } else if self.columns.is_none() {
             let mut columns = columns.to_vec();
-            let initial_len = columns.len();
+            let initial_len = self.columns.as_ref().map(|x| x.len()).unwrap_or_default();
             if let Some(last_filled) = columns.iter().rposition(|x| x.is_some()) {
                 columns.truncate(last_filled + 1);
                 if let ViewConfigRequirements {
@@ -131,10 +131,10 @@ pub impl ViewConfigUpdate {
                         .filter(|x| x.is_some())
                         .collect::<Vec<_>>();
                 }
+            }
 
-                if initial_len != columns.len() {
-                    self.columns = Some(columns);
-                }
+            if initial_len != columns.len() {
+                self.columns = Some(columns);
             }
         }
     }

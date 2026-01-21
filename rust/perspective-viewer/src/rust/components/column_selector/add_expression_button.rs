@@ -13,9 +13,13 @@
 use yew::prelude::*;
 
 use super::ColumnLocator;
+
 #[derive(Clone, PartialEq, Properties)]
 pub struct AddExpressionButtonProps {
+    // Fires when this button is clicked.
     pub on_open_expr_panel: Callback<ColumnLocator>,
+
+    /// The column this butotn will open configuration for.
     pub selected_column: Option<ColumnLocator>,
 }
 
@@ -44,6 +48,7 @@ pub fn AddExpressionButton(p: &AddExpressionButtonProps) -> Html {
     let onmousedown = p
         .on_open_expr_panel
         .reform(|_| ColumnLocator::NewExpression);
+
     let class = if *is_mouseover || matches!(p.selected_column, Some(ColumnLocator::NewExpression))
     {
         classes!("dragdrop-hover")

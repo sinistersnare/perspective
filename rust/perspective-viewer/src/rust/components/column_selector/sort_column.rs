@@ -12,6 +12,7 @@
 
 use perspective_client::config::*;
 use perspective_client::utils::PerspectiveResultExt;
+use perspective_js::utils::ApiFuture;
 use web_sys::*;
 use yew::prelude::*;
 
@@ -21,16 +22,15 @@ use crate::dragdrop::*;
 use crate::model::*;
 use crate::renderer::*;
 use crate::session::*;
+use crate::utils::*;
 use crate::*;
 
-/// A `SortColumn` includes the column name and `SortDir` arrow, a clickable
-/// button which cycles through the available `SortDir` states.
-pub struct SortColumn {}
-
-#[derive(Properties)]
+#[derive(Properties, PerspectiveProperties!)]
 pub struct SortColumnProps {
     pub sort: Sort,
     pub idx: usize,
+
+    // State
     pub session: Session,
     pub renderer: Renderer,
     pub dragdrop: DragDrop,
@@ -41,8 +41,6 @@ impl PartialEq for SortColumnProps {
         self.sort == other.sort && self.idx == other.idx
     }
 }
-
-derive_model!(Renderer, Session for SortColumnProps);
 
 impl DragDropListItemProps for SortColumnProps {
     type Item = Sort;
@@ -55,6 +53,10 @@ impl DragDropListItemProps for SortColumnProps {
 pub enum SortColumnMsg {
     SortDirClick(bool),
 }
+
+/// A `SortColumn` includes the column name and `SortDir` arrow, a clickable
+/// button which cycles through the available `SortDir` states.
+pub struct SortColumn {}
 
 impl Component for SortColumn {
     type Message = SortColumnMsg;

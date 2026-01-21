@@ -22,24 +22,6 @@ pub enum TypeIconType {
     Type(ColumnType),
     Expr,
 }
-impl From<ColumnType> for TypeIconType {
-    fn from(value: ColumnType) -> Self {
-        Self::Type(value)
-    }
-}
-impl IntoPropValue<TypeIconType> for ColumnType {
-    fn into_prop_value(self) -> TypeIconType {
-        TypeIconType::Type(self)
-    }
-}
-impl std::fmt::Display for TypeIconType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TypeIconType::Type(t) => f.write_fmt(format_args!("{t}")),
-            TypeIconType::Expr => f.write_str("expression"),
-        }
-    }
-}
 
 #[derive(PartialEq, Properties, Debug)]
 pub struct TypeIconProps {
@@ -50,4 +32,25 @@ pub struct TypeIconProps {
 pub fn type_icon(p: &TypeIconProps) -> yew::Html {
     let class = classes!(p.ty.to_string(), "type-icon");
     html! { <><LocalStyle href={css!("type-icon")} /><span {class} /></> }
+}
+
+impl From<ColumnType> for TypeIconType {
+    fn from(value: ColumnType) -> Self {
+        Self::Type(value)
+    }
+}
+
+impl IntoPropValue<TypeIconType> for ColumnType {
+    fn into_prop_value(self) -> TypeIconType {
+        TypeIconType::Type(self)
+    }
+}
+
+impl std::fmt::Display for TypeIconType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeIconType::Type(t) => f.write_fmt(format_args!("{t}")),
+            TypeIconType::Expr => f.write_str("expression"),
+        }
+    }
 }

@@ -13,14 +13,17 @@
 use yew::prelude::*;
 
 use super::style::LocalStyle;
+use crate::model::*;
 use crate::renderer::*;
 use crate::session::*;
-use crate::utils::*;
 use crate::*;
 
-#[derive(Properties)]
+#[derive(Properties, PerspectiveProperties!)]
 pub struct RenderWarningProps {
+    // Current dimensions
     pub dimensions: Option<(usize, usize, Option<usize>, Option<usize>)>,
+
+    // State
     pub renderer: Renderer,
     pub session: Session,
 }
@@ -67,7 +70,6 @@ impl Component for RenderWarning {
     type Properties = RenderWarningProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        // enable_weak_link_test!(props, link);
         let mut elem = Self {
             col_warn: None,
             row_warn: None,
@@ -80,10 +82,11 @@ impl Component for RenderWarning {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             RenderWarningMsg::DismissWarning => {
-                clone!(ctx.props().renderer, ctx.props().session);
+                let state = ctx.props().clone_state();
                 ApiFuture::spawn(async move {
-                    renderer.disable_active_plugin_render_warning();
-                    renderer.update(&session).await
+                    state.renderer().disable_active_plugin_render_warning();
+                    let view_task = state.session().get_view();
+                    state.renderer().update(view_task).await
                 });
             },
         };

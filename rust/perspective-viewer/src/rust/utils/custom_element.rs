@@ -10,20 +10,9 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
+//! Utilities for building JavaScript Custom Elements with Rust.
+
 use wasm_bindgen::prelude::*;
-
-pub trait CustomElementMetadata {
-    const CUSTOM_ELEMENT_NAME: &'static str;
-    const STATICS: &'static [&'static str] = [].as_slice();
-    const TYPE_NAME: &'static str = std::any::type_name::<Self>();
-
-    fn struct_name() -> &'static str {
-        match &Self::TYPE_NAME.rfind(':') {
-            Some(pos) => &Self::TYPE_NAME[pos + 1..],
-            None => Self::TYPE_NAME,
-        }
-    }
-}
 
 #[wasm_bindgen(inline_js = r#"
     export function bootstrap(psp, name, clsname, statics) {
@@ -75,6 +64,32 @@ extern "C" {
     fn js_bootstrap(psp: &JsValue, name: &str, cls: &str, statics: js_sys::Array) -> JsValue;
 }
 
+/// A trait which allows the [`define_web_component`] method to create a
+/// Custom Element (which must by definition inherit from `HTMLElement`) from
+/// a `[wasm_bindgen]` annotated Rust struct (for which this trait is
+/// implemented).
+pub trait CustomElementMetadata {
+    /// The name of the element to register.
+    const CUSTOM_ELEMENT_NAME: &'static str;
+
+    /// [optional] The names of the methods which should be static on the
+    /// element.
+    const STATICS: &'static [&'static str] = [].as_slice();
+
+    /// [optional] The name of the Rust struct.
+    const TYPE_NAME: &'static str = std::any::type_name::<Self>();
+
+    /// [optional] A custom implementation of struct name to class name.
+    #[must_use]
+    fn struct_name() -> &'static str {
+        match &Self::TYPE_NAME.rfind(':') {
+            Some(pos) => &Self::TYPE_NAME[pos + 1..],
+            None => Self::TYPE_NAME,
+        }
+    }
+}
+
+/// Register the Custom Element globally.
 pub fn define_web_component<T: CustomElementMetadata>(module: &JsValue) {
     js_bootstrap(
         module,

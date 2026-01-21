@@ -155,7 +155,8 @@ psp_num_cpus() {
 PERSPECTIVE_EXPORT
 void
 psp_set_num_cpus(std::int32_t num_cpus) {
-    arrow::SetCpuThreadPoolCapacity(num_cpus);
+    PSP_CHECK_ARROW_STATUS(arrow::SetCpuThreadPoolCapacity(num_cpus));
+
 }
 
 } // end extern "C"

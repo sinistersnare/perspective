@@ -153,7 +153,7 @@
                 let rows = [];
                 const batch_size = Math.floor(nrows / num_batches.value);
                 const batch_freq = batch_delay.value;
-                const tbl = await client.table(new_schema());
+                const tbl = await client.table(new_schema(), { name: "superstore" });
                 (function batch() {
                     while (nrows > 0) {
                         rows.push(new_row());
@@ -207,17 +207,17 @@
                 },
                 {
                     limit: 2000,
+                    name: "stats",
                 },
             );
 
-            window.psp_workspace.addTable("stats", stats_table);
-
-            (async function checkmem() {
+            (async function check_mem_loop() {
                 await stats_table.update([await client.system_info()]);
-                setTimeout(checkmem, 200);
+                setTimeout(check_mem_loop, 200);
             })();
 
-            window.psp_workspace.restore(await fetch("layout.json").then((x) => x.json()));
+            await window.psp_workspace.load(client);
+            await window.psp_workspace.restore(await fetch("layout.json").then((x) => x.json()));
         </script>
     </body>
 </html>

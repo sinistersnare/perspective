@@ -10,49 +10,61 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-:host {
-    #status_bar.titled {
-        padding-right: 108px;
-
-        #menu-bar {
-            opacity: 0.2;
-        }
+:host(:hover) {
+    #status_bar.settings-closed.floating {
+        opacity: 1;
+        transition: none;
     }
+}
 
+:host {
     // When settings open ...
     #main_column #status_bar,
     #main_column #status_bar.titled {
-        padding-left: 0px;
-        padding-right: 36px;
+        // padding-right: 10px;
 
         input::placeholder {
             color: var(--inactive--color);
         }
+    }
 
-        #menu-bar {
-            opacity: 1;
-        }
+    #status_bar.settings-closed {
+        padding-right: 10px;
     }
 
     #status_bar.updating {
         box-shadow: none;
     }
 
+    #status_bar.settings-closed.floating {
+        transition: opacity 0.2s;
+        opacity: 0;
+        position: absolute;
+        padding: 0px;
+        height: auto;
+        min-height: auto;
+        max-height: none;
+        gap: 6px;
+        top: calc((var(--status-bar--height, 48px) - 20px) / 2);
+        right: calc(min(48px, (var(--status-bar--height, 48px) - 20px) / 2));
+    }
+
     #status_bar {
         box-shadow: 0 13px 0 -12px var(--inactive--border-color);
         z-index: 1;
-        display: flex;
+        display: var(--status-bar--display, flex);
+        gap: 6px;
         align-items: center;
         background: var(--plugin--background);
-        padding: 0;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
+        padding: var(--status-bar--padding, 0 31px 0 8px);
+        position: relative;
         height: var(--status-bar--height, 48px);
+        min-height: var(--status-bar--height, 48px);
+        max-height: var(--status-bar--height, 48px);
         border-radius: var(--status-bar--border-radius);
         #status-bar-placeholder {
             margin: 0px;
+            margin-right: -5px;
             pointer-events: none;
         }
 
@@ -69,9 +81,9 @@
             display: inline-block;
             align-items: center;
             position: relative;
-            margin-top: 1px;
             min-width: 65px;
             overflow: hidden;
+            padding-top: 0.5px;
 
             &:after,
             input,
@@ -119,6 +131,11 @@
         .section {
             display: flex;
             align-items: center;
+            pointer-events: none;
+        }
+
+        .section > * {
+            pointer-events: all;
         }
 
         #spacer {
@@ -126,14 +143,19 @@
         }
 
         span#rows {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
             flex: 0 1000 auto;
             overflow: hidden;
-            margin: 0px 14px;
+            margin: 0px 10px;
+            pointer-events: none;
             span {
                 margin: 0 !important;
             }
 
-            span {
+            span.x,
+            span.total {
                 color: var(--inactive--color);
             }
         }
@@ -187,10 +209,12 @@
             background-repeat: no-repeat;
             background-color: var(--icon--color);
             content: "";
-            -webkit-mask-size: cover;
-            mask-size: cover;
+            mask-size: contain;
+            mask-repeat: no-repeat;
+            mask-position: center;
             pointer-events: none;
             image-rendering: pixelated;
+            margin: 0 5px;
         }
 
         // span#status_updating
@@ -251,11 +275,35 @@
 
         div#status_reconnect {
             z-index: 2;
-            display: flex;
+            display: var(--status-indicator--display, flex);
             align-items: center;
-            border-radius: var(--status-bar--border-radius);
-            height: var(--status-bar--height, 48px);
+            border-radius: 3px;
+            margin: 0;
+            height: auto; //var(--status-bar--height, 48px);
+            border: 1px solid var(--status-ok-icon--border-color, transparent);
+            cursor: var(--status-ok-icon--cursor);
+            pointer-events: var(--status-indicator--pointer-events, none);
+            &:hover {
+                background-color: var(
+                    --status-ok-icon--hover--background-color,
+                    transparent
+                );
+                border-color: var(
+                    --status-ok-icon--hover--border-color,
+                    transparent
+                );
+                span#status {
+                    background-color: var(
+                        --status-ok-icon--hover--color,
+                        var(--icon--color)
+                    );
+                }
+                // color: var(--status-ok-icon--hover--background-color);
+            }
+
             &.errored {
+                pointer-events: all;
+                display: flex;
                 cursor: pointer;
             }
 
@@ -269,9 +317,9 @@
                 align-items: center;
                 justify-content: center;
                 height: 20px;
+                height: 20px;
                 border-radius: 10px;
                 color: var(--plugin--background);
-                height: 20px;
                 // pointer-events: all;
                 // mask-image: url(../svg/status_error.svg);
                 // -webkit-mask-image: url(../svg/status_error.svg);

@@ -11,12 +11,12 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 import { CommandRegistry } from "@lumino/commands";
-import { Menu, Widget } from "@lumino/widgets";
+import { Widget } from "@lumino/widgets";
 import { Signal } from "@lumino/signaling";
 
 import type {
-    HTMLPerspectiveViewerCopyMenu,
-    HTMLPerspectiveViewerExportMenu,
+    HTMLPerspectiveViewerCopyMenuElement,
+    HTMLPerspectiveViewerExportMenuElement,
 } from "@perspective-dev/viewer";
 
 import type { PerspectiveWorkspace } from "./workspace";
@@ -32,14 +32,14 @@ export const createCommands = (
         execute: async (args) => {
             const menu = document.createElement(
                 "perspective-export-menu",
-            ) as unknown as HTMLPerspectiveViewerExportMenu;
+            ) as unknown as HTMLPerspectiveViewerExportMenuElement;
 
             workspace.apply_indicator_theme();
             const widget = workspace.getWidgetByName(
                 args.widget_name as string,
             )!;
 
-            menu.set_model(widget.viewer.get_model());
+            menu.__set_model(widget.viewer.__get_model());
             menu.open(indicator);
             workspace.get_context_menu()?.init_overlay?.();
             menu.addEventListener("blur", () => {
@@ -74,13 +74,13 @@ export const createCommands = (
         execute: async (args) => {
             const menu = document.createElement(
                 "perspective-copy-menu",
-            ) as HTMLPerspectiveViewerCopyMenu;
+            ) as HTMLPerspectiveViewerCopyMenuElement;
 
             workspace.apply_indicator_theme();
             const widget = workspace.getWidgetByName(
                 args.widget_name as string,
             )!;
-            menu.set_model(widget.viewer.get_model());
+            menu.__set_model(widget.viewer.__get_model());
 
             menu.open(indicator);
             workspace.get_context_menu()?.init_overlay?.();
@@ -112,9 +112,11 @@ export const createCommands = (
     });
 
     commands.addCommand("workspace:new", {
-        execute: (args) => {
-            const widget = workspace._createWidgetAndNode({
-                config: { table: args.table as string },
+        execute: async (args) => {
+            const widget = await workspace._createWidgetAndNode({
+                config: {
+                    table: Array.isArray(args.table) ? args.table[0] : null,
+                },
                 slot: undefined,
             });
 
@@ -140,7 +142,7 @@ export const createCommands = (
             )!;
 
             const config = await target_widget.save();
-            const new_widget = workspace._createWidgetAndNode({
+            const new_widget = await workspace._createWidgetAndNode({
                 config,
                 slot: undefined,
             });
@@ -184,19 +186,19 @@ export const createCommands = (
                 throw new Error(`No widget ${widget_name}`);
             }
 
-            if (!widget.viewer.hasAttribute("settings")) {
-                workspace._maximize(widget);
-                requestAnimationFrame(() => widget.viewer.toggleConfig());
-            } else {
-                widget.viewer.toggleConfig();
-            }
+            // if (!widget.viewer.hasAttribute("settings")) {
+            // workspace._maximize(widget);
+            requestAnimationFrame(() => widget.viewer.toggleConfig());
+            // } else {
+            // widget.viewer.toggleConfig();
+            // }
         },
         isVisible: (args) => {
             const widget = workspace.getWidgetByName(
                 args.widget_name as string,
-            )!;
+            );
 
-            return widget.parent! === (workspace.get_dock_panel() as Widget)
+            return widget?.parent! === (workspace.get_dock_panel() as Widget)
                 ? true
                 : false;
         },
@@ -220,8 +222,8 @@ export const createCommands = (
             ),
         // iconClass: "menu-duplicate",
         isVisible: (args) => {
-            return workspace.getWidgetByName(args.widget_name as string)!
-                .parent! === (workspace.get_dock_panel() as Widget)
+            return workspace.getWidgetByName(args.widget_name as string)
+                ?.parent! === (workspace.get_dock_panel() as Widget)
                 ? true
                 : false;
         },

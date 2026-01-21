@@ -62,6 +62,7 @@ export class PerspectiveTabBar extends TabBar<any> {
         let content = new Array();
         for (let i = 0, n = titles.length; i < n; ++i) {
             let title = titles[i];
+            title.owner._titlebar = this;
             let current = title === currentTitle;
             let otherTitles = titles.filter((x) => x !== currentTitle);
             let onClick;
@@ -132,7 +133,12 @@ export class PerspectiveTabBar extends TabBar<any> {
             mnemonic: 0,
         });
 
-        const box = (event.target as HTMLElement).getBoundingClientRect();
+        const box = (
+            (event.target as HTMLElement).shadowRoot?.querySelector(
+                "#status_reconnect",
+            ) as HTMLElement
+        ).getBoundingClientRect();
+
         const outer_box = this._workspace.element.getBoundingClientRect();
         this._menu.open(box.x - outer_box.x, box.y + box.height - outer_box.y);
         this._menu.aboutToClose.connect(() => {

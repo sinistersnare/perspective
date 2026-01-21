@@ -826,9 +826,6 @@ importers:
       '@perspective-dev/client':
         specifier: 'workspace:'
         version: link:../../rust/perspective-js
-      '@perspective-dev/viewer':
-        specifier: 'workspace:'
-        version: link:../../rust/perspective-viewer
       lodash:
         specifier: 'catalog:'
         version: 4.17.21
@@ -839,6 +836,9 @@ importers:
       '@perspective-dev/test':
         specifier: 'workspace:'
         version: link:../../tools/test
+      '@perspective-dev/viewer':
+        specifier: 'workspace:'
+        version: link:../../rust/perspective-viewer
       '@prospective.co/procss':
         specifier: 'catalog:'
         version: 0.1.17

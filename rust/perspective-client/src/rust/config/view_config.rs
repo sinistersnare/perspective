@@ -22,7 +22,7 @@ use super::sort::*;
 use crate::proto;
 use crate::proto::columns_update;
 
-#[derive(Clone, Debug, Deserialize, Default, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Default, PartialEq, Serialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct ViewConfig {
     #[serde(default)]
@@ -59,7 +59,7 @@ fn is_default_value<A: Default + PartialEq>(value: &A) -> bool {
     value == &A::default()
 }
 
-#[derive(Clone, Debug, Deserialize, Default, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Default, PartialEq, Serialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct ViewConfigUpdate {
     /// A group by _groups_ the dataset by the unique values of each column used

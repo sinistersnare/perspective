@@ -14,61 +14,21 @@ use std::fmt::{Debug, Display};
 use std::rc::Rc;
 
 use itertools::Itertools;
-use strum::IntoEnumIterator;
 use yew::{Callback, Properties, function_component, html};
 
 use crate::components::containers::select::{Select, SelectItem};
 use crate::components::form::optional_field::OptionalField;
 
 #[derive(Properties, Debug, PartialEq, Clone)]
-pub struct SelectEnumFieldProps<T>
-where
-    T: IntoEnumIterator + Display + Default + PartialEq + Clone + 'static,
-{
-    pub label: String,
-    pub current_value: Option<T>,
-    pub on_change: Callback<Option<T>>,
-
-    #[prop_or_default]
-    pub default_value: Option<T>,
-
-    #[prop_or_default]
-    pub disabled: bool,
-}
-
-#[function_component(SelectEnumField)]
-pub fn select_enum_field<T>(props: &SelectEnumFieldProps<T>) -> yew::Html
-where
-    T: IntoEnumIterator + Debug + Display + Default + PartialEq + Clone + 'static,
-{
-    let values = yew::use_memo((), |_| T::iter().map(SelectItem::Option).collect_vec());
-    let selected = props.current_value.clone().unwrap_or_default();
-    let checked = selected != props.default_value.clone().unwrap_or_default();
-    let reset_value = props.default_value.clone();
-    html! {
-        <div class="row">
-            <OptionalField
-                label={props.label.clone()}
-                on_check={props.on_change.reform(move |_| reset_value.clone())}
-                {checked}
-                disabled={props.disabled}
-            >
-                <Select<T> {values} {selected} on_select={props.on_change.reform(Option::Some)} />
-            </OptionalField>
-        </div>
-    }
-}
-
-#[derive(Properties, Debug, PartialEq, Clone)]
 pub struct SelectValueFieldProps<T>
 where
     T: Display + PartialEq + Clone + 'static,
 {
-    pub label: String,
     pub current_value: Option<T>,
     pub default_value: T,
-    pub values: Rc<Vec<T>>,
+    pub label: String,
     pub on_change: Callback<Option<T>>,
+    pub values: Rc<Vec<T>>,
 
     #[prop_or_default]
     pub disabled: bool,

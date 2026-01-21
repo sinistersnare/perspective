@@ -14,16 +14,11 @@ use std::fmt::Display;
 
 use wasm_bindgen::prelude::*;
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
 pub enum MimeType {
+    #[default]
     TextPlain,
     ImagePng,
-}
-
-impl Default for MimeType {
-    fn default() -> Self {
-        Self::TextPlain
-    }
 }
 
 impl From<MimeType> for JsValue {

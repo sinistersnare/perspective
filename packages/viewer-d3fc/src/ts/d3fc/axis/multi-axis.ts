@@ -60,7 +60,11 @@ const multiAxis = (orient: Orient, baseAxis, scale): MultiAxis => {
     const domainPathDataJoin = dataJoin("path", "domain");
 
     const translate = (x, y) =>
-        isVertical() ? `translate(${y}, ${x})` : `translate(${x}, ${y})`;
+        isNaN(x) || isNaN(y)
+            ? ""
+            : isVertical()
+              ? `translate(${y}, ${x})`
+              : `translate(${x}, ${y})`;
 
     const pathTranspose = (arr) =>
         isVertical() ? arr.map((d) => [d[1], d[0]]) : arr;
