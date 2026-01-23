@@ -20,8 +20,26 @@
 
 import perspective from "@perspective-dev/client";
 import perspective_viewer from "@perspective-dev/viewer";
+import perspective_workspace from "@perspective-dev/workspace";
+import "@perspective-dev/workspace";
 import "@perspective-dev/viewer-datagrid";
 import "@perspective-dev/viewer-d3fc";
+
+import * as React from "react";
+import { createRoot } from "react-dom/client";
+import {
+    PerspectiveViewer,
+    PerspectiveWorkspace,
+} from "@perspective-dev/react";
+
+import "@perspective-dev/viewer/dist/css/themes.css";
+import "@perspective-dev/workspace/dist/css/pro.css";
+import "./index.css";
+
+import type * as psp from "@perspective-dev/client";
+import type * as pspViewer from "@perspective-dev/viewer";
+
+import SUPERSTORE_ARROW from "superstore-arrow/superstore.lz4.arrow";
 
 import SERVER_WASM from "@perspective-dev/server/dist/wasm/perspective-server.wasm";
 import CLIENT_WASM from "@perspective-dev/viewer/dist/wasm/perspective-viewer.wasm";
@@ -36,11 +54,6 @@ await Promise.all([
 // Data source creates a static Web Worker instance of Perspective engine, and a
 // table creation function which both downloads data and loads it into the
 // engine.
-
-import type * as psp from "@perspective-dev/client";
-import type * as pspViewer from "@perspective-dev/viewer";
-
-import SUPERSTORE_ARROW from "superstore-arrow/superstore.lz4.arrow";
 
 const WORKER = await perspective.worker();
 
@@ -60,23 +73,22 @@ const CONFIG: pspViewer.ViewerConfigUpdate = {
 
 // The React application itself
 
-import * as React from "react";
-import { createRoot } from "react-dom/client";
-import { PerspectiveViewer } from "@perspective-dev/react";
-
-import "@perspective-dev/viewer/dist/css/themes.css";
-import "./index.css";
-
 interface ToolbarState {
     mounted: boolean;
     table?: Promise<psp.Table>;
     config: pspViewer.ViewerConfigUpdate;
+    layout: perspective_workspace.PerspectiveWorkspaceConfig;
 }
 
 const App: React.FC = () => {
     const [state, setState] = React.useState<ToolbarState>(() => ({
         mounted: true,
         table: createNewSuperstoreTable(),
+        layout: {
+            detail: { main: null },
+            sizes: [],
+            viewers: {},
+        },
         config: { ...CONFIG },
     }));
 
@@ -102,7 +114,17 @@ const App: React.FC = () => {
 
     const onConfigUpdate = (config: pspViewer.ViewerConfigUpdate) => {
         console.log("Config Update Event", config);
+        delete config.table;
         setState({ ...state, config });
+    };
+
+    const onLayoutUpdate = (
+        layout: perspective_workspace.PerspectiveWorkspaceConfig,
+    ) => {
+        console.log("Layout Update Event", layout);
+
+        // delete config.table;
+        setState({ ...state, layout });
     };
 
     const onClick = (detail: pspViewer.PerspectiveClickEventDetail) => {
@@ -122,14 +144,19 @@ const App: React.FC = () => {
             </div>
             {state.mounted && (
                 <>
-                    <PerspectiveViewer table={state.table} />
+                    <PerspectiveViewer client={state.table} />
                     <PerspectiveViewer
                         className="my-perspective-viewer"
-                        table={state.table}
+                        client={state.table}
                         config={state.config}
                         onClick={onClick}
-                        onSelect={onSelect}
                         onConfigUpdate={onConfigUpdate}
+                        onSelect={onSelect}
+                    />
+                    <PerspectiveWorkspace
+                        client={WORKER}
+                        layout={state.layout}
+                        onLayoutUpdate={onLayoutUpdate}
                     />
                 </>
             )}
