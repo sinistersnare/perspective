@@ -192,11 +192,12 @@ test.describe("Datagrid with superstore data set", () => {
         await td.click();
         await td.asElement().fill("Test");
         await page.evaluate(() => document.activeElement.blur());
-
         const result = await page.evaluate(async () => {
+            await document.querySelector("perspective-viewer").flush();
             const view = await document
                 .querySelector("perspective-viewer")
                 .getView();
+
             const json = await view.to_json_string({ end_row: 4 });
             return json;
         });

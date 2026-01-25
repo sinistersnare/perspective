@@ -10,8 +10,6 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-window.queueMicrotask = undefined;
-
 import perspective from "@perspective-dev/client";
 import perspective_viewer from "@perspective-dev/viewer";
 import "@perspective-dev/viewer-datagrid";
@@ -20,66 +18,69 @@ import "@perspective-dev/viewer-d3fc";
 import "@perspective-dev/viewer/dist/css/themes.css";
 import "@perspective-dev/viewer/dist/css/pro.css";
 
+// @ts-ignore
 import SERVER_WASM from "@perspective-dev/server/dist/wasm/perspective-server.wasm";
+
+// @ts-ignore
 import CLIENT_WASM from "@perspective-dev/viewer/dist/wasm/perspective-viewer.wasm";
+
+import { DuckDBHandler } from "@perspective-dev/client/dist/esm/virtual_servers/duckdb.js";
+import * as duckdb from "@duckdb/duckdb-wasm";
+
+// @ts-ignore
+import SUPERSTORE_ARROW from "superstore-arrow/superstore.lz4.arrow";
 
 await Promise.all([
     perspective.init_server(fetch(SERVER_WASM)),
     perspective_viewer.init_client(fetch(CLIENT_WASM)),
 ]);
 
-await customElements.whenDefined("perspective-viewer");
+async function initializeDuckDB() {
+    const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
+    const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
+    const worker_url = URL.createObjectURL(
+        new Blob([`importScripts("${bundle.mainWorker}");`], {
+            type: "text/javascript",
+        }),
+    );
 
-// Create a worker that hosts the VirtualServer
-const worker = new Worker(new URL("./worker.js", import.meta.url), {
-    type: "module",
-});
+    const duckdb_worker = new Worker(worker_url);
+    const logger = new duckdb.VoidLogger();
+    const db = new duckdb.AsyncDuckDB(logger, duckdb_worker);
+    await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    URL.revokeObjectURL(worker_url);
+    const conn = await db.connect();
+    await conn.query(`
+        SET default_null_order=NULLS_FIRST_ON_ASC_LAST_ON_DESC;
+    `);
 
-const client = await perspective.worker(Promise.resolve(worker));
+    console.log("DuckDB initialized");
+    return conn;
+}
 
-const table = await client.open_table("data_source_one");
+async function loadSampleData(db: duckdb.AsyncDuckDBConnection) {
+    // const c = await db.connect();
+    try {
+        const response = await fetch(SUPERSTORE_ARROW);
+        const arrayBuffer = await response.arrayBuffer();
+        await db.insertArrowFromIPCStream(new Uint8Array(arrayBuffer), {
+            name: "data_source_one",
+            create: true,
+        });
+    } catch (error) {
+        console.error("Error loading Arrow data:", error);
+    }
+}
 
-const viewer = document.querySelector("perspective-viewer");
-await viewer.load(table);
+const db = await initializeDuckDB();
+await perspective.init_client(fetch(CLIENT_WASM));
+await loadSampleData(db);
+const server = perspective.createMessageHandler(new DuckDBHandler(db));
+const client = await perspective.worker(server);
+
+const viewer = document.querySelector("perspective-viewer")!;
+viewer.load(client);
 viewer.restore({
-    version: "3.8.0",
-    plugin: "Datagrid",
-    plugin_config: {
-        columns: {},
-        edit_mode: "READ_ONLY",
-        scroll_lock: false,
-    },
-    columns_config: {},
-    settings: false,
-    theme: "Pro Light",
-    title: null,
+    table: "data_source_one",
     group_by: ["State"],
-    split_by: [],
-    sort: [],
-    filter: [],
-    expressions: {},
-    columns: [
-        "Row ID",
-        "Order ID",
-        "Order Date",
-        "Ship Date",
-        "Ship Mode",
-        "Customer ID",
-        "Customer Name",
-        "Segment",
-        "Country",
-        "City",
-        // "State",
-        "Postal Code",
-        "Region",
-        "Product ID",
-        "Category",
-        "Sub-Category",
-        "Product Name",
-        "Sales",
-        "Quantity",
-        "Discount",
-        "Profit",
-    ],
-    aggregates: {},
 });

@@ -29,7 +29,6 @@ members = [
     "rust/perspective-js",
     "rust/perspective-python",
     "rust/perspective-server",
-    "rust/perspective-server-virtual",
     "rust/perspective-viewer",
     "examples/rust-axum",
 ]
@@ -50,7 +49,6 @@ strip = true
 # simd-adler32 = { git = "https://github.com/mcountryman/simd-adler32.git", rev = "b279034d9eb554c3e5e0af523db044f08d8297ba" }
 perspective-client = { path = "rust/perspective-client" }
 perspective-server = { path = "rust/perspective-server" }
-perspective-server-virtual = { path = "rust/perspective-server-virtual" }
 perspective-js = { path = "rust/perspective-js" }
 perspective = { path = "rust/perspective" }
 perspective-viewer = { path = "rust/perspective-viewer" }

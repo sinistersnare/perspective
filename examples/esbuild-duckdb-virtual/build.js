@@ -20,21 +20,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 async function build() {
     await esbuild.build({
-        entryPoints: ["src/index.js"],
-        outdir: "dist",
-        format: "esm",
-        bundle: true,
-        sourcemap: "inline",
-        target: "es2022",
-        loader: {
-            ".ttf": "file",
-            ".wasm": "file",
-        },
-        assetNames: "[name]",
-    });
-
-    await esbuild.build({
-        entryPoints: ["src/worker.js"],
+        entryPoints: ["src/index.ts"],
         outdir: "dist",
         format: "esm",
         bundle: true,

@@ -1034,7 +1034,7 @@ export class PerspectiveWorkspace extends SplitPanel {
 
         for (const client of this.client) {
             const tables = await client.get_hosted_table_names();
-            if (tables.indexOf(table) > -1) {
+            if (table && tables.indexOf(table) > -1) {
                 await viewer.load(client);
                 return await this._createWidget({
                     config,
@@ -1166,7 +1166,7 @@ export class PerspectiveWorkspace extends SplitPanel {
         );
 
         widget.viewer.addEventListener(
-            "perspective-toggle-settings-before",
+            "perspective-toggle-settings",
             settings_after,
         );
 

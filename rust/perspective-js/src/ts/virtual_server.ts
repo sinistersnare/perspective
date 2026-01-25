@@ -10,6 +10,12 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
+import { ColumnType } from "./ts-rs/ColumnType.ts";
+import { ViewConfig } from "./ts-rs/ViewConfig.ts";
+import { ViewWindow } from "./ts-rs/ViewWindow.ts";
+
+import type * as perspective from "../../dist/wasm/perspective-js.js";
+
 /**
  * VirtualServer API for implementing custom data sources in JavaScript/WASM.
  *
@@ -21,62 +27,7 @@
  * - Creating data adapters without copying data into Perspective tables
  *
  * @module virtual_server
- *
- * @example
- * ```typescript
- * import { VirtualServer, VirtualDataSlice } from "@perspective-dev/client";
- *
- * const handler = {
- *   getHostedTables: () => ["my_table"],
- *   tableSchema: (id: string) => ({ id: "integer", name: "string" }),
- *   tableSize: (id: string) => 100,
- *   tableMakeView: (tableId: string, viewId: string, config: any) => {},
- *   tableColumnsSize: (tableId: string, config: any) => 2,
- *   viewSchema: (viewId: string, config?: any) => ({ id: "integer", name: "string" }),
- *   viewSize: (viewId: string) => 100,
- *   viewDelete: (viewId: string) => {},
- *   viewGetData: (viewId: string, config: any, viewport: any, dataSlice: VirtualDataSlice) => {
- *     // Fill dataSlice with data
- *     dataSlice.setIntegerCol("id", 0, 1, null);
- *     dataSlice.setStringCol("name", 0, "Alice", null);
- *   }
- * };
- *
- * const server = new VirtualServer(handler);
- * const response = server.handleRequest(requestBytes);
- * ```
  */
-
-export type ColumnType =
-    | "integer"
-    | "float"
-    | "string"
-    | "boolean"
-    | "date"
-    | "datetime";
-
-export interface HostedTable {
-    name: string;
-    index?: string | null;
-    limit?: number | null;
-}
-
-export interface ViewPort {
-    start_row?: number;
-    end_row?: number;
-    start_col?: number;
-    end_col?: number;
-}
-
-export interface ViewConfig {
-    columns?: string[];
-    aggregates?: Record<string, string>;
-    group_by?: string[];
-    split_by?: string[];
-    sort?: Array<[string, string]>;
-    filter?: any[];
-    expressions?: Record<string, string>;
-}
 
 export interface ServerFeatures {
     expressions?: boolean;
@@ -88,50 +39,79 @@ export interface ServerFeatures {
  * All methods will be called by the VirtualServer when handling protocol
  * messages from Perspective clients. Methods can return values directly or
  * return Promises for asynchronous operations (e.g., database queries).
- *
- * @example
- * ```typescript
- * // Synchronous handler
- * const syncHandler: VirtualServerHandler = {
- *   getHostedTables: () => ["my_table"],
- *   tableSchema: (id) => ({ id: "integer", name: "string" }),
- *   tableSize: (id) => 100,
- *   // ... implement other required methods
- * };
- *
- * // Asynchronous handler (e.g., DuckDB WASM)
- * const asyncHandler: VirtualServerHandler = {
- *   getHostedTables: async () => ["my_table"],
- *   tableSchema: async (id) => {
- *     const result = await db.query(`DESCRIBE ${id}`);
- *     return { id: "integer", name: "string" };
- *   },
- *   tableSize: async (id) => {
- *     const result = await db.query(`SELECT COUNT(*) FROM ${id}`);
- *     return result[0][0];
- *   },
- *   // ... implement other required methods
- * };
- * ```
  */
 export interface VirtualServerHandler {
-    getHostedTables(): (string | HostedTable)[] | Promise<(string | HostedTable)[]>;
-    tableSchema(tableId: string): Record<string, ColumnType> | Promise<Record<string, ColumnType>>;
+    getHostedTables(): string[] | Promise<string[]>;
+    tableSchema(
+        tableId: string,
+    ): Record<string, ColumnType> | Promise<Record<string, ColumnType>>;
     tableSize(tableId: string): number | Promise<number>;
-    tableMakeView(tableId: string, viewId: string, config: ViewConfig): void | Promise<void>;
-    tableColumnsSize(tableId: string, config: ViewConfig): number | Promise<number>;
-    viewSchema(viewId: string, config?: ViewConfig): Record<string, ColumnType> | Promise<Record<string, ColumnType>>;
-    viewSize(viewId: string): number | Promise<number>;
+    tableMakeView(
+        tableId: string,
+        viewId: string,
+        config: ViewConfig,
+    ): void | Promise<void>;
     viewDelete(viewId: string): void | Promise<void>;
     viewGetData(
         viewId: string,
         config: ViewConfig,
-        viewport: ViewPort,
-        dataSlice: any, // Use 'any' here to avoid circular reference
+        viewport: ViewWindow,
+        dataSlice: perspective.JsVirtualDataSlice,
     ): void | Promise<void>;
-    tableValidateExpression?(tableId: string, expression: string): ColumnType | Promise<ColumnType>;
+    viewSchema?(
+        viewId: string,
+        config?: ViewConfig,
+    ): Record<string, ColumnType> | Promise<Record<string, ColumnType>>;
+    viewSize?(viewId: string): number | Promise<number>;
+    tableValidateExpression?(
+        tableId: string,
+        expression: string,
+    ): ColumnType | Promise<ColumnType>;
     getFeatures?(): ServerFeatures | Promise<ServerFeatures>;
-    makeTable?(tableId: string, data: string | Uint8Array): void | Promise<void>;
+    makeTable?(
+        tableId: string,
+        data: string | Uint8Array,
+    ): void | Promise<void>;
+}
+
+export function createMessageHandler(
+    mod: typeof perspective,
+    handler: VirtualServerHandler,
+) {
+    let virtualServer: perspective.JsVirtualServer;
+    async function postMessage(port: MessagePort, msg: MessageEvent) {
+        if (msg.data.cmd === "init") {
+            try {
+                virtualServer = new mod.JsVirtualServer(handler);
+                if (msg.data.id !== undefined) {
+                    port.postMessage({ id: msg.data.id });
+                } else {
+                    port.postMessage(null);
+                }
+            } catch (error) {
+                console.error("Error initializing worker:", error);
+                throw error;
+            }
+        } else {
+            try {
+                const requestBytes = new Uint8Array(msg.data);
+                const responseBytes =
+                    await virtualServer.handleRequest(requestBytes);
+                const buffer = responseBytes.slice().buffer;
+                port.postMessage(buffer, { transfer: [buffer] });
+            } catch (error) {
+                console.error("Error handling request in worker:", error);
+                throw error;
+            }
+        }
+    }
+
+    const channel = new MessageChannel();
+    channel.port1.onmessage = (message) => {
+        postMessage(channel.port1, message);
+    };
+
+    return channel.port2;
 }
 
 /**

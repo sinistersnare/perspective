@@ -16,8 +16,8 @@ use std::sync::{Arc, Mutex};
 use chrono::{DateTime, TimeZone, Utc};
 use indexmap::IndexMap;
 use perspective_client::proto::{ColumnType, HostedTable};
-use perspective_server_virtual::{
-    Features, MaybeSendFuture, ResultExt, VirtualDataSlice, VirtualServer, VirtualServerHandler,
+use perspective_client::virtual_server::{
+    Features, ResultExt, VirtualDataSlice, VirtualServer, VirtualServerFuture, VirtualServerHandler,
 };
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{
@@ -31,7 +31,7 @@ pub struct PyServerHandler(Py<PyAny>);
 impl VirtualServerHandler for PyServerHandler {
     type Error = PyErr;
 
-    fn get_features(&self) -> MaybeSendFuture<'_, Result<Features<'_>, Self::Error>> {
+    fn get_features(&self) -> VirtualServerFuture<'_, Result<Features<'_>, Self::Error>> {
         let handler = Python::with_gil(|py| self.0.clone_ref(py));
         Box::pin(async move {
             Python::with_gil(|py| {
@@ -49,7 +49,7 @@ impl VirtualServerHandler for PyServerHandler {
         })
     }
 
-    fn get_hosted_tables(&self) -> MaybeSendFuture<'_, Result<Vec<HostedTable>, Self::Error>> {
+    fn get_hosted_tables(&self) -> VirtualServerFuture<'_, Result<Vec<HostedTable>, Self::Error>> {
         let handler = Python::with_gil(|py| self.0.clone_ref(py));
         Box::pin(async move {
             Python::with_gil(|py| {
@@ -80,7 +80,7 @@ impl VirtualServerHandler for PyServerHandler {
     fn table_schema(
         &self,
         table_id: &str,
-    ) -> MaybeSendFuture<'_, Result<IndexMap<String, ColumnType>, Self::Error>> {
+    ) -> VirtualServerFuture<'_, Result<IndexMap<String, ColumnType>, Self::Error>> {
         let handler = Python::with_gil(|py| self.0.clone_ref(py));
         let table_id = table_id.to_string();
         Box::pin(async move {
@@ -97,7 +97,7 @@ impl VirtualServerHandler for PyServerHandler {
         })
     }
 
-    fn table_size(&self, table_id: &str) -> MaybeSendFuture<'_, Result<u32, Self::Error>> {
+    fn table_size(&self, table_id: &str) -> VirtualServerFuture<'_, Result<u32, Self::Error>> {
         let handler = Python::with_gil(|py| self.0.clone_ref(py));
         let table_id = table_id.to_string();
         Box::pin(async move {
@@ -109,11 +109,33 @@ impl VirtualServerHandler for PyServerHandler {
         })
     }
 
+    fn table_column_size(
+        &self,
+        table_id: &str,
+    ) -> VirtualServerFuture<'_, Result<u32, Self::Error>> {
+        let handler = Python::with_gil(|py| self.0.clone_ref(py));
+        let table_id = table_id.to_string();
+
+        Box::pin(async move {
+            let has_table_column_size =
+                Python::with_gil(|py| handler.getattr(py, "table_column_size").is_ok());
+            if has_table_column_size {
+                Python::with_gil(|py| {
+                    handler
+                        .call_method1(py, pyo3::intern!(py, "table_column_size"), (&table_id,))?
+                        .extract::<u32>(py)
+                })
+            } else {
+                Ok(self.table_schema(&table_id).await?.len() as u32)
+            }
+        })
+    }
+
     fn table_validate_expression(
         &self,
         table_id: &str,
         expression: &str,
-    ) -> MaybeSendFuture<'_, Result<ColumnType, Self::Error>> {
+    ) -> VirtualServerFuture<'_, Result<ColumnType, Self::Error>> {
         let handler = Python::with_gil(|py| self.0.clone_ref(py));
         let table_id = table_id.to_string();
         let expression = expression.to_string();
@@ -139,7 +161,7 @@ impl VirtualServerHandler for PyServerHandler {
         table_id: &str,
         view_id: &str,
         config: &mut perspective_client::config::ViewConfigUpdate,
-    ) -> MaybeSendFuture<'_, Result<String, Self::Error>> {
+    ) -> VirtualServerFuture<'_, Result<String, Self::Error>> {
         let handler = Python::with_gil(|py| self.0.clone_ref(py));
         let table_id = table_id.to_string();
         let view_id = view_id.to_string();
@@ -159,32 +181,11 @@ impl VirtualServerHandler for PyServerHandler {
         })
     }
 
-    fn table_columns_size(
-        &self,
-        view_id: &str,
-        config: &perspective_client::config::ViewConfig,
-    ) -> MaybeSendFuture<'_, Result<u32, Self::Error>> {
-        let handler = Python::with_gil(|py| self.0.clone_ref(py));
-        let view_id = view_id.to_string();
-        let config = config.clone();
-        Box::pin(async move {
-            Python::with_gil(|py| {
-                handler
-                    .call_method1(
-                        py,
-                        pyo3::intern!(py, "table_columns_size"),
-                        (&view_id, pythonize::pythonize(py, &config)?).into_pyobject(py)?,
-                    )?
-                    .extract::<u32>(py)
-            })
-        })
-    }
-
     fn view_schema(
         &self,
         view_id: &str,
         config: &perspective_client::config::ViewConfig,
-    ) -> MaybeSendFuture<'_, Result<IndexMap<String, ColumnType>, Self::Error>> {
+    ) -> VirtualServerFuture<'_, Result<IndexMap<String, ColumnType>, Self::Error>> {
         let handler = Python::with_gil(|py| self.0.clone_ref(py));
         let view_id = view_id.to_string();
         let config = config.clone();
@@ -198,7 +199,15 @@ impl VirtualServerHandler for PyServerHandler {
                 };
 
                 Ok(handler
-                    .call_method1(py, pyo3::intern!(py, "view_schema"), args)?
+                    .call_method1(
+                        py,
+                        if has_view_schema {
+                            pyo3::intern!(py, "view_schema")
+                        } else {
+                            pyo3::intern!(py, "table_schema")
+                        },
+                        args,
+                    )?
                     .downcast_bound::<PyDict>(py)?
                     .items()
                     .extract::<Vec<(String, String)>>()?
@@ -209,7 +218,7 @@ impl VirtualServerHandler for PyServerHandler {
         })
     }
 
-    fn view_size(&self, view_id: &str) -> MaybeSendFuture<'_, Result<u32, Self::Error>> {
+    fn view_size(&self, view_id: &str) -> VirtualServerFuture<'_, Result<u32, Self::Error>> {
         let handler = Python::with_gil(|py| self.0.clone_ref(py));
         let view_id = view_id.to_string();
         Box::pin(async move {
@@ -221,7 +230,34 @@ impl VirtualServerHandler for PyServerHandler {
         })
     }
 
-    fn view_delete(&self, view_id: &str) -> MaybeSendFuture<'_, Result<(), Self::Error>> {
+    fn view_column_size(
+        &self,
+        view_id: &str,
+        config: &perspective_client::config::ViewConfig,
+    ) -> VirtualServerFuture<'_, Result<u32, Self::Error>> {
+        let handler = Python::with_gil(|py| self.0.clone_ref(py));
+        let view_id = view_id.to_string();
+        let config = config.clone();
+        Box::pin(async move {
+            let has_table_column_size =
+                Python::with_gil(|py| handler.getattr(py, "view_column_size").is_ok());
+            if has_table_column_size {
+                Python::with_gil(|py| {
+                    handler
+                        .call_method1(
+                            py,
+                            pyo3::intern!(py, "view_column_size"),
+                            (&view_id, pythonize::pythonize(py, &config)?).into_pyobject(py)?,
+                        )?
+                        .extract::<u32>(py)
+                })
+            } else {
+                Ok(self.view_schema(&view_id, &config).await?.len() as u32)
+            }
+        })
+    }
+
+    fn view_delete(&self, view_id: &str) -> VirtualServerFuture<'_, Result<(), Self::Error>> {
         let handler = Python::with_gil(|py| self.0.clone_ref(py));
         let view_id = view_id.to_string();
         Box::pin(async move {
@@ -237,7 +273,7 @@ impl VirtualServerHandler for PyServerHandler {
         view_id: &str,
         config: &perspective_client::config::ViewConfig,
         viewport: &perspective_client::proto::ViewPort,
-    ) -> MaybeSendFuture<'_, Result<VirtualDataSlice, Self::Error>> {
+    ) -> VirtualServerFuture<'_, Result<VirtualDataSlice, Self::Error>> {
         let handler = Python::with_gil(|py| self.0.clone_ref(py));
         let view_id = view_id.to_string();
         let config = config.clone();

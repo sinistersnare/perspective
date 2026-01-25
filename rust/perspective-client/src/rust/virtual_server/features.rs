@@ -20,7 +20,8 @@ use crate::proto::{ColumnType, GetFeaturesResp};
 
 /// Describes the capabilities supported by a virtual server handler.
 ///
-/// This struct is returned by [`VirtualServerHandler::get_features`](super::VirtualServerHandler::get_features)
+/// This struct is returned by
+/// [`VirtualServerHandler::get_features`](super::VirtualServerHandler::get_features)
 /// to inform clients about which operations are available.
 #[derive(Debug, Default, Deserialize)]
 pub struct Features<'a> {

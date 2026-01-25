@@ -1,4 +1,5 @@
 <br />
+
 <a href="https://perspective-dev.github.io">
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="https://github.com/perspective-dev/perspective/raw/master/docs/static/svg/perspective-logo-dark.svg?raw=true">
@@ -14,27 +15,33 @@
 
 <br/>
 
-Perspective is an <i>interactive</i> analytics and data visualization component,
-which is especially well-suited for <i>large</i> and/or <i>streaming</i>
-datasets. Use it to create user-configurable reports, dashboards, notebooks and
-applications.
+Perspective is an interactive analytics and data visualization component for
+large and streaming datasets. Build user-configurable reports, dashboards,
+notebooks, and applications with a high-performance query engine compiled to
+WebAssembly, Python, and Rust.
 
 ### Features
 
-- A fast, memory efficient streaming query engine, written in C++ and compiled
-  for [WebAssembly](https://webassembly.org/), [Python](https://www.python.org/)
-  and [Rust](https://www.rust-lang.org/), with read/write/streaming for
-  [Apache Arrow](https://arrow.apache.org/), and a high-performance columnar
-  expression language based on [ExprTK](https://github.com/ArashPartow/exprtk).
-
-- A framework-agnostic User Interface packaged as a
+- A framework-agnostic user interface packaged as a
   [Custom Element](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements),
-  powered either in-browser via WebAssembly or virtually via WebSocket server
-  (Python/Node/Rust).
+  which connects to a Data Model in-browser (via WebAssembly) or remotely (via
+  WebSocket, with integration in Python, Node.js and Rust). Includes a data
+  grid, 10+ chart types line, bar, area, scatter, heatmap, treemap, sunburst,
+  candlestick, and more.
 
-- A [JupyterLab](https://jupyter.org/) widget and Python client library, for
-  interactive data analysis in a notebook, as well as _scalable_ production
-  applications.
+- A Data Model API for pluggable engines, enabling Perspective's UI to query
+  external data sources like [DuckDB](https://duckdb.org/) while translating
+  view configurations into native queries.
+
+- A fast, memory-efficient streaming Data Model built-in, written in C++ and
+  compiled for [WebAssembly](https://webassembly.org/),
+  [Python](https://www.python.org/), and [Rust](https://www.rust-lang.org/).
+  Supports read/write/streaming for [Apache Arrow](https://arrow.apache.org/),
+  with a columnar expression language based on
+  [ExprTK](https://github.com/ArashPartow/exprtk).
+
+- A [JupyterLab](https://jupyter.org/) widget and Python client library for
+  interactive data analysis in notebooks.
 
 ### Documentation
 
@@ -62,7 +69,7 @@ applications.
 ### Examples
 
 <!-- Examples -->
-<table><tbody><tr><td>editable</td><td>file</td><td>fractal</td></tr><tr><td><a href="https://perspective-dev.github.io/block?example=editable"><img height="125" src="https://perspective-dev.github.io/blocks/editable/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=file"><img height="125" src="https://perspective-dev.github.io/blocks/file/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=fractal"><img height="125" src="https://perspective-dev.github.io/blocks/fractal/preview.png?"></img></a></td></tr><tr><td>market</td><td>raycasting</td><td>evictions</td></tr><tr><td><a href="https://perspective-dev.github.io/block?example=market"><img height="125" src="https://perspective-dev.github.io/blocks/market/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=raycasting"><img height="125" src="https://perspective-dev.github.io/blocks/raycasting/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=evictions"><img height="125" src="https://perspective-dev.github.io/blocks/evictions/preview.png?"></img></a></td></tr><tr><td>nypd</td><td>streaming</td><td>covid</td></tr><tr><td><a href="https://perspective-dev.github.io/block?example=nypd"><img height="125" src="https://perspective-dev.github.io/blocks/nypd/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=streaming"><img height="125" src="https://perspective-dev.github.io/blocks/streaming/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=covid"><img height="125" src="https://perspective-dev.github.io/blocks/covid/preview.png?"></img></a></td></tr><tr><td>webcam</td><td>movies</td><td>superstore</td></tr><tr><td><a href="https://perspective-dev.github.io/block?example=webcam"><img height="125" src="https://perspective-dev.github.io/blocks/webcam/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=movies"><img height="125" src="https://perspective-dev.github.io/blocks/movies/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=superstore"><img height="125" src="https://perspective-dev.github.io/blocks/superstore/preview.png?"></img></a></td></tr><tr><td>citibike</td><td>olympics</td><td>dataset</td></tr><tr><td><a href="https://perspective-dev.github.io/block?example=citibike"><img height="125" src="https://perspective-dev.github.io/blocks/citibike/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=olympics"><img height="125" src="https://perspective-dev.github.io/blocks/olympics/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=dataset"><img height="125" src="https://perspective-dev.github.io/blocks/dataset/preview.png?"></img></a></td></tr></tbody></table>
+<table><tbody><tr><td>editable</td><td>file</td><td>duckdb</td></tr><tr><td><a href="https://perspective-dev.github.io/block?example=editable"><img height="125" src="https://perspective-dev.github.io/blocks/editable/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=file"><img height="125" src="https://perspective-dev.github.io/blocks/file/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=duckdb"><img height="125" src="https://perspective-dev.github.io/blocks/duckdb/preview.png?"></img></a></td></tr><tr><td>fractal</td><td>market</td><td>raycasting</td></tr><tr><td><a href="https://perspective-dev.github.io/block?example=fractal"><img height="125" src="https://perspective-dev.github.io/blocks/fractal/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=market"><img height="125" src="https://perspective-dev.github.io/blocks/market/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=raycasting"><img height="125" src="https://perspective-dev.github.io/blocks/raycasting/preview.png?"></img></a></td></tr><tr><td>evictions</td><td>nypd</td><td>streaming</td></tr><tr><td><a href="https://perspective-dev.github.io/block?example=evictions"><img height="125" src="https://perspective-dev.github.io/blocks/evictions/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=nypd"><img height="125" src="https://perspective-dev.github.io/blocks/nypd/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=streaming"><img height="125" src="https://perspective-dev.github.io/blocks/streaming/preview.png?"></img></a></td></tr><tr><td>covid</td><td>webcam</td><td>movies</td></tr><tr><td><a href="https://perspective-dev.github.io/block?example=covid"><img height="125" src="https://perspective-dev.github.io/blocks/covid/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=webcam"><img height="125" src="https://perspective-dev.github.io/blocks/webcam/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=movies"><img height="125" src="https://perspective-dev.github.io/blocks/movies/preview.png?"></img></a></td></tr><tr><td>superstore</td><td>citibike</td><td>olympics</td></tr><tr><td><a href="https://perspective-dev.github.io/block?example=superstore"><img height="125" src="https://perspective-dev.github.io/blocks/superstore/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=citibike"><img height="125" src="https://perspective-dev.github.io/blocks/citibike/preview.png?"></img></a></td><td><a href="https://perspective-dev.github.io/block?example=olympics"><img height="125" src="https://perspective-dev.github.io/blocks/olympics/preview.png?"></img></a></td></tr><tr><td>dataset</td></tr><tr><td><a href="https://perspective-dev.github.io/block?example=dataset"><img height="125" src="https://perspective-dev.github.io/blocks/dataset/preview.png?"></img></a></td></tr></tbody></table>
 <!-- Examples -->
 
 ### Media

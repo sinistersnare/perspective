@@ -10,13 +10,7 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-/**
- * Example of using VirtualServer in a Web Worker
- *
- * This demonstrates how to create a custom data source using the VirtualServer API
- * running client-side in a Web Worker. The VirtualServer implementation is in worker.js,
- * and this server simply serves the static files.
- */
+// This is just a file server, the implementation is in `src/index.js`.
 
 import http from "http";
 import { fileURLToPath } from "url";
@@ -32,5 +26,4 @@ const httpServer = http.createServer((req, res) =>
 
 httpServer.listen(8080, () => {
     console.log("Server listening on http://localhost:8080");
-    console.log("Open your browser to see the VirtualServer running in a Web Worker!");
 });

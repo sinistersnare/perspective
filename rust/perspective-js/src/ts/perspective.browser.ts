@@ -11,14 +11,22 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 export type * from "../../dist/wasm/perspective-js.d.ts";
-export * from "./virtual_server.ts";
 import type * as psp from "../../dist/wasm/perspective-js.d.ts";
+export type * from "./virtual_server.ts";
+
+import * as psp_virtual from "./virtual_server.ts";
 
 import * as wasm_module from "../../dist/wasm/perspective-js.js";
 import * as api from "./wasm/browser.ts";
 import { load_wasm_stage_0 } from "./wasm/decompress.ts";
 
 let GLOBAL_SERVER_WASM: Promise<ArrayBuffer | WebAssembly.Module>;
+
+export async function createMessageHandler(
+    handler: psp_virtual.VirtualServerHandler,
+) {
+    return psp_virtual.createMessageHandler(await get_client(), handler);
+}
 
 export function init_server(
     wasm:
@@ -121,7 +129,7 @@ export async function websocket(url: string | URL) {
 }
 
 export async function worker(
-    worker?: Promise<SharedWorker | ServiceWorker | Worker>,
+    worker?: Promise<SharedWorker | ServiceWorker | Worker | MessagePort>,
 ) {
     if (typeof worker === "undefined") {
         worker = get_worker();
@@ -130,4 +138,10 @@ export async function worker(
     return await api.worker(get_client(), get_server(), worker);
 }
 
-export default { websocket, worker, init_client, init_server };
+export default {
+    websocket,
+    worker,
+    init_client,
+    init_server,
+    createMessageHandler,
+};

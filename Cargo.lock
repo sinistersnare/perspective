@@ -1787,11 +1787,13 @@ name = "perspective-js"
 version = "4.0.1"
 dependencies = [
  "anyhow",
+ "bytes",
  "chrono",
  "derivative",
  "extend",
  "futures",
  "getrandom 0.2.16",
+ "indexmap 2.12.1",
  "js-sys",
  "perspective-client",
  "prost",
@@ -1872,6 +1874,7 @@ dependencies = [
  "async-lock",
  "base64 0.13.1",
  "chrono",
+ "console_error_panic_hook",
  "derivative",
  "extend",
  "futures",

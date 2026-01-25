@@ -20,35 +20,45 @@ import { compile_perspective } from "./wasm/emscripten_api.ts";
 let GLOBAL_SERVER: PerspectiveServer;
 let POLL_THREAD: PerspectivePollThread;
 
-function bindPort(e: MessageEvent) {
-    const port = e.ports[0];
-    let session: PerspectiveSession;
-    port.addEventListener("message", async (msg) => {
-        if (msg.data.cmd === "init") {
-            const id = msg.data.id;
-            if (!GLOBAL_SERVER) {
-                const module = await compile_perspective(msg.data.args[0]);
-                GLOBAL_SERVER = new PerspectiveServer(module, {
-                    on_poll_request: () => POLL_THREAD.on_poll_request(),
-                });
+let SESSION: PerspectiveSession | undefined;
 
-                POLL_THREAD = new PerspectivePollThread(GLOBAL_SERVER);
-            }
+async function handleMessage(this: MessagePort, msg: MessageEvent) {
+    if (msg.data.cmd === "init") {
+        const id = msg.data.id;
+        if (!GLOBAL_SERVER) {
+            const module = await compile_perspective(msg.data.args[0]);
 
-            session = GLOBAL_SERVER.make_session(async (resp) => {
-                const f = resp.slice().buffer;
-                port.postMessage(f, { transfer: [f] });
+            GLOBAL_SERVER = new PerspectiveServer(module, {
+                on_poll_request: () => POLL_THREAD.on_poll_request(),
             });
 
-            port.postMessage({ id });
-        } else {
-            await session.handle_request(new Uint8Array(msg.data));
+            POLL_THREAD = new PerspectivePollThread(GLOBAL_SERVER);
         }
-    });
 
+        SESSION = GLOBAL_SERVER.make_session(async (resp) => {
+            const f = resp.slice().buffer;
+            this.postMessage(f, { transfer: [f] });
+        });
+
+        this.postMessage({ id });
+    } else {
+        if (SESSION) {
+            await SESSION?.handle_request(new Uint8Array(msg.data));
+        } else {
+            throw new Error("No session");
+        }
+    }
+}
+
+function bindPortSharedWorker(msg: MessageEvent) {
+    const port = msg.ports[0];
+    port.addEventListener("message", handleMessage.bind(port));
     port.start();
 }
 
 // @ts-expect-error wrong scope
-self.addEventListener("connect", bindPort);
-self.addEventListener("message", bindPort);
+self.addEventListener("connect", bindPortSharedWorker);
+self.addEventListener(
+    "message",
+    handleMessage.bind(self as unknown as MessagePort),
+);

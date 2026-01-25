@@ -10,92 +10,71 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-#[cfg(target_arch = "wasm32")]
-use std::cell::{RefCell, UnsafeCell};
+use std::cell::UnsafeCell;
 use std::future::Future;
 use std::pin::Pin;
-#[cfg(target_arch = "wasm32")]
 use std::rc::Rc;
-#[cfg(target_arch = "wasm32")]
 use std::str::FromStr;
-#[cfg(target_arch = "wasm32")]
 use std::sync::{Arc, Mutex};
 
-#[cfg(target_arch = "wasm32")]
 use indexmap::IndexMap;
-#[cfg(target_arch = "wasm32")]
 use js_sys::{Array, Date, Object, Reflect};
-#[cfg(target_arch = "wasm32")]
 use perspective_client::proto::{ColumnType, HostedTable};
-#[cfg(target_arch = "wasm32")]
-use perspective_server_virtual::{
+use perspective_client::virtual_server::{
     Features, ResultExt, VirtualDataSlice, VirtualServer, VirtualServerHandler,
 };
-#[cfg(target_arch = "wasm32")]
 use serde::Serialize;
-#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-#[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::JsFuture;
 
-#[cfg(target_arch = "wasm32")]
-use crate::utils::{ApiError, ApiFuture};
+use crate::utils::{ApiError, ApiFuture, *};
 
 // Conditional type alias matching the trait definition
 #[cfg(target_arch = "wasm32")]
 type HandlerFuture<T> = Pin<Box<dyn Future<Output = T>>>;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[allow(dead_code)]
 type HandlerFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
-#[cfg(target_arch = "wasm32")]
 #[derive(Debug)]
 pub struct JsError(JsValue);
 
-#[cfg(target_arch = "wasm32")]
 impl std::fmt::Display for JsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self.0)
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl std::error::Error for JsError {}
 
-#[cfg(target_arch = "wasm32")]
 impl From<JsValue> for JsError {
     fn from(value: JsValue) -> Self {
         JsError(value)
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl From<JsError> for JsValue {
     fn from(error: JsError) -> Self {
         error.0
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl From<serde_wasm_bindgen::Error> for JsError {
     fn from(error: serde_wasm_bindgen::Error) -> Self {
         JsError(error.into())
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 // SAFETY: In WASM, we're always single-threaded, so JsError can safely be Send
 // + Sync
 unsafe impl Send for JsError {}
-
-#[cfg(target_arch = "wasm32")]
 unsafe impl Sync for JsError {}
 
-#[cfg(target_arch = "wasm32")]
 pub struct JsServerHandler(Object);
 
-#[cfg(target_arch = "wasm32")]
+unsafe impl Send for JsServerHandler {}
+unsafe impl Sync for JsServerHandler {}
+
 impl JsServerHandler {
     fn call_method_js(&self, method: &str, args: &Array) -> Result<JsValue, JsError> {
         let func = Reflect::get(&self.0, &JsValue::from_str(method))?;
@@ -118,7 +97,6 @@ impl JsServerHandler {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl VirtualServerHandler for JsServerHandler {
     type Error = JsError;
 
@@ -223,23 +201,51 @@ impl VirtualServerHandler for JsServerHandler {
         })
     }
 
+    fn table_column_size(&self, view_id: &str) -> HandlerFuture<Result<u32, Self::Error>> {
+        let has_method = Reflect::get(&self.0, &JsValue::from_str("tableColumnsSize"))
+            .map(|val| !val.is_undefined())
+            .unwrap_or(false);
+
+        let handler = self.0.clone();
+        let view_id = view_id.to_string();
+        Box::pin(async move {
+            let this = JsServerHandler(handler);
+            let args = Array::new();
+            args.push(&JsValue::from_str(&view_id));
+            if has_method {
+                let result = this.call_method_js_async("tableColumnsSize", &args).await?;
+                result.as_f64().map(|x| x as u32).ok_or_else(|| {
+                    JsError(JsValue::from_str(
+                        "tableColumnsSize must
+    return a number",
+                    ))
+                })
+            } else {
+                Ok(this.table_schema(view_id.as_str()).await?.len() as u32)
+            }
+        })
+    }
+
     fn table_validate_expression(
         &self,
         table_id: &str,
         expression: &str,
     ) -> HandlerFuture<Result<ColumnType, Self::Error>> {
+        // TODO Cache these inspection calls
         let has_method = Reflect::get(&self.0, &JsValue::from_str("tableValidateExpression"))
             .map(|val| !val.is_undefined())
             .unwrap_or(false);
-
-        if !has_method {
-            return Box::pin(async { Ok(ColumnType::Float) });
-        }
 
         let handler = self.0.clone();
         let table_id = table_id.to_string();
         let expression = expression.to_string();
         Box::pin(async move {
+            if !has_method {
+                return Err(JsError(JsValue::from_str(
+                    "feature `table_validate_expression` not implemented",
+                )));
+            }
+
             let this = JsServerHandler(handler);
             let args = Array::new();
             args.push(&JsValue::from_str(&table_id));
@@ -247,9 +253,11 @@ impl VirtualServerHandler for JsServerHandler {
             let result = this
                 .call_method_js_async("tableValidateExpression", &args)
                 .await?;
+
             let type_str = result
                 .as_string()
                 .ok_or_else(|| JsError(JsValue::from_str("Must return a string")))?;
+
             Ok(ColumnType::from_str(&type_str).unwrap())
         })
     }
@@ -260,85 +268,18 @@ impl VirtualServerHandler for JsServerHandler {
         view_id: &str,
         config: &mut perspective_client::config::ViewConfigUpdate,
     ) -> HandlerFuture<Result<String, Self::Error>> {
-        use js_sys::Object;
-        use js_sys::Reflect;
-
         let handler = self.0.clone();
         let table_id = table_id.to_string();
         let view_id = view_id.to_string();
-
-        // Manually construct the config object to ensure aggregates are properly serialized
-        let config_obj = Object::new();
-
-        // Serialize each field individually
-        if let Some(ref group_by) = config.group_by {
-            Reflect::set(&config_obj, &JsValue::from_str("group_by"), &serde_wasm_bindgen::to_value(group_by).unwrap()).unwrap();
-        }
-
-        if let Some(ref split_by) = config.split_by {
-            Reflect::set(&config_obj, &JsValue::from_str("split_by"), &serde_wasm_bindgen::to_value(split_by).unwrap()).unwrap();
-        }
-
-        if let Some(ref columns) = config.columns {
-            Reflect::set(&config_obj, &JsValue::from_str("columns"), &serde_wasm_bindgen::to_value(columns).unwrap()).unwrap();
-        }
-
-        if let Some(ref filter) = config.filter {
-            Reflect::set(&config_obj, &JsValue::from_str("filter"), &serde_wasm_bindgen::to_value(filter).unwrap()).unwrap();
-        }
-
-        if let Some(ref sort) = config.sort {
-            Reflect::set(&config_obj, &JsValue::from_str("sort"), &serde_wasm_bindgen::to_value(sort).unwrap()).unwrap();
-        }
-
-        if let Some(ref expressions) = config.expressions {
-            Reflect::set(&config_obj, &JsValue::from_str("expressions"), &serde_wasm_bindgen::to_value(&expressions.0).unwrap()).unwrap();
-        }
-
-        // Handle aggregates specially - convert Aggregate enum to simple strings
-        if let Some(ref aggregates) = config.aggregates {
-            let agg_obj = Object::new();
-            for (key, agg) in aggregates.iter() {
-                let agg_str = match agg {
-                    perspective_client::config::Aggregate::SingleAggregate(s) => s.clone(),
-                    perspective_client::config::Aggregate::MultiAggregate(s, _) => s.clone(),
-                };
-                Reflect::set(&agg_obj, &JsValue::from_str(key), &JsValue::from_str(&agg_str)).unwrap();
-            }
-            Reflect::set(&config_obj, &JsValue::from_str("aggregates"), &agg_obj).unwrap();
-        }
-
-        let config_value = config_obj.into();
-
+        let config = config.clone();
         Box::pin(async move {
             let this = JsServerHandler(handler);
             let args = Array::new();
             args.push(&JsValue::from_str(&table_id));
             args.push(&JsValue::from_str(&view_id));
-            args.push(&config_value);
+            args.push(&JsValue::from_serde_ext(&config)?);
             let _ = this.call_method_js_async("tableMakeView", &args).await?;
             Ok(view_id.to_string())
-        })
-    }
-
-    fn table_columns_size(
-        &self,
-        view_id: &str,
-        config: &perspective_client::config::ViewConfig,
-    ) -> HandlerFuture<Result<u32, Self::Error>> {
-        let handler = self.0.clone();
-        let view_id = view_id.to_string();
-        let config_value = serde_wasm_bindgen::to_value(config).unwrap();
-        Box::pin(async move {
-            let this = JsServerHandler(handler);
-            let args = Array::new();
-            args.push(&JsValue::from_str(&view_id));
-            args.push(&config_value);
-            let result = this.call_method_js_async("tableColumnsSize", &args).await?;
-            result
-                .as_f64()
-                .map(|x| x as u32)
-                .ok_or_else(|| JsError(JsValue::from_str("tableColumnsSize must return a number")))
         })
     }
 
@@ -366,7 +307,17 @@ impl VirtualServerHandler for JsServerHandler {
                 args.push(&cv);
             }
 
-            let result = this.call_method_js_async("viewSchema", &args).await?;
+            let result = this
+                .call_method_js_async(
+                    if has_view_schema {
+                        "viewSchema"
+                    } else {
+                        "tableSchema"
+                    },
+                    &args,
+                )
+                .await?;
+
             let obj = result
                 .dyn_ref::<Object>()
                 .ok_or_else(|| JsError(JsValue::from_str("viewSchema must return an object")))?;
@@ -380,6 +331,7 @@ impl VirtualServerHandler for JsServerHandler {
                 let value = entry_array.get(1).as_string().unwrap();
                 schema.insert(key, ColumnType::from_str(&value).unwrap());
             }
+
             Ok(schema)
         })
     }
@@ -387,15 +339,57 @@ impl VirtualServerHandler for JsServerHandler {
     fn view_size(&self, view_id: &str) -> HandlerFuture<Result<u32, Self::Error>> {
         let handler = self.0.clone();
         let view_id = view_id.to_string();
+        let has_view_size =
+            Reflect::get(&self.0, &JsValue::from_str("viewSize")).is_ok_and(|v| !v.is_undefined());
+
         Box::pin(async move {
             let this = JsServerHandler(handler);
             let args = Array::new();
             args.push(&JsValue::from_str(&view_id));
-            let result = this.call_method_js_async("viewSize", &args).await?;
+            let result = this
+                .call_method_js_async(
+                    if has_view_size {
+                        "viewSize"
+                    } else {
+                        "tableSize"
+                    },
+                    &args,
+                )
+                .await?;
+
             result
                 .as_f64()
                 .map(|x| x as u32)
                 .ok_or_else(|| JsError(JsValue::from_str("viewSize must return a number")))
+        })
+    }
+
+    fn view_column_size(
+        &self,
+        view_id: &str,
+        config: &perspective_client::config::ViewConfig,
+    ) -> HandlerFuture<Result<u32, Self::Error>> {
+        let has_method = Reflect::get(&self.0, &JsValue::from_str("viewColumnSize"))
+            .map(|val| !val.is_undefined())
+            .unwrap_or(false);
+
+        let handler = self.0.clone();
+        let view_id = view_id.to_string();
+        let config_value = serde_wasm_bindgen::to_value(config).unwrap();
+        let config = config.clone();
+        Box::pin(async move {
+            let this = JsServerHandler(handler);
+            let args = Array::new();
+            args.push(&JsValue::from_str(&view_id));
+            args.push(&config_value);
+            if has_method {
+                let result = this.call_method_js_async("viewColumnSize", &args).await?;
+                result.as_f64().map(|x| x as u32).ok_or_else(|| {
+                    JsError(JsValue::from_str("viewColumnSize must return a number"))
+                })
+            } else {
+                Ok(this.view_schema(view_id.as_str(), &config).await?.len() as u32)
+            }
         })
     }
 
@@ -510,7 +504,6 @@ impl VirtualServerHandler for JsServerHandler {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 #[derive(Serialize, PartialEq)]
 pub struct JsViewPort {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -526,7 +519,6 @@ pub struct JsViewPort {
     pub end_col: ::core::option::Option<u32>,
 }
 
-#[cfg(target_arch = "wasm32")]
 impl From<perspective_client::proto::ViewPort> for JsViewPort {
     fn from(value: perspective_client::proto::ViewPort) -> Self {
         JsViewPort {
@@ -538,12 +530,10 @@ impl From<perspective_client::proto::ViewPort> for JsViewPort {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct JsVirtualDataSlice(Object, Arc<Mutex<VirtualDataSlice>>);
 
-#[cfg(target_arch = "wasm32")]
 impl Default for JsVirtualDataSlice {
     fn default() -> Self {
         JsVirtualDataSlice(
@@ -553,7 +543,6 @@ impl Default for JsVirtualDataSlice {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 impl JsVirtualDataSlice {
     #[wasm_bindgen(constructor)]
@@ -719,11 +708,9 @@ impl JsVirtualDataSlice {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub struct JsVirtualServer(Rc<UnsafeCell<VirtualServer<JsServerHandler>>>);
 
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 impl JsVirtualServer {
     #[wasm_bindgen(constructor)]

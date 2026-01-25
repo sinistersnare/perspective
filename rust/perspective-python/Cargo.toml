@@ -59,7 +59,6 @@ python-config-rs = "0.1.2"
 [dependencies]
 perspective-client = { version = "4.0.1" }
 perspective-server = { version = "4.0.1" }
-perspective-server-virtual = { version = "4.0.1" }
 bytes = "1.10.1"
 chrono = "0.4"
 macro_rules_attribute = "0.2.0"

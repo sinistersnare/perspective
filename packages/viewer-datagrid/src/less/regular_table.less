@@ -27,22 +27,25 @@
     mask-size: cover;
 }
 
-perspective-viewer:not([settings]) {
-    @include settings-not-open;
-}
+// // TODO this makes the UI flash a CSS layout for a millsiecond when toggling
+// // settings butit could be fixed.
 
-:host-context(perspective-viewer:not([settings])) {
-    @include settings-not-open;
-}
+// perspective-viewer:not([settings]) {
+//     @include settings-not-open;
+// }
 
-@mixin settings-not-open {
-    regular-table table tr.rt-autosize + tr th {
-        height: 0px;
-        span {
-            display: none;
-        }
-    }
-}
+// :host-context(perspective-viewer:not([settings])) {
+//     @include settings-not-open;
+// }
+
+// @mixin settings-not-open {
+//     regular-table table tr.rt-autosize + tr th {
+//         height: 0px;
+//         span {
+//             display: none;
+//         }
+//     }
+// }
 
 @mixin settings-open {
     .psp-menu-enabled {
@@ -89,11 +92,11 @@ perspective-viewer:not([settings]) {
     }
 }
 
-perspective-viewer[settings] {
+perspective-viewer {
     @include settings-open;
 }
 
-:host-context(perspective-viewer[settings]) {
+:host {
     @include settings-open;
 }
 

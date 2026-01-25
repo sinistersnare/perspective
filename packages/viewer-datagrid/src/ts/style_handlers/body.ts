@@ -117,6 +117,8 @@ export function applyBodyCellStyles(
                 "psp-menu-open",
                 column_name === this._column_settings_selected_column,
             );
+        } else {
+            td.classList.toggle("psp-menu-open", false);
         }
 
         td.classList.toggle(

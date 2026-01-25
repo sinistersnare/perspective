@@ -10,12 +10,14 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import perspective_client from "@perspective-dev/client";
-import { VirtualServer } from "@perspective-dev/client";
-import * as duckdb from "@duckdb/duckdb-wasm";
-
-import CLIENT_WASM from "@perspective-dev/client/dist/wasm/perspective-js.wasm";
-import SUPERSTORE_ARROW from "superstore-arrow/superstore.lz4.arrow";
+import type {
+    VirtualDataSlice,
+    VirtualServerHandler,
+} from "@perspective-dev/client";
+import type { ColumnType } from "@perspective-dev/client/dist/esm/ts-rs/ColumnType.d.ts";
+import type { ViewConfig } from "@perspective-dev/client/dist/esm/ts-rs/ViewConfig.d.ts";
+import type { ViewWindow } from "@perspective-dev/client/dist/esm/ts-rs/ViewWindow.d.ts";
+import type * as duckdb from "@duckdb/duckdb-wasm";
 
 const NUMBER_AGGS = [
     "sum",
@@ -65,14 +67,7 @@ const FILTER_OPS = [
     "<",
 ];
 
-let db;
-
-const tableMetadata = {
-    tables: [],
-    schemas: new Map(),
-};
-
-function duckdbTypeToPsp(name) {
+function duckdbTypeToPsp(name: string): ColumnType {
     if (name === "VARCHAR") return "string";
     if (name === "DOUBLE" || name === "BIGINT" || name === "HUGEINT")
         return "float";
@@ -88,7 +83,7 @@ function duckdbTypeToPsp(name) {
     throw new Error(`Unknown type '${name}'`);
 }
 
-function convertDecimalToNumber(value, dtypeString) {
+function convertDecimalToNumber(value: any, dtypeString: string) {
     if (
         value === null ||
         value === undefined ||
@@ -117,13 +112,31 @@ function convertDecimalToNumber(value, dtypeString) {
     }
 }
 
-async function runQuery(query, options = {}) {
+async function runQuery(
+    db: duckdb.AsyncDuckDBConnection,
+    query: string,
+    options: { columns: true },
+): Promise<{
+    rows: any[];
+    columns: string[];
+    dtypes: string[];
+}>;
+
+async function runQuery(
+    db: duckdb.AsyncDuckDBConnection,
+    query: string,
+    options?: { columns: boolean },
+): Promise<any[]>;
+
+async function runQuery(
+    db: duckdb.AsyncDuckDBConnection,
+    query: string,
+    options: { columns?: boolean } = {},
+) {
     query = query.replace(/\s+/g, " ").trim();
-    console.log("Query:", query);
-    /** @type {duckdb.AsyncDuckDBConnection} */
-    const c = await db.connect();
+    // console.log("Query:", query);
     try {
-        const result = await c.query(query);
+        const result = await db.query(query);
         if (options.columns) {
             return {
                 rows: result.toArray(),
@@ -131,17 +144,22 @@ async function runQuery(query, options = {}) {
                 dtypes: result.schema.fields.map((f) => f.type.toString()),
             };
         }
+
         return result.toArray();
     } catch (error) {
         console.error("Query error:", error);
         console.error("Query:", query);
         throw error;
-    } finally {
-        await c.close();
     }
 }
 
-const handler = {
+export class DuckDBHandler implements VirtualServerHandler {
+    private db: duckdb.AsyncDuckDBConnection;
+
+    constructor(db: duckdb.AsyncDuckDBConnection) {
+        this.db = db;
+    }
+
     getFeatures() {
         return {
             group_by: true,
@@ -165,56 +183,55 @@ const handler = {
                 datetime: STRING_AGGS,
             },
         };
-    },
+    }
 
-    getHostedTables() {
-        return tableMetadata.tables;
-    },
+    async getHostedTables() {
+        const results = await runQuery(this.db, "SHOW ALL TABLES");
+        return results.map((row) => row.toJSON().name);
+    }
 
-    async tableSchema(tableId) {
+    async tableSchema(tableId: string) {
         const query = `DESCRIBE ${tableId}`;
-        const results = await runQuery(query);
-        const schema = {};
+        const results = await runQuery(this.db, query);
+        const schema = {} as Record<string, ColumnType>;
         for (const result of results) {
             const res = result.toJSON();
             const colName = res.column_name;
             if (!colName.startsWith("__") || !colName.endsWith("__")) {
-                const cleanName = colName.split("_").slice(-1)[0];
+                const cleanName = colName.split("_").slice(-1)[0] as string;
                 schema[cleanName] = duckdbTypeToPsp(res.column_type);
             }
         }
-        return schema;
-    },
 
-    async tableColumnsSize(tableId, config) {
-        const query = `SELECT COUNT(*) FROM (DESCRIBE ${tableId})`;
-        const results = await runQuery(query);
+        return schema;
+    }
+
+    async viewColumnSize(viewId: string, config: ViewConfig) {
+        const query = `SELECT COUNT(*) FROM (DESCRIBE ${viewId})`;
+        const results = await runQuery(this.db, query);
         const gs = config.group_by?.length || 0;
         const count = Number(Object.values(results[0].toJSON())[0]);
         return (
             count -
             (gs === 0 ? 0 : gs + (config.split_by?.length === 0 ? 1 : 0))
         );
-    },
+    }
 
-    async tableSize(tableId) {
+    async tableSize(tableId: string) {
         const query = `SELECT COUNT(*) FROM ${tableId}`;
-        const results = await runQuery(query);
+        const results = await runQuery(this.db, query);
         return Number(results[0].toJSON()["count_star()"]);
-    },
+    }
 
-    async viewSchema(viewId, config) {
-        return this.tableSchema(viewId);
-    },
+    // async viewSchema(viewId: string, config: ViewConfig) {
+    //     return this.tableSchema(viewId);
+    // }
 
-    async viewSize(viewId) {
-        return this.tableSize(viewId);
-    },
+    // async viewSize(viewId: string) {
+    //     return this.tableSize(viewId);
+    // }
 
-    async tableMakeView(tableId, viewId, config) {
-        console.log(`tableMakeView: ${tableId} -> ${viewId}`, config);
-        console.log(`aggregates:`, JSON.stringify(config.aggregates, null, 2));
-
+    async tableMakeView(tableId: string, viewId: string, config: ViewConfig) {
         const columns = config.columns || [];
         const group_by = config.group_by || [];
         const split_by = config.split_by || [];
@@ -223,19 +240,22 @@ const handler = {
         const expressions = config.expressions || {};
         const filter = config.filter || [];
 
-        const colName = (col) => {
+        const colName = (col: string) => {
             const expr = expressions[col];
             return expr || `"${col}"`;
         };
 
-        const getAggregate = (col) => aggregates[col] || null;
+        const getAggregate = (col: string) => aggregates[col] || null;
 
         const generateSelectClauses = () => {
             const clauses = [];
             if (group_by.length > 0) {
                 for (const col of columns) {
-                    const agg = getAggregate(col) || "any_value";
-                    clauses.push(`${agg}(${colName(col)}) as "${col}"`);
+                    if (col !== null) {
+                        // TODO texodus
+                        const agg = getAggregate(col) || "any_value";
+                        clauses.push(`${agg}(${colName(col)}) as "${col}"`);
+                    }
                 }
 
                 if (split_by.length === 0) {
@@ -250,11 +270,15 @@ const handler = {
                 }
             } else if (columns.length > 0) {
                 for (const col of columns) {
-                    clauses.push(
-                        `${colName(col)} as "${col.replace(/"/g, '""')}"`,
-                    );
+                    if (col !== null) {
+                        // TODO texodus
+                        clauses.push(
+                            `${colName(col)} as "${col.replace(/"/g, '""')}"`,
+                        );
+                    }
                 }
             }
+
             return clauses;
         };
 
@@ -364,24 +388,26 @@ const handler = {
         }
 
         query = `CREATE TABLE ${viewId} AS (${query})`;
-        await runQuery(query);
-    },
+        await runQuery(this.db, query);
+    }
 
-    async tableValidateExpression(tableId, expression) {
+    async tableValidateExpression(tableId: string, expression: string) {
         const query = `DESCRIBE (select ${expression} from ${tableId})`;
-        const results = await runQuery(query);
-        return duckdbTypeToPsp(results[0][1]);
-    },
+        const results = await runQuery(this.db, query);
+        return duckdbTypeToPsp(results[0].toJSON()["column_type"]);
+    }
 
-    async viewDelete(viewId) {
-        console.log(`Deleting view ${viewId}`);
+    async viewDelete(viewId: string) {
         const query = `DROP TABLE IF EXISTS ${viewId}`;
-        await runQuery(query);
-    },
+        await runQuery(this.db, query);
+    }
 
-    async viewGetData(viewId, config, viewport, dataSlice) {
-        console.log(`viewGetData: ${viewId}`, viewport);
-
+    async viewGetData(
+        viewId: string,
+        config: ViewConfig,
+        viewport: ViewWindow,
+        dataSlice: VirtualDataSlice,
+    ) {
         const group_by = config.group_by || [];
         const split_by = config.split_by || [];
         const start_col = viewport.start_col;
@@ -395,7 +421,7 @@ const handler = {
         }
 
         const schemaQuery = `DESCRIBE ${viewId}`;
-        const schemaResults = await runQuery(schemaQuery);
+        const schemaResults = await runQuery(this.db, schemaQuery);
         const columnTypes = new Map();
         for (const result of schemaResults) {
             const res = result.toJSON();
@@ -426,16 +452,9 @@ const handler = {
             FROM ${viewId} ${limit}
         `;
 
-        const { rows, columns, dtypes } = await runQuery(query, {
+        const { rows, columns, dtypes } = await runQuery(this.db, query, {
             columns: true,
         });
-
-        console.log("viewGetData columns:", columns);
-        console.log("viewGetData dtypes:", dtypes);
-        console.log(
-            "viewGetData first 3 rows:",
-            rows.slice(0, 3).map((r) => r.toArray()),
-        );
 
         for (let cidx = 0; cidx < columns.length; cidx++) {
             const col = columns[cidx];
@@ -488,151 +507,5 @@ const handler = {
                 }
             }
         }
-    },
-};
-
-async function initializeDuckDB() {
-    const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
-
-    const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
-
-    const worker_url = URL.createObjectURL(
-        new Blob([`importScripts("${bundle.mainWorker}");`], {
-            type: "text/javascript",
-        }),
-    );
-
-    const worker = new Worker(worker_url);
-    const logger = new duckdb.ConsoleLogger();
-    db = new duckdb.AsyncDuckDB(logger, worker);
-    await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
-    URL.revokeObjectURL(worker_url);
-
-    const c = await db.connect();
-    await c.query(`
-        SET default_null_order=NULLS_FIRST_ON_ASC_LAST_ON_DESC;
-    `);
-    await c.close();
-
-    globalThis.db = db;
-    console.log("DuckDB initialized");
-}
-
-async function loadSampleData() {
-    const c = await db.connect();
-
-    try {
-        const response = await fetch(SUPERSTORE_ARROW);
-        const arrayBuffer = await response.arrayBuffer();
-
-        await c.insertArrowFromIPCStream(new Uint8Array(arrayBuffer), {
-            name: "data_source_one",
-            create: true,
-        });
-
-        const checkResult = await c.query(
-            "SELECT COUNT(*) as cnt FROM data_source_one",
-        );
-        const rowCount = checkResult.toArray()[0].cnt;
-        console.log(`Superstore data loaded from Arrow IPC (${rowCount} rows)`);
-    } catch (error) {
-        console.error("Error loading Arrow data:", error);
-        await c.query(`
-            CREATE TABLE data_source_one AS
-            SELECT * FROM (
-                VALUES
-                    ('Furniture', 'Office Supplies', 'East', 100.0, 10),
-                    ('Technology', 'Electronics', 'West', 200.0, 20),
-                    ('Furniture', 'Chairs', 'East', 150.0, 15),
-                    ('Technology', 'Computers', 'South', 300.0, 30)
-            ) AS t(Category, "Sub-Category", Region, Sales, Quantity)
-        `);
-        console.log("Loaded fallback sample data");
-    } finally {
-        await c.close();
-    }
-
-    await cacheTableMetadata();
-}
-
-async function cacheTableMetadata() {
-    try {
-        console.log("Caching table metadata...");
-
-        const results = await runQuery("SHOW ALL TABLES");
-        console.log("SHOW ALL TABLES results:", results);
-
-        tableMetadata.tables = results.map((row) => row.toJSON().name);
-
-        console.log("Extracted table names:", tableMetadata.tables);
-
-        for (const tableName of tableMetadata.tables) {
-            const query = `DESCRIBE ${tableName}`;
-            const schemaResults = await runQuery(query);
-            const schema = {};
-            for (const result of schemaResults) {
-                const res = result.toJSON();
-                const colName = res.column_name;
-                if (!colName.startsWith("__") || !colName.endsWith("__")) {
-                    const cleanName = colName.split("_").slice(-1)[0];
-                    schema[cleanName] = duckdbTypeToPsp(res.column_type);
-                }
-            }
-            tableMetadata.schemas.set(tableName, schema);
-        }
-
-        console.log("Cached metadata for tables:", tableMetadata.tables);
-        console.log("Full metadata:", tableMetadata);
-    } catch (error) {
-        console.error("Error caching table metadata:", error);
-        throw error;
     }
 }
-
-let virtualServer;
-let port;
-
-function bindPort(e) {
-    port = e.ports ? e.ports[0] : self;
-
-    port.addEventListener("message", async (msg) => {
-        if (msg.data.cmd === "init") {
-            try {
-                await initializeDuckDB();
-                await perspective_client.init_client(fetch(CLIENT_WASM));
-                await loadSampleData();
-
-                virtualServer = new VirtualServer(handler);
-
-                console.log("VirtualServer initialized");
-
-                if (msg.data.id !== undefined) {
-                    port.postMessage({ id: msg.data.id });
-                } else {
-                    port.postMessage(null);
-                }
-            } catch (error) {
-                console.error("Error initializing worker:", error);
-                throw error;
-            }
-        } else {
-            try {
-                const requestBytes = new Uint8Array(msg.data);
-                const responseBytes =
-                    await virtualServer.handleRequest(requestBytes);
-                const buffer = responseBytes.slice().buffer;
-                port.postMessage(buffer, { transfer: [buffer] });
-            } catch (error) {
-                console.error("Error handling request in worker:", error);
-                throw error;
-            }
-        }
-    });
-
-    if (port !== self) {
-        port.start();
-    }
-}
-
-self.addEventListener("connect", bindPort);
-self.addEventListener("message", bindPort);

@@ -15,22 +15,6 @@ import { test, expect } from "@playwright/experimental-ct-react";
 import { App } from "./basic.story";
 import { EmptyWorkspace, SingleView } from "./workspace.story";
 
-async function retryUntilSuccess(
-    fn: () => Promise<boolean>,
-    { maxAttempts = 5, delay = 1000 } = {},
-): Promise<boolean> {
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-            const r = await fn();
-            if (r) {
-                return true;
-            }
-        } catch {}
-        await new Promise((r) => setTimeout(r, delay));
-    }
-    return false;
-}
-
 test.describe("Perspective React", () => {
     test("The viewer loads with data in it", async ({ page, mount }) => {
         const comp = await mount(<App></App>);
@@ -57,6 +41,7 @@ test.describe("Perspective React", () => {
                 document.querySelector("perspective-workspace")!.children
                     .length === 3,
         );
+
         await expect(viewer).toHaveCount(3);
         await toggleMount.click();
         await workspace.waitFor({ state: "detached" });
