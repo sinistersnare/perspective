@@ -61,11 +61,10 @@ const WorkspaceApp: React.FC<WorkspaceAppProps> = (props) => {
         mounted: true,
     });
 
-    const onClickAddViewer = async () => {
+    const onClickAddViewer = () => {
         const name = window.crypto.randomUUID();
         const data = `a,b,c\n${Math.random()},${Math.random()},${Math.random()}`;
-        const t = await CLIENT.table(data, { name });
-        console.log(await t.get_name());
+        CLIENT.table(data, { name });
         const nextId = Workspace.genId(state.layout);
         const layout = Workspace.addViewer(
             state.layout,

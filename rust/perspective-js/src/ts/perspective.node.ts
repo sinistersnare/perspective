@@ -11,6 +11,7 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 export type * from "../../dist/wasm/perspective-js.d.ts";
+export type * from "./virtual_server.ts";
 
 import WebSocket, { WebSocketServer as HttpWebSocketServer } from "ws";
 import stoppable from "stoppable";
@@ -27,6 +28,9 @@ import { load_wasm_stage_0 } from "./wasm/decompress.js";
 import * as engine from "./wasm/engine.ts";
 import { compile_perspective } from "./wasm/emscripten_api.ts";
 import * as psp_websocket from "./websocket.ts";
+import * as api from "./wasm/browser.ts";
+
+import * as virtual_server from "./virtual_server.ts";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
@@ -177,17 +181,6 @@ function buffer_to_arraybuffer(
     }
 }
 
-function invert_promise<T>(): [(t: T) => void, Promise<T>, (t: any) => void] {
-    let sender: ((t: T) => void) | undefined = undefined,
-        reject = undefined;
-    let receiver: Promise<T> = new Promise((x, u) => {
-        sender = x;
-        reject = u;
-    });
-
-    return [sender!, receiver, reject!];
-}
-
 export class WebSocketServer {
     _server: http.Server | any; // stoppable has no type ...
     _wss: HttpWebSocketServer;
@@ -303,9 +296,51 @@ export async function websocket(
     );
 }
 
+export async function worker(worker: Promise<MessagePort>) {
+    const port = await worker;
+    const client = new perspective_client.Client(
+        async (proto: Uint8Array) => {
+            const f = proto.slice().buffer;
+            port.postMessage(f, { transfer: [f] });
+        },
+        async () => {
+            console.debug("Closing WebWorker");
+            port.close();
+        },
+    );
+
+    const { promise, resolve, reject } = Promise.withResolvers();
+    port.onmessage = function listener(resp) {
+        port.onmessage = null;
+        resolve(null);
+    };
+
+    port.onmessageerror = function (...args) {
+        port.onmessage = null;
+        console.error(...args);
+        reject(args);
+    };
+
+    port.postMessage({ cmd: "init", args: [] });
+    await promise;
+    port.addEventListener("message", (json: MessageEvent<Uint8Array>) => {
+        client.handle_response(json.data);
+    });
+
+    console.log(client);
+    return client;
+}
+
+export function createMessageHandler(
+    handler: virtual_server.VirtualServerHandler,
+) {
+    return virtual_server.createMessageHandler(perspective_client, handler);
+}
+
 export default {
     table,
     websocket,
+    worker,
     get_hosted_table_names,
     on_hosted_tables_update,
     remove_hosted_tables_update,

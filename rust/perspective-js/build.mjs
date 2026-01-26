@@ -71,6 +71,13 @@ const BUILD = [
     //     "Bundler friendly": true,
     // },
     {
+        entryPoints: ["src/ts/virtual_servers/duckdb.ts"],
+        format: "esm",
+        target: "es2022",
+        plugins: [PerspectiveEsbuildPlugin()],
+        outfile: "dist/esm/virtual_servers/duckdb.js",
+    },
+    {
         entryPoints: ["src/ts/perspective.browser.ts"],
         format: "esm",
         target: "es2022",
@@ -133,6 +140,7 @@ async function build_all() {
     try {
         await $`tsc --project ./tsconfig.browser.json`;
         await $`tsc --project ./tsconfig.node.json`;
+        // await $`tsc --project ./tsconfig.duckdb.json`;
     } catch (e) {
         console.error(e.stdout);
         console.error(e.stderr);

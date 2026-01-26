@@ -57,6 +57,8 @@ async-lock = "2.5.0"
 # Encode HTML export
 base64 = "0.13.0"
 
+console_error_panic_hook = "0.1.6"
+
 # Timezone correction
 chrono = "0.4"
 

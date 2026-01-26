@@ -12,6 +12,13 @@ In order to _run_ a project in this directory as written:
 2. Run the project with `pnpm run start $PROJECT_NAME` from the repository root
    (_not_ the `/examples` directory).
 
+## VirtualServer Examples
+
+These examples demonstrate custom data source implementations using the VirtualServer API, which allows you to create backends that serve data from any source without loading it into Perspective's tables:
+
+- **[nodejs-virtual-server](nodejs-virtual-server/)** - Node.js example with in-memory data and WebSocket server
+- **[python-duckdb-virtual](python-duckdb-virtual/)** - Python example using DuckDB as a data source
+
 # Optional
 
 Generally, the changes necessary to make these examples run _without_ the

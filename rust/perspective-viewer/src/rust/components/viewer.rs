@@ -470,6 +470,7 @@ impl PerspectiveViewer {
         sender: Option<Sender<ApiResult<JsValue>>>,
     ) {
         let is_open = ctx.props().presentation.is_settings_open();
+        ctx.props().presentation.set_settings_before_open(!is_open);
         match force {
             Some(force) if is_open == force => {
                 if let Some(sender) = sender {
@@ -477,7 +478,6 @@ impl PerspectiveViewer {
                 }
             },
             Some(_) | None => {
-                ctx.props().presentation.set_settings_before_open(!is_open);
                 let force = !is_open;
                 let callback = ctx.link().callback(move |resolve| {
                     let update = SettingsUpdate::Update(force);
@@ -495,13 +495,17 @@ impl PerspectiveViewer {
                         renderer
                             .presize(force, {
                                 let (sender, receiver) = channel::<()>();
-                                callback.emit(sender);
-                                async move { Ok(receiver.await?) }
+                                async move {
+                                    callback.emit(sender);
+                                    presentation.set_settings_open(!is_open);
+                                    Ok(receiver.await?)
+                                }
                             })
                             .await
                     } else {
                         let (sender, receiver) = channel::<()>();
                         callback.emit(sender);
+                        presentation.set_settings_open(!is_open);
                         receiver.await?;
                         Ok(JsValue::UNDEFINED)
                     };
@@ -513,7 +517,6 @@ impl PerspectiveViewer {
                             .into_apierror()?;
                     };
 
-                    presentation.set_settings_open(!is_open);
                     Ok(JsValue::undefined())
                 });
             },

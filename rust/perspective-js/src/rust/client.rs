@@ -425,10 +425,8 @@ impl Client {
     /// const tables = await client.get_hosted_table_names();
     /// ```
     #[wasm_bindgen]
-    pub async fn get_hosted_table_names(&self) -> ApiResult<JsValue> {
-        Ok(JsValue::from_serde_ext(
-            &self.client.get_hosted_table_names().await?,
-        )?)
+    pub async fn get_hosted_table_names(&self) -> ApiResult<Vec<String>> {
+        Ok(self.client.get_hosted_table_names().await?)
     }
 
     /// Register a callback which is invoked whenever [`Client::table`] (on this

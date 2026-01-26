@@ -216,7 +216,10 @@ impl From<serde_json::Error> for ApiError {
 impl From<JsValue> for ApiError {
     fn from(err: JsValue) -> Self {
         if err.is_instance_of::<js_sys::Error>() {
-            ApiErrorType::JsRawError(err.clone().unchecked_into()).into()
+            ApiError(
+                ApiErrorType::JsRawError(err.clone().unchecked_into()),
+                JsBackTrace(Rc::new(err.unchecked_into())),
+            )
         } else {
             apierror!(JsError(err))
         }

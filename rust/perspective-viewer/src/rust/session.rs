@@ -822,11 +822,16 @@ impl ValidSession<'_> {
                         .0
                         .metadata()
                         .get_column_aggregates(col.as_str())
-                        .into_apierror()?
-                        .next()
-                        .into_apierror()?;
+                        .and_then(|mut aggs| aggs.next())
+                        .into_apierror();
 
-                    let _ = view_config.aggregates.insert(col.to_string(), agg);
+                    match agg {
+                        Err(_) => tracing::warn!(
+                            "No default aggregate for column '{}' found, skipping",
+                            col
+                        ),
+                        Ok(agg) => _ = view_config.aggregates.insert(col.to_string(), agg),
+                    };
                 }
             }
 

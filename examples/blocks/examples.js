@@ -13,6 +13,7 @@
 const LOCAL_EXAMPLES = [
     "editable",
     "file",
+    "duckdb",
     "fractal",
     "market",
     "raycasting",

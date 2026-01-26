@@ -30,6 +30,8 @@ mod table;
 mod table_data;
 pub mod utils;
 mod view;
+#[cfg(target_arch = "wasm32")]
+mod virtual_server;
 
 #[cfg(feature = "export-init")]
 use wasm_bindgen::prelude::*;
@@ -37,6 +39,8 @@ use wasm_bindgen::prelude::*;
 pub use crate::client::Client;
 pub use crate::table::*;
 pub use crate::table_data::*;
+#[cfg(target_arch = "wasm32")]
+pub use crate::virtual_server::*;
 
 #[cfg(feature = "export-init")]
 #[wasm_bindgen(typescript_custom_section)]

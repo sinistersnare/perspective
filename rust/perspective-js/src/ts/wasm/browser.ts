@@ -32,7 +32,10 @@ function invert_promise<T>(): [
     ];
 }
 
-async function _init(ws: MessagePort | Worker, wasm: WebAssembly.Module) {
+async function _init(
+    ws: MessagePort | Worker,
+    wasm: WebAssembly.Module | undefined,
+) {
     const [sender, receiver] = invert_promise();
     ws.addEventListener("message", function listener(resp) {
         ws.removeEventListener("message", listener);
@@ -47,7 +50,12 @@ async function _init(ws: MessagePort | Worker, wasm: WebAssembly.Module) {
     ws.onmessageerror = console.error;
     ws.postMessage(
         { cmd: "init", args: [wasm] },
-        { transfer: wasm instanceof WebAssembly.Module ? [] : [wasm] },
+        {
+            transfer:
+                wasm === undefined || wasm instanceof WebAssembly.Module
+                    ? []
+                    : [wasm],
+        },
     );
 
     await receiver;
@@ -61,11 +69,13 @@ async function _init(ws: MessagePort | Worker, wasm: WebAssembly.Module) {
  */
 export async function worker(
     module: Promise<typeof psp>,
-    server_wasm: Promise<WebAssembly.Module>,
-    perspective_wasm_worker: Promise<SharedWorker | ServiceWorker | Worker>,
+    server_wasm: Promise<WebAssembly.Module> | undefined,
+    perspective_wasm_worker: Promise<
+        SharedWorker | ServiceWorker | Worker | MessagePort
+    >,
 ) {
     let [wasm, webworker]: [
-        WebAssembly.Module,
+        WebAssembly.Module | undefined,
         SharedWorker | ServiceWorker | Worker | MessagePort,
     ] = await Promise.all([server_wasm, perspective_wasm_worker]);
 
@@ -77,10 +87,8 @@ export async function worker(
     ) {
         port = webworker.port;
     } else {
-        webworker = webworker as ServiceWorker | Worker | MessagePort;
-        const messageChannel = new MessageChannel();
-        webworker.postMessage(null, [messageChannel.port2]);
-        port = messageChannel.port1;
+        // Assume `MessagePort`
+        port = webworker as MessagePort;
     }
 
     const client = new Client(

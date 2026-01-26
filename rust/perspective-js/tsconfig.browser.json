@@ -9,7 +9,8 @@
         "rootDir": "./src/ts",
         "moduleResolution": "bundler",
         "allowImportingTsExtensions": true,
+        "skipLibCheck": true,
         "types": []
     },
-    "files": ["./src/ts/perspective.browser.ts"]
+    "files": ["./src/ts/perspective.browser.ts", "./src/ts/virtual_servers/duckdb.ts"]
 }

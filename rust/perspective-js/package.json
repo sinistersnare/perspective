@@ -23,6 +23,7 @@
             "types": "./dist/esm/perspective.node.d.ts",
             "default": "./dist/esm/perspective.node.js"
         },
+        "./virtual_servers/*": "./dist/esm/virtual_servers/*",
         "./dist/*": "./dist/*",
         "./src/*": "./src/*",
         "./test/*": "./test/*",
@@ -52,6 +53,7 @@
         "@perspective-dev/esbuild-plugin": "workspace:",
         "@perspective-dev/metadata": "workspace:",
         "@perspective-dev/test": "workspace:",
+        "@duckdb/duckdb-wasm": "catalog:",
         "@playwright/experimental-ct-react": "catalog:",
         "@playwright/test": "catalog:",
         "@types/node": "catalog:",
@@ -63,6 +65,7 @@
         "moment": "catalog:",
         "typedoc": "catalog:",
         "typescript": "catalog:",
+        "web-worker": "catalog:",
         "zx": "catalog:"
     }
 }

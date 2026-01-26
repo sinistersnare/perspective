@@ -39,13 +39,24 @@ use wasm_opt::{Feature, OptimizationOptions};
 /// field to the host platform.
 fn build(pkg: Option<&str>, is_release: bool, features: Vec<String>) {
     let features = format!("tracing/release_max_level_warn,{}", features.join(","));
+
+    // Build RUSTFLAGS including target-specific flags from config.toml and new
+    // panic flags These are the flags from .cargo/config.toml for
+    // wasm32-unknown-unknown target
+    let target_flags = [
+        "--cfg=getrandom_backend=\"wasm_js\"",
+        "--cfg=web_sys_unstable_apis",
+        "-Ctarget-feature=+bulk-memory,+simd128,+relaxed-simd,+reference-types",
+    ];
+
+    let rustflags = target_flags.join(" ");
     let mut cmd = Command::new("cargo");
-    cmd.args(["build"])
+    cmd.env("RUSTFLAGS", rustflags)
+        .args(["build"])
         .args(["--lib"])
         .args(["--features", &features])
-        .args(["--target", "wasm32-unknown-unknown"])
-        .args(["-Z", "build-std=std,panic_abort"])
-        .args(["-Z", "build-std-features=panic_immediate_abort"]);
+        .args(["--target", "wasm32-unknown-unknown"]);
+    // .args(["-Z", "build-std=std"]);
 
     if is_release {
         cmd.args(["--release"]);
