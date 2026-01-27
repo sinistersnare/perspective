@@ -469,7 +469,7 @@ impl Table {
 /// Perspective conserves memory by relying on a single [`Table`] to power
 /// multiple [`View`]s concurrently.
 #[pyclass(subclass, name = "View", module = "perspective")]
-pub struct View(AsyncView);
+pub struct View(pub(crate) AsyncView);
 
 assert_view_api!(View);
 
