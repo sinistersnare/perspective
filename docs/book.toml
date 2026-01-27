@@ -13,7 +13,6 @@
 [book]
 authors = ["Andrew Stein"]
 language = "en"
-multilingual = false
 src = "md"
 title = "Perspective"
 
@@ -26,9 +25,7 @@ build-dir = "static/guide"
 # preferred-dark-theme = "navy"
 # smart-punctuation = true
 # mathjax-support = false
-copy-fonts = true
 git-repository-url = "https://github.com/perspective-dev/perspective"
-git-repository-icon = "fa-github"
 site-url = "https://perspective-dev.github.io/guide/"
 additional-css = [
     "md/perspective.css",

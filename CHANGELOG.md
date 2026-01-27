@@ -1,6 +1,30 @@
+# [v4.1.0](https://github.com/perspective-dev/perspective/releases/tag/v4.1.0)
+
+_27 January 2026_ ([Full changelog](https://github.com/finos/perspective/compare/v4.1.0...v4.1.0))
+
+**Breaking**
+
+- Add `table` to `ViewerConfig` [#3107](https://github.com/finos/perspective/pull/3107)
+
+Features
+
+- DuckDB Virtual Server [#3062](https://github.com/finos/perspective/pull/3062)
+
+Fixes
+
+- Support `client.table(view)` in Python [#3112](https://github.com/finos/perspective/pull/3112)
+- Fix Arrow decimal type conversion to float instead of integer [#3099](https://github.com/finos/perspective/pull/3099)
+- Fix viewport scroll regression in datagrid [#3098](https://github.com/finos/perspective/pull/3098)
+
+Misc
+
+- `&lt;PerspectiveWorkspace&gt;` React component [#3109](https://github.com/finos/perspective/pull/3109)
+- Fix windows Python builds [#3110](https://github.com/finos/perspective/pull/3110)
+- Convert `viewer-datagrid` to TypeScript [#3108](https://github.com/finos/perspective/pull/3108)
+
 # [v4.0.1](https://github.com/perspective-dev/perspective/releases/tag/v4.0.1)
 
-_16 December 2025_ ([Full changelog](https://github.com/finos/perspective/compare/v4.0.0...v4.0.1))
+_15 December 2025_ ([Full changelog](https://github.com/finos/perspective/compare/v4.0.0...v4.0.1))
 
 Features
 
