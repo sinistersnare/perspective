@@ -70,7 +70,11 @@ pub impl TableData {
         input: Bound<'_, PyAny>,
         format: Option<TableReadFormat>,
     ) -> Result<TableData, PyErr> {
-        if let Some(update) = UpdateData::from_py_partial(&input, format)? {
+        if let Ok(view) = input.downcast::<crate::client::client_async::AsyncView>() {
+            Ok(TableData::View((*view.borrow().view).clone()))
+        } else if let Ok(view) = input.downcast::<crate::client::client_sync::View>() {
+            Ok(TableData::View((*view.borrow().0.view).clone()))
+        } else if let Some(update) = UpdateData::from_py_partial(&input, format)? {
             Ok(TableData::Update(update))
         } else if let Ok(pylist) = input.downcast::<PyList>() {
             let json_module = PyModule::import(input.py(), "json")?;

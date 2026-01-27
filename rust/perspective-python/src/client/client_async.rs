@@ -627,7 +627,7 @@ impl AsyncTable {
 #[pyclass]
 #[derive(Clone)]
 pub struct AsyncView {
-    view: Arc<View>,
+    pub(crate) view: Arc<View>,
     _client: AsyncClient,
 }
 
