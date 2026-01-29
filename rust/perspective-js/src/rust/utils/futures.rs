@@ -46,6 +46,12 @@ where
     pub fn new<U: Future<Output = ApiResult<T>> + 'static>(x: U) -> Self {
         Self(Box::pin(x))
     }
+
+    pub fn new_throttled<U: Future<Output = ApiResult<T>> + 'static>(x: U) -> ApiFuture<()> {
+        ApiFuture::<()>(Box::pin(
+            async move { x.await.ignore_view_delete().map(|_| ()) },
+        ))
+    }
 }
 
 impl<T> ApiFuture<T>
@@ -87,7 +93,7 @@ where
         future_to_promise(async move {
             match fut.0.await.ignore_view_delete()? {
                 Some(x) => Ok(x).into_js_result(),
-                None => Ok::<_, JsValue>(()).into_js_result(),
+                None => Err("View not found".into()).into_js_result(),
             }
         })
     }

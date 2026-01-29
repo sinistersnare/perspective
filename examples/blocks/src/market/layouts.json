@@ -107,29 +107,38 @@
         "aggregates": { "bucket(\"timestamp\", 'm')": "dominant" }
     },
     {
-        "plugin": "Datagrid",
-        "plugin_config": {
-            "columns": {
-                "Change since market open": {
-                    "fg_gradient": 16.29,
-                    "number_fg_mode": "bar"
-                },
-                "Diff from market open": {
-                    "bg_gradient": 16.29,
-                    "fg_gradient": 20,
-                    "number_bg_mode": "gradient",
-                    "number_fg_mode": "bar"
-                },
-                "price": { "bg_gradient": 34.55, "number_bg_mode": "gradient" },
-                "side": { "color": "#3daa27", "string_color_mode": "series" },
-                "status": { "string_color_mode": "series" }
+        "version": "4.1.0",
+        "columns_config": {
+            "Diff from market open": {
+                "number_fg_mode": "bar",
+                "fg_gradient": 12.9
             },
-            "editable": false,
-            "scroll_lock": false
+            "if(\"side\"=='buy'){-1}else{1}": {
+                "number_fg_mode": "bar",
+                "fg_gradient": 8,
+                "aggregate_depth": 1
+            },
+            "status": {
+                "string_color_mode": "series",
+                "color": "#94aa27"
+            },
+            "side": {
+                "string_color_mode": "series"
+            }
         },
+        "plugin": "Datagrid",
+        "plugin_config": {},
+        "settings": true,
         "title": "Blotter",
         "group_by": [],
         "split_by": [],
+        "sort": [["timestamp", "desc"]],
+        "filter": [],
+        "expressions": {
+            "bucket(\"price\", 1)": "bucket(\"price\", 1)",
+            "bucket(\"timestamp\", 'm')": "bucket(\"timestamp\", 'm')",
+            "Diff from market open": "\"price\" - 20"
+        },
         "columns": [
             "timestamp",
             "id",
@@ -138,37 +147,30 @@
             "status",
             "side"
         ],
-        "filter": [],
-        "sort": [["timestamp", "desc"]],
-        "expressions": {
-            "bucket(\"timestamp\", 'm')": "bucket(\"timestamp\", 'm')",
-            "bucket(\"price\", 1)": "bucket(\"price\", 1)",
-            "Diff from market open": "\"price\" - 20"
-        },
         "aggregates": {}
     },
     {
-        "plugin": "Datagrid",
-        "plugin_config": {
-            "columns": {
-                "if(\"side\"=='buy'){-1}else{1}": {
-                    "fg_gradient": 20,
-                    "number_fg_mode": "bar"
-                }
-            },
-            "editable": false,
-            "scroll_lock": false
+        "version": "4.1.0",
+        "columns_config": {
+            "if(\"side\"=='buy'){-1}else{1}": {
+                "aggregate_depth": 1,
+                "number_fg_mode": "bar",
+                "fg_gradient": 8
+            }
         },
+        "plugin": "Datagrid",
+        "plugin_config": {},
+        "settings": true,
         "title": "Order Book",
         "group_by": ["bucket(\"price\", 0.5)"],
         "split_by": ["side"],
-        "columns": ["if(\"side\"=='buy'){-1}else{1}"],
-        "filter": [["status", "==", "open"]],
         "sort": [["bucket(\"price\", 0.5)", "desc"]],
+        "filter": [["status", "==", "open"]],
         "expressions": {
             "if(\"side\"=='buy'){-1}else{1}": "if(\"side\"=='buy'){-1}else{1}",
             "bucket(\"price\", 0.5)": "bucket(\"price\", 0.5)"
         },
+        "columns": ["if(\"side\"=='buy'){-1}else{1}"],
         "aggregates": {}
     },
     {

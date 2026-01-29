@@ -69,7 +69,12 @@ const FILTER_OPS = [
 
 function duckdbTypeToPsp(name: string): ColumnType {
     if (name === "VARCHAR") return "string";
-    if (name === "DOUBLE" || name === "BIGINT" || name === "HUGEINT")
+    if (
+        name === "DOUBLE" ||
+        name === "BIGINT" ||
+        name === "HUGEINT" ||
+        name.startsWith("Decimal")
+    )
         return "float";
     if (name.startsWith("Decimal")) return "float";
     if (name.startsWith("Int")) return "integer";
@@ -79,7 +84,7 @@ function duckdbTypeToPsp(name: string): ColumnType {
     if (name === "Float64") return "float";
     if (name === "DATE") return "date";
     if (name === "BOOLEAN") return "boolean";
-    if (name === "TIMESTAMP") return "datetime";
+    if (name === "TIMESTAMP" || name.startsWith("Timestamp")) return "datetime";
     throw new Error(`Unknown type '${name}'`);
 }
 

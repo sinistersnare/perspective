@@ -22,12 +22,12 @@ use crate::config::{ViewConfig, ViewConfigUpdate};
 use crate::proto::response::ClientResp;
 use crate::proto::table_validate_expr_resp::ExprValidationError;
 use crate::proto::{
-    GetFeaturesResp, GetHostedTablesResp, MakeTableResp, Request, Response, TableMakePortResp,
-    TableMakeViewResp, TableOnDeleteResp, TableRemoveDeleteResp, TableSchemaResp, TableSizeResp,
-    TableValidateExprResp, ViewColumnPathsResp, ViewDeleteResp, ViewDimensionsResp,
-    ViewExpressionSchemaResp, ViewGetConfigResp, ViewOnDeleteResp, ViewOnUpdateResp,
-    ViewRemoveDeleteResp, ViewRemoveOnUpdateResp, ViewSchemaResp, ViewToColumnsStringResp,
-    ViewToRowsStringResp,
+    GetFeaturesResp, GetHostedTablesResp, MakeTableResp, Request, Response, ServerError,
+    TableMakePortResp, TableMakeViewResp, TableOnDeleteResp, TableRemoveDeleteResp,
+    TableSchemaResp, TableSizeResp, TableValidateExprResp, ViewColumnPathsResp, ViewDeleteResp,
+    ViewDimensionsResp, ViewExpressionSchemaResp, ViewGetConfigResp, ViewOnDeleteResp,
+    ViewOnUpdateResp, ViewRemoveDeleteResp, ViewRemoveOnUpdateResp, ViewSchemaResp,
+    ViewToColumnsStringResp, ViewToRowsStringResp,
 };
 
 macro_rules! respond {
@@ -76,7 +76,6 @@ impl<T: VirtualServerHandler> VirtualServer<T> {
         &mut self,
         bytes: Bytes,
     ) -> Result<Bytes, VirtualServerError<T::Error>> {
-        use crate::proto::request::ClientReq::*;
         let msg = Request::decode(bytes).map_err(VirtualServerError::DecodeError)?;
         tracing::debug!(
             "Handling request: entity_id={}, req={:?}",
@@ -84,6 +83,20 @@ impl<T: VirtualServerHandler> VirtualServer<T> {
             msg.client_req
         );
 
+        match self.internal_handle_request(msg.clone()).await {
+            Ok(resp) => Ok(resp),
+            Err(err) => Ok(respond!(msg, ServerError {
+                message: err.to_string(),
+                status_code: 1
+            })),
+        }
+    }
+
+    async fn internal_handle_request(
+        &mut self,
+        msg: Request,
+    ) -> Result<Bytes, VirtualServerError<T::Error>> {
+        use crate::proto::request::ClientReq::*;
         let resp = match msg.client_req.unwrap() {
             GetFeaturesReq(_) => {
                 let features = self.handler.get_features().await?;
