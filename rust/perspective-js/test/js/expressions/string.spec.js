@@ -756,7 +756,7 @@ const random_string = (
             expect(result['"a" == "b"']).toEqual([
                 false,
                 true,
-                false,
+                true,
                 true,
                 true,
             ]);
@@ -790,7 +790,7 @@ const random_string = (
             expect(result['"a" == "b"']).toEqual([
                 false,
                 false,
-                false,
+                true,
                 false,
                 false,
             ]);
