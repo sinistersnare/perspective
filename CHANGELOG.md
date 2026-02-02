@@ -1,6 +1,15 @@
+# [v4.1.1](https://github.com/perspective-dev/perspective/releases/tag/v4.1.1)
+
+_2 February 2026_ ([Full changelog](https://github.com/finos/perspective/compare/v4.1.0...v4.1.1))
+
+Fixes
+
+- Fix virtual server error handling [#3114](https://github.com/finos/perspective/pull/3114)
+- Fix `perspective-workspace` context submenu for tables [#3113](https://github.com/finos/perspective/pull/3113)
+
 # [v4.1.0](https://github.com/perspective-dev/perspective/releases/tag/v4.1.0)
 
-_27 January 2026_ ([Full changelog](https://github.com/finos/perspective/compare/v4.1.0...v4.1.0))
+_27 January 2026_ ([Full changelog](https://github.com/finos/perspective/compare/v4.0.1...v4.1.0))
 
 **Breaking**
 
