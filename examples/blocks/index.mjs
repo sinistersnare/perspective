@@ -24,25 +24,25 @@ const __dirname = url.fileURLToPath(new URL(".", import.meta.url)).slice(0, -1);
 // directly to the assets.
 const replacements = {
     "/node_modules/": `https://cdn.jsdelivr.net/npm/`,
-    "perspective/dist/cdn/perspective.js": `perspective@${version}/dist/cdn/perspective.js`,
-    "perspective-viewer/dist/cdn/perspective-viewer.js": `perspective-viewer@${version}/dist/cdn/perspective-viewer.js`,
-    "perspective-viewer-datagrid/dist/cdn/perspective-viewer-datagrid.js": `perspective-viewer-datagrid@${version}/dist/cdn/perspective-viewer-datagrid.js`,
-    "perspective-viewer-d3fc/dist/cdn/perspective-viewer-d3fc.js": `perspective-viewer-d3fc@${version}/dist/cdn/perspective-viewer-d3fc.js`,
-    "perspective-workspace/dist/cdn/perspective-workspace.js": `perspective-workspace@${version}/dist/cdn/perspective-workspace.js`,
-    "perspective/dist/cdn/perspective.cpp.wasm": `perspective@${version}/dist/cdn/perspective.cpp.wasm`,
-    "perspective-viewer/dist/cdn/perspective.rx.wasm": `perspective-viewer@${version}/dist/cdn/perspective.rx.wasm`,
-    "perspective/dist/cdn/perspective.worker.js": `perspective@${version}/dist/cdn/perspective.worker.js`,
+    "@perspective-dev/client/dist/cdn/perspective.js": `@perspective-dev/client@${version}/dist/cdn/perspective.js`,
+    "@perspective-dev/viewer/dist/cdn/perspective-viewer.js": `@perspective-dev/viewer@${version}/dist/cdn/perspective-viewer.js`,
+    "@perspective-dev/viewer-datagrid/dist/cdn/perspective-viewer-datagrid.js": `@perspective-dev/viewer-datagrid@${version}/dist/cdn/perspective-viewer-datagrid.js`,
+    "@perspective-dev/viewer-d3fc/dist/cdn/perspective-viewer-d3fc.js": `@perspective-dev/viewer-d3fc@${version}/dist/cdn/perspective-viewer-d3fc.js`,
+    "@perspective-dev/workspace/dist/cdn/perspective-workspace.js": `@perspective-dev/workspace@${version}/dist/cdn/perspective-workspace.js`,
+    "@perspective-dev/server/dist/cdn/perspective.cpp.wasm": `@perspective-dev/client@${version}/dist/cdn/perspective.cpp.wasm`,
+    "@perspective-dev/viewer/dist/cdn/perspective.rx.wasm": `@perspective-dev/viewer@${version}/dist/cdn/perspective.rx.wasm`,
+    "@perspective-dev/client/dist/cdn/perspective.worker.js": `@perspective-dev/client@${version}/dist/cdn/perspective.worker.js`,
 };
 
 export async function dist_examples(
-    outpath = `${__dirname}/../../docs/static/blocks`
+    outpath = `${__dirname}/../../docs/static/blocks`,
 ) {
-    execSync(`mkdir -p ${outpath}`, {stdio:"inherit"});
+    execSync(`mkdir -p ${outpath}`, { stdio: "inherit" });
     const readme = generate_readme();
     let existing = fs.readFileSync(`${__dirname}/../../README.md`).toString();
     existing = existing.replace(
         /<\!\-\- Examples \-\->([\s\S]+?)<\!\-\- Examples \-\->/gm,
-        `<!-- Examples -->\n${readme}\n<!-- Examples -->`
+        `<!-- Examples -->\n${readme}\n<!-- Examples -->`,
     );
 
     fs.writeFileSync(`${__dirname}/../../README.md`, existing);
@@ -51,7 +51,7 @@ export async function dist_examples(
         if (fs.existsSync(`${__dirname}/src/${name}`)) {
             // Copy
             for (const filename of fs.readdirSync(`${__dirname}/src/${name}`)) {
-                execSync(`mkdir -p ${outpath}/${name}`, {stdio:"inherit"});
+                execSync(`mkdir -p ${outpath}/${name}`, { stdio: "inherit" });
                 if (
                     filename.endsWith(".mjs") ||
                     filename.endsWith(".js") ||
@@ -63,15 +63,18 @@ export async function dist_examples(
                     for (const pattern of Object.keys(replacements)) {
                         filecontents = filecontents.replace(
                             new RegExp(pattern, "g"),
-                            replacements[pattern]
+                            replacements[pattern],
                         );
                     }
                     fs.writeFileSync(
                         `${outpath}/${name}/${filename}`,
-                        filecontents
+                        filecontents,
                     );
                 } else if (filename !== ".git") {
-                    execSync(`cp ${__dirname}/src/${name}/${filename} ${outpath}/${name}/${filename}`, {stdio:"inherit"});
+                    execSync(
+                        `cp ${__dirname}/src/${name}/${filename} ${outpath}/${name}/${filename}`,
+                        { stdio: "inherit" },
+                    );
                 }
             }
 
@@ -79,7 +82,7 @@ export async function dist_examples(
             if (fs.existsSync(path.join(outpath, name, "build.mjs"))) {
                 console.log("Building " + name);
                 const script = `${outpath}/${name}/build.mjs`;
-                execSync(`node ${script}`, {stdio:"inherit"});
+                execSync(`node ${script}`, { stdio: "inherit" });
             }
         }
     }
@@ -104,9 +107,9 @@ function generate_readme() {
                     .join("")}</tr><tr>${row
                     .map(
                         (y) =>
-                            `<td><a href="${y.url}"><img height="125" src="${y.img}"></img></a></td>`
+                            `<td><a href="${y.url}"><img height="125" src="${y.img}"></img></a></td>`,
                     )
-                    .join("")}</tr>`
+                    .join("")}</tr>`,
         )
         .join("")}</tbody></table>`;
 }

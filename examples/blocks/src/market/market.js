@@ -250,7 +250,11 @@ async function init_tables() {
     const gui_worker = await perspective.worker();
     const market_table = await market_worker.table(SCHEMA, { index: "id" });
     const market_view = await market_table.view();
-    const gui_table = await gui_worker.table(market_view, { index: "id" });
+    const gui_table = await gui_worker.table(market_view, {
+        index: "id",
+        name: "gui",
+    });
+
     return { market_table, gui_table };
 }
 
@@ -268,7 +272,7 @@ const select = document.querySelector("select");
 const button = document.querySelector("button");
 const viewer = document.querySelector("perspective-viewer");
 viewer.load(gui_table);
-viewer.restore({ theme: "Pro Dark", settings, ...layouts[0] });
+viewer.restore({ theme: "Pro Dark", table: "gui", settings, ...layouts[0] });
 await market.poll(progress);
 for (const layout of layouts) {
     const option = document.createElement("option");

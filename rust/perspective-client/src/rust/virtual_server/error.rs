@@ -28,7 +28,7 @@ pub enum VirtualServerError<T: std::fmt::Debug> {
     #[error("{0}")]
     EncodeError(EncodeError),
 
-    #[error("Unknown view '{0}'")]
+    #[error("View not found '{0}'")]
     UnknownViewId(String),
 
     #[error("Invalid JSON'{0}'")]

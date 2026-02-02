@@ -124,7 +124,13 @@ impl PerspectiveViewerElement {
             clone!(renderer, session);
             move |_| {
                 clone!(renderer, session);
-                ApiFuture::spawn(async move { renderer.update(session.get_view()).await })
+                ApiFuture::spawn(async move {
+                    renderer
+                        .update(session.get_view())
+                        .await
+                        .ignore_view_delete()
+                        .map(|_| ())
+                })
             }
         });
 
@@ -256,7 +262,7 @@ impl PerspectiveViewerElement {
         self.session.update_view_config(config)?;
 
         clone!(self.renderer, self.session);
-        Ok(ApiFuture::new(async move {
+        Ok(ApiFuture::new_throttled(async move {
             let task = async {
                 // Ignore this error, which is blown away by the table anyway.
                 let _ = task.await;
@@ -340,9 +346,9 @@ impl PerspectiveViewerElement {
             );
 
             std::mem::swap(self, &mut state);
-            ApiFuture::new(state.delete())
+            ApiFuture::new_throttled(state.delete())
         } else {
-            ApiFuture::new(async move { Ok(()) })
+            ApiFuture::new_throttled(async move { Ok(()) })
         }
     }
 
@@ -481,7 +487,7 @@ impl PerspectiveViewerElement {
     /// ```
     pub fn flush(&self) -> ApiFuture<()> {
         clone!(self.renderer);
-        ApiFuture::new(async move {
+        ApiFuture::new_throttled(async move {
             // We must let two AFs pass to guarantee listeners to the DOM state
             // have themselves triggered, or else `request_animation_frame`
             // may finish before a `ResizeObserver` triggered before is
@@ -527,7 +533,7 @@ impl PerspectiveViewerElement {
     /// ```
     pub fn restore(&self, update: JsValue) -> ApiFuture<()> {
         let this = self.clone();
-        ApiFuture::new(async move {
+        ApiFuture::new_throttled(async move {
             let decoded_update = ViewerConfigUpdate::decode(&update)?;
             tracing::info!("Restoring {}", decoded_update);
             let root = this.root.clone();
@@ -568,7 +574,7 @@ impl PerspectiveViewerElement {
     pub fn resetError(&self) -> ApiFuture<()> {
         ApiFuture::spawn(self.session.reset(ResetOptions::default()));
         let this = self.clone();
-        ApiFuture::new(async move {
+        ApiFuture::new_throttled(async move {
             this.update_and_render(ViewConfigUpdate::default())?.await?;
             Ok(())
         })
@@ -622,7 +628,7 @@ impl PerspectiveViewerElement {
     /// ```
     pub fn download(&self, method: Option<JsString>) -> ApiFuture<()> {
         let this = self.clone();
-        ApiFuture::new(async move {
+        ApiFuture::new_throttled(async move {
             let method = if let Some(method) = method
                 .map(|x| x.unchecked_into())
                 .map(serde_wasm_bindgen::from_value)
@@ -692,7 +698,7 @@ impl PerspectiveViewerElement {
     /// ```
     pub fn copy(&self, method: Option<JsString>) -> ApiFuture<()> {
         let this = self.clone();
-        ApiFuture::new(async move {
+        ApiFuture::new_throttled(async move {
             let method = if let Some(method) = method
                 .map(|x| x.unchecked_into())
                 .map(serde_wasm_bindgen::from_value)
@@ -723,7 +729,7 @@ impl PerspectiveViewerElement {
         tracing::debug!("Resetting config");
         let root = self.root.clone();
         let all = reset_all.unwrap_or_default();
-        ApiFuture::new(async move {
+        ApiFuture::new_throttled(async move {
             let (sender, receiver) = channel::<()>();
             root.borrow()
                 .as_ref()
@@ -763,7 +769,7 @@ impl PerspectiveViewerElement {
         }
 
         let state = self.clone_state();
-        ApiFuture::new(async move {
+        ApiFuture::new_throttled(async move {
             if !state.renderer().is_plugin_activated()? {
                 state
                     .update_and_render(ViewConfigUpdate::default())?
@@ -1031,7 +1037,7 @@ impl PerspectiveViewerElement {
     #[wasm_bindgen]
     pub fn toggleColumnSettings(&self, column_name: String) -> ApiFuture<()> {
         clone!(self.session, self.root);
-        ApiFuture::new(async move {
+        ApiFuture::new_throttled(async move {
             let locator = session.get_column_locator(Some(column_name));
             let (sender, receiver) = channel::<()>();
             root.borrow().as_ref().into_apierror()?.send_message(
@@ -1056,7 +1062,7 @@ impl PerspectiveViewerElement {
     ) -> ApiFuture<()> {
         let locator = self.get_column_locator(column_name);
         clone!(self.root);
-        ApiFuture::new(async move {
+        ApiFuture::new_throttled(async move {
             let (sender, receiver) = channel::<()>();
             root.borrow().as_ref().into_apierror()?.send_message(
                 PerspectiveViewerMsg::OpenColumnSettings {

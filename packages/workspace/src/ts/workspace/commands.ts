@@ -115,7 +115,7 @@ export const createCommands = (
         execute: async (args) => {
             const widget = await workspace._createWidgetAndNode({
                 config: {
-                    table: Array.isArray(args.table) ? args.table[0] : null,
+                    table: args.table as string,
                 },
                 slot: undefined,
             });

@@ -39,7 +39,7 @@ catalog:
     "pro_self_extracting_wasm": "0.0.9"
     "react-dom": "^18"
     "react": "^18"
-    "regular-table": "=0.7.3"
+    "regular-table": "=0.8.0"
     "stoppable": "=1.1.0"
     "ws": "^8.17.0"
 

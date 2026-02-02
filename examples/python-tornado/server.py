@@ -22,7 +22,7 @@ import perspective.handlers.tornado
 
 here = os.path.abspath(os.path.dirname(__file__))
 file_path = os.path.join(
-    here, "..", "..", "node_modules", "superstore-arrow", "superstore.lz4.arrow"
+    here, ".", "node_modules", "superstore-arrow", "superstore.lz4.arrow"
 )
 
 
