@@ -13,6 +13,11 @@
 import * as arrow from "apache-arrow";
 import { test, expect } from "@perspective-dev/test";
 import perspective from "../perspective_client";
+import * as fs from "node:fs";
+
+import * as url from "node:url";
+
+const __dirname = url.fileURLToPath(new URL(".", import.meta.url)).slice(0, -1);
 
 test.describe("Arrow", function () {
     test.describe("Date columns", function () {
@@ -66,6 +71,54 @@ test.describe("Arrow", function () {
             await view.delete();
             await table.delete();
             process.env.TZ = `UTC`;
+        });
+    });
+
+    test.describe("regressions", () => {
+        test("null equality works correctly in updates", async function () {
+            async function write_to_json(
+                buffer: ArrayBuffer,
+                filename: string,
+            ) {
+                const table = await perspective.table(buffer);
+                const view = await table.view({
+                    columns: ["ENTITY_TYPE"],
+                });
+
+                const json = await view.to_columns_string();
+                fs.writeFileSync(filename, json);
+                await view.delete();
+                await table.delete();
+            }
+
+            const file = JSON.parse(
+                fs.readFileSync(
+                    `${__dirname}/../../arrow/untitled.json`,
+                    "utf8",
+                ),
+            );
+
+            const table = await perspective.table(file, {
+                name: "arrow_null_test",
+            });
+
+            const view = await table.view({ group_by: ["ENTITY_TYPE"] });
+            for (let i = 2; i < 6; i++) {
+                const file = JSON.parse(
+                    fs.readFileSync(
+                        `${__dirname}/../../arrow/untitled${i}.json`,
+                        "utf8",
+                    ),
+                );
+
+                await table.update(file);
+            }
+
+            const cols = await view.to_columns({ end_row: 4 });
+            expect(cols).toStrictEqual({
+                ENTITY_TYPE: [2158, 985, 168, 311],
+                __ROW_PATH__: [[], [null], [""], ["AAAA"]],
+            });
         });
     });
 });

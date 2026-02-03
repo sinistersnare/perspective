@@ -85,6 +85,11 @@ t_tscalar::operator==(const t_tscalar& rhs) const {
         return false;
     }
 
+    if ((m_status == STATUS_INVALID || m_status == STATUS_CLEAR)
+        && (rhs.m_status == STATUS_INVALID || rhs.m_status == STATUS_CLEAR)) {
+        return true;
+    }
+
     if (m_type == DTYPE_BOOL) {
         return get<bool>() == rhs.get<bool>();
     }
@@ -1447,16 +1452,20 @@ repr(const t_tscalar& s) {
 size_t
 hash_value(const t_tscalar& s) {
     std::size_t seed = 0;
-    if (s.m_type == DTYPE_STR) {
-        const char* c = s.get_char_ptr();
-        boost::hash_combine(seed, boost::hash_range(c, c + std::strlen(c)));
-
+    if (s.m_status == STATUS_VALID) {
+        boost::hash_combine(seed, s.m_status);
+        boost::hash_combine(seed, s.m_type);
+        if (s.m_type == DTYPE_STR) {
+            const char* c = s.get_char_ptr();
+            boost::hash_combine(seed, boost::hash_range(c, c + std::strlen(c)));
+        } else {
+            boost::hash_combine(seed, s.m_data.m_uint64);
+        }
     } else {
-        boost::hash_combine(seed, s.m_data.m_uint64);
+        boost::hash_combine(seed, STATUS_INVALID);
+        boost::hash_combine(seed, s.m_type);
     }
 
-    boost::hash_combine(seed, s.m_type);
-    boost::hash_combine(seed, s.m_status);
     return seed;
 }
 

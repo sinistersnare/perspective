@@ -328,7 +328,12 @@ t_tscalar::compare_common(const t_tscalar& rhs) const {
         return cmp(m_type, rhs.m_type);
     }
 
-    if (m_status != rhs.m_status) {
+    if (m_status != STATUS_VALID && rhs.m_status != STATUS_VALID) {
+        COMPARER_T<unsigned char> cmp;
+        return cmp(1, 1);
+    }
+
+    if (m_status != STATUS_VALID || rhs.m_status != STATUS_VALID) {
         COMPARER_T<unsigned char> cmp;
         return cmp(m_status, rhs.m_status);
     }
