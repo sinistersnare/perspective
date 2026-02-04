@@ -12,12 +12,7 @@
 
 import { RegularTableElement } from "regular-table";
 import type { DatagridModel, SelectedPosition } from "../types.js";
-
-import {
-    CollectedCell,
-    LocalSelectedPositionMap,
-    CellMetaExtended,
-} from "./types.js";
+import { CollectedCell, LocalSelectedPositionMap } from "./types.js";
 
 /**
  * Apply focus style to the selected cell.
@@ -35,6 +30,7 @@ export function applyFocusStyle(
     if (selected_position) {
         for (const { element: td, metadata } of cells) {
             if (
+                metadata.type === "body" &&
                 metadata.x === selected_position.x &&
                 metadata.y === selected_position.y
             ) {
@@ -77,11 +73,9 @@ export function focusSelectedCell(
     if (tbody) {
         for (const tr of tbody.children) {
             for (const cell of tr.children) {
-                const metadata = regularTable.getMeta(cell) as
-                    | CellMetaExtended
-                    | undefined;
+                const metadata = regularTable.getMeta(cell as HTMLElement);
                 if (
-                    metadata &&
+                    metadata?.type === "body" &&
                     metadata.x === selected_position.x &&
                     metadata.y === selected_position.y
                 ) {

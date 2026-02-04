@@ -17,15 +17,11 @@ import {
 } from "../../color_utils.js";
 import type { DatagridModel, ColumnConfig, ColorRecord } from "../../types.js";
 
-interface CellMetaWithFlags extends CellMetadata {
-    _is_hidden_by_aggregate_depth?: boolean;
-}
-
 export function cell_style_datetime(
     this: DatagridModel,
     plugin: ColumnConfig,
     td: HTMLElement,
-    metadata: CellMetaWithFlags,
+    metadata: CellMetadata,
 ): void {
     const colorRecord: ColorRecord = //(() => {
         // if (plugin?.color !== undefined) {
@@ -38,6 +34,7 @@ export function cell_style_datetime(
 
     const [hex, r, g, b] = colorRecord;
 
+    // @ts-ignore
     if (metadata._is_hidden_by_aggregate_depth) {
         td.style.backgroundColor = "";
         td.style.color = "";

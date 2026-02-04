@@ -255,7 +255,7 @@ async function init_tables() {
         name: "gui",
     });
 
-    return { market_table, gui_table };
+    return { market_table, gui_table, gui_worker };
 }
 
 async function init_layouts() {
@@ -265,13 +265,14 @@ async function init_layouts() {
 
 const INIT_TASK = [init_tables(), init_layouts()];
 
-const [{ market_table, gui_table }, layouts] = await Promise.all(INIT_TASK);
+const [{ market_table, gui_table, gui_worker }, layouts] =
+    await Promise.all(INIT_TASK);
 const market = new Market(market_table, skew_model);
 const settings = !/(iPad|iPhone|iPod)/g.test(navigator.userAgent);
 const select = document.querySelector("select");
 const button = document.querySelector("button");
 const viewer = document.querySelector("perspective-viewer");
-viewer.load(gui_table);
+viewer.load(gui_worker);
 viewer.restore({ theme: "Pro Dark", table: "gui", settings, ...layouts[0] });
 await market.poll(progress);
 for (const layout of layouts) {

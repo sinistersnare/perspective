@@ -11,16 +11,16 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 import { RegularTableElement } from "regular-table";
-import { CellMetadata } from "regular-table/dist/esm/types.js";
+import {
+    CellMetadata,
+    CellMetadataBody,
+    CellMetadataRowHeader,
+} from "regular-table/dist/esm/types.js";
 import type { SelectedPosition } from "../types.js";
-
-export interface CellMetaExtended extends CellMetadata {
-    _is_hidden_by_aggregate_depth?: boolean;
-}
 
 export interface CollectedCell {
     element: HTMLElement;
-    metadata: CellMetaExtended;
+    metadata: CellMetadataRowHeader | CellMetadataBody;
     isHeader: boolean;
 }
 

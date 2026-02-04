@@ -17,12 +17,12 @@ export async function expandCollapseHandler(
     regularTable: RegularTable,
     event: MouseEvent,
 ): Promise<void> {
-    const meta = regularTable.getMeta(event.target as Element);
-    if (!meta?.row_header) return;
-
+    const meta = regularTable.getMeta(event.target as HTMLElement);
+    if (!meta || meta.type !== "row_header") return;
     const is_collapse = (event.target as Element).classList.contains(
         "psp-tree-label-collapse",
     );
+
     if (event.shiftKey && is_collapse) {
         this._view.set_depth(
             (meta.row_header as unknown[]).filter((x) => x !== undefined)
@@ -38,6 +38,7 @@ export async function expandCollapseHandler(
     } else {
         this._view.expand(meta.y);
     }
+
     this._num_rows = await this._view.num_rows();
     this._num_columns = await this._view.num_columns();
     regularTable.draw();

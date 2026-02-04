@@ -38,8 +38,10 @@ export function applyGroupHeaderStyles(
             td.style.backgroundColor = "";
 
             const needs_border =
-                (header_depth > 0 && metadata.row_header_x === header_depth) ||
-                (metadata.x ?? -1) >= 0;
+                (metadata.type === "corner" &&
+                    header_depth > 0 &&
+                    metadata.row_header_x === header_depth) ||
+                (metadata.type === "column_header" && metadata.x >= 0);
 
             td.classList.toggle("psp-align-right", false);
             td.classList.toggle("psp-align-left", false);
@@ -48,8 +50,9 @@ export function applyGroupHeaderStyles(
             td.classList.toggle("psp-header-border", needs_border);
             td.classList.toggle(
                 "psp-header-group-corner",
-                typeof metadata.x === "undefined",
+                metadata.type === "corner",
             );
+
             td.classList.toggle("psp-color-mode-bar", false);
             td.classList.toggle("psp-header-sort-asc", false);
             td.classList.toggle("psp-header-sort-desc", false);

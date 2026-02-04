@@ -75,8 +75,12 @@ const getMousedownListener =
                 datagrid.model!._edit_mode === "SELECT_COLUMN")
         ) {
             datagrid.model!._selection_state.CURRENT_MOUSEDOWN_COORDINATES = {};
-            const meta = table.getMeta(mouseEvent.target as Element);
-            if (meta && meta.x !== undefined && meta.y !== undefined) {
+            const meta = table.getMeta(mouseEvent.target as HTMLElement);
+            if (
+                meta?.type === "body" &&
+                meta.x !== undefined &&
+                meta.y !== undefined
+            ) {
                 datagrid.model!._selection_state.CURRENT_MOUSEDOWN_COORDINATES =
                     {
                         x: meta.x,
@@ -129,8 +133,12 @@ const getMouseoverListener =
                 datagrid.model!._selection_state.CURRENT_MOUSEDOWN_COORDINATES
                     .x !== undefined
             ) {
-                const meta = table.getMeta(mouseEvent.target as Element);
-                if (meta && meta.x !== undefined && meta.y !== undefined) {
+                const meta = table.getMeta(mouseEvent.target as HTMLElement);
+                if (
+                    meta?.type === "body" &&
+                    meta.x !== undefined &&
+                    meta.y !== undefined
+                ) {
                     const potentialSelection: SelectionArea = {
                         x0: Math.min(
                             meta.x,
@@ -183,7 +191,7 @@ const getMouseupListener =
             datagrid.model!._edit_mode === "SELECT_ROW" ||
             datagrid.model!._edit_mode === "SELECT_COLUMN"
         ) {
-            const meta = table.getMeta(mouseEvent.target as Element);
+            const meta = table.getMeta(mouseEvent.target as HTMLElement);
             if (!meta) return;
 
             if (
@@ -195,6 +203,7 @@ const getMouseupListener =
                 if (
                     selected.x0 === selected.x1 &&
                     selected.y0 === selected.y1 &&
+                    meta?.type === "body" &&
                     selected.x0 === meta.x &&
                     selected.y0 === meta.y
                 ) {
@@ -216,6 +225,7 @@ const getMouseupListener =
                     .CURRENT_MOUSEDOWN_COORDINATES &&
                 datagrid.model!._selection_state.CURRENT_MOUSEDOWN_COORDINATES
                     .x !== undefined &&
+                meta?.type === "body" &&
                 meta.x !== undefined &&
                 meta.y !== undefined
             ) {
@@ -338,8 +348,8 @@ const applyMouseAreaSelection = (
         const tds = table.querySelectorAll("tbody td");
 
         for (const td of tds) {
-            const meta = table.getMeta(td);
-            if (!meta) continue;
+            const meta = table.getMeta(td as HTMLElement);
+            if (!meta || meta.type !== "body") continue;
             let rendered = false;
             for (const { x0, x1, y0, y1 } of selected) {
                 if (
@@ -372,7 +382,7 @@ const applyMouseAreaSelection = (
         const tds = table.querySelectorAll("tbody td");
 
         for (const td of tds) {
-            const meta = table.getMeta(td);
+            const meta = table.getMeta(td as HTMLElement);
             if (!meta) continue;
             let rendered = false;
             for (const { x0, x1, y0, y1 } of selected) {
@@ -380,7 +390,8 @@ const applyMouseAreaSelection = (
                     x0 !== undefined &&
                     y0 !== undefined &&
                     x1 !== undefined &&
-                    y1 !== undefined
+                    y1 !== undefined &&
+                    meta?.type === "body"
                 ) {
                     if (y0 <= meta.y && meta.y <= y1) {
                         datagrid.model!._selection_state.dirty = true;
@@ -401,7 +412,7 @@ const applyMouseAreaSelection = (
         const tds = table.querySelectorAll("tbody td");
 
         for (const td of tds) {
-            const meta = table.getMeta(td);
+            const meta = table.getMeta(td as HTMLElement);
             if (!meta) continue;
             let rendered = false;
             for (const { x0, x1, y0, y1 } of selected) {
@@ -409,7 +420,8 @@ const applyMouseAreaSelection = (
                     x0 !== undefined &&
                     y0 !== undefined &&
                     x1 !== undefined &&
-                    y1 !== undefined
+                    y1 !== undefined &&
+                    meta?.type === "body"
                 ) {
                     if (x0 <= meta.x && meta.x <= x1) {
                         datagrid.model!._selection_state.dirty = true;

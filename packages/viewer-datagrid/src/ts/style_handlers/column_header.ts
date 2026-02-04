@@ -11,7 +11,11 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 import { RegularTableElement } from "regular-table";
-import type { DatagridModel, PerspectiveViewerElement } from "../types.js";
+import {
+    get_psp_type,
+    type DatagridModel,
+    type PerspectiveViewerElement,
+} from "../types.js";
 import { CollectedHeaderRow } from "./types.js";
 
 /**
@@ -97,12 +101,19 @@ export function styleColumnHeaderRow(
     const selectedColumn = this._column_settings_selected_column;
 
     for (const { element: td, metadata } of headerRow.cells) {
-        if (!metadata) continue;
+        if (
+            !metadata ||
+            metadata.type === "body" ||
+            metadata.type === "row_header"
+        )
+            continue;
 
         const column_name =
             metadata.column_header?.[this._config.split_by.length];
         const sort = this._config.sort.find((x) => x[0] === column_name);
-        let needs_border = metadata.row_header_x === header_depth;
+        let needs_border =
+            metadata.type === "corner" &&
+            metadata.row_header_x === header_depth;
         const is_corner = typeof metadata.x === "undefined";
         needs_border =
             needs_border ||
@@ -147,7 +158,7 @@ export function styleColumnHeaderRow(
             !is_menu_row && !!sort && sort[1] === "col desc abs",
         );
 
-        const type = this.get_psp_type(metadata);
+        const type = get_psp_type(this, metadata);
         const is_numeric = type === "integer" || type === "float";
         const is_string = type === "string";
         const is_date = type === "date";

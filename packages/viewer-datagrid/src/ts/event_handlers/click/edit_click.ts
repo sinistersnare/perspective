@@ -10,10 +10,12 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import type {
-    RegularTable,
-    DatagridModel,
-    PerspectiveViewerElement,
+import { CellMetadataBody } from "regular-table/dist/esm/types.js";
+import {
+    type RegularTable,
+    type DatagridModel,
+    type PerspectiveViewerElement,
+    get_psp_type,
 } from "../../types.js";
 
 export function write_cell(
@@ -21,13 +23,13 @@ export function write_cell(
     model: DatagridModel,
     active_cell: HTMLElement,
 ): boolean {
-    const meta = table.getMeta(active_cell);
+    const meta = table.getMeta(active_cell) as CellMetadataBody;
     if (!meta) {
         return false;
     }
-    const type = model._schema[model._column_paths[meta.x]];
+    const type = model._schema[model._column_paths[meta.x!]];
     let text: string | number | boolean | null = active_cell.textContent || "";
-    const id = model._ids[meta.y - meta.y0][0];
+    const id = model._ids[meta.y! - meta.y0][0];
     if (type === "float" || type === "integer") {
         const parsed = parseFloat(text.replace(/,/g, ""));
         if (isNaN(parsed)) {
@@ -59,13 +61,14 @@ export function clickListener(
     _viewer: PerspectiveViewerElement,
     event: MouseEvent,
 ): void {
-    const meta = table.getMeta(event.target as Element);
-    if (typeof meta?.x !== "undefined") {
+    const meta = table.getMeta(event.target as HTMLElement);
+    if (meta?.type === "body" || meta?.type === "column_header") {
         const is_editable2 = this._is_editable[meta.x];
-        const is_bool = this.get_psp_type(meta) === "boolean";
+        const is_bool = get_psp_type(this, meta) === "boolean";
         const is_null = (event.target as Element).classList.contains(
             "psp-null",
         );
+
         if (is_editable2 && is_bool && !is_null) {
             write_cell(table, this, event.target as HTMLElement);
         }

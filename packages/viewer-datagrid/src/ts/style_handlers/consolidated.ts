@@ -11,8 +11,6 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 import { RegularTableElement } from "regular-table";
-import { CellMetadata } from "regular-table/dist/esm/types.js";
-import { ColumnType } from "@perspective-dev/client";
 import { PRIVATE_PLUGIN_SYMBOL } from "../model/index.js";
 import type {
     DatagridModel,
@@ -27,14 +25,11 @@ import { styleColumnHeaderRow } from "./column_header.js";
 import { applyColumnHeaderStyles } from "./editable.js";
 import { applyGroupHeaderStyles } from "./group_header.js";
 import { applyBodyCellStyles } from "./body.js";
-
-interface CellMetaExtended extends CellMetadata {
-    _is_hidden_by_aggregate_depth?: boolean;
-}
+import { CellMetadata } from "regular-table/dist/esm/types.js";
 
 interface CollectedCell {
     element: HTMLElement;
-    metadata: CellMetaExtended;
+    metadata: CellMetadata;
     isHeader: boolean;
 }
 
@@ -118,9 +113,9 @@ export function createConsolidatedStyleListener(
         if (tbody) {
             for (const tr of tbody.children) {
                 for (const cell of tr.children) {
-                    const metadata = regularTable.getMeta(cell) as
-                        | CellMetaExtended
-                        | undefined;
+                    const metadata = regularTable.getMeta(
+                        cell as HTMLElement,
+                    ) as CellMetadata | undefined;
 
                     if (metadata) {
                         const isHeader = cell.tagName === "TH";
@@ -144,9 +139,9 @@ export function createConsolidatedStyleListener(
                 };
 
                 for (const cell of tr.children) {
-                    const metadata = regularTable.getMeta(cell) as
-                        | CellMetadata
-                        | undefined;
+                    const metadata = regularTable.getMeta(
+                        cell as HTMLElement,
+                    ) as CellMetadata | undefined;
 
                     rowData.cells.push({
                         element: cell as HTMLTableCellElement,

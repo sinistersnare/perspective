@@ -12,11 +12,12 @@
 
 import { RegularTableElement } from "regular-table";
 
-import type {
-    DatagridModel,
-    PerspectiveViewerElement,
-    ColumnsConfig,
-    DatagridPluginElement,
+import {
+    type DatagridModel,
+    type PerspectiveViewerElement,
+    type ColumnsConfig,
+    type DatagridPluginElement,
+    get_psp_type,
 } from "../types.js";
 
 import { cell_style_numeric } from "./table_cell/numeric.js";
@@ -28,20 +29,7 @@ import {
     CollectedCell,
     LocalSelectedPositionMap,
     LocalSelectedRowsMap,
-    CellMetaExtended,
 } from "./types.js";
-import { ColumnType } from "@perspective-dev/client";
-
-function get_psp_type(
-    model: DatagridModel,
-    metadata: CellMetaExtended,
-): ColumnType {
-    if (metadata.x !== undefined && metadata.x >= 0) {
-        return model._column_types[metadata.x];
-    } else {
-        return model._row_header_types[(metadata.row_header_x ?? 0) - 1];
-    }
-}
 
 /**
  * Apply styles to all body cells in a single pass.
@@ -71,6 +59,7 @@ export function applyBodyCellStyles(
         const is_numeric = type === "integer" || type === "float";
 
         // Calculate aggregate depth visibility
+        // @ts-ignore
         metadata._is_hidden_by_aggregate_depth = ((x?: number) =>
             x === 0 || x === undefined
                 ? false
@@ -109,6 +98,7 @@ export function applyBodyCellStyles(
             "psp-bool-type",
             type === "boolean" && metadata.user !== null,
         );
+
         td.classList.toggle("psp-null", metadata.value === null);
         td.classList.toggle("psp-align-right", !isHeader && is_numeric);
         td.classList.toggle("psp-align-left", isHeader || !is_numeric);
@@ -138,14 +128,18 @@ export function applyBodyCellStyles(
         }
 
         if (
-            metadata.row_header_x === undefined ||
+            metadata.type !== "row_header" ||
             metadata.row_header_x ===
                 (metadata.row_header as unknown[]).length - 1 ||
             (metadata.row_header as unknown[])[metadata.row_header_x + 1] ===
                 undefined
         ) {
             td.dataset.y = String(metadata.y);
-            td.dataset.x = String(metadata.x);
+            if (metadata.type !== "row_header") {
+                td.dataset.x = String(metadata.x);
+            } else {
+                delete td.dataset.x;
+            }
         } else {
             delete td.dataset.y;
             delete td.dataset.x;
@@ -166,6 +160,7 @@ export function applyBodyCellStyles(
                 const selectedArr = selected as unknown[];
                 if (isHeader) {
                     if (
+                        metadata.type === "row_header" &&
                         metadata.row_header_x !== undefined &&
                         !!id[metadata.row_header_x]
                     ) {
@@ -195,7 +190,7 @@ export function applyBodyCellStyles(
         }
 
         // Apply editable styling (if editable)
-        if (!isHeader && metadata.x !== undefined) {
+        if (!isHeader && metadata.type === "body") {
             if (isEditable && this._is_editable[metadata.x]) {
                 const col_name =
                     metadata.column_header?.[this._config.split_by.length];

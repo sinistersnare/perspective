@@ -57,7 +57,6 @@ export function make_color_record(color: string): ColorRecord {
     const chroma_neg = chroma(color);
     const _neg_grad = make_gradient(chroma_neg);
     const rgb = chroma_neg.rgb();
-
     return [
         color,
         rgb[0],
