@@ -50,7 +50,7 @@ export async function mousedown_listener(
     if (target.classList.contains("psp-menu-enabled")) {
         const meta = regularTable.getMeta(target);
         const column_name = meta?.column_header?.[this._config.split_by.length];
-        await viewer.toggleColumnSettings(column_name);
+        await viewer.toggleColumnSettings(`${column_name}`);
     } else if (target.classList.contains("psp-sort-enabled")) {
         sortHandler.call(this, regularTable, viewer, event, target);
     }

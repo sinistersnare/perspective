@@ -24,12 +24,10 @@ export async function dispatch_click_listener(
     viewer: PerspectiveViewerElement,
     event: MouseEvent,
 ): Promise<void> {
-    const meta = table.getMeta(event.target as Element);
-    if (!meta) return;
+    const meta = table.getMeta(event.target as HTMLElement);
+    if (!meta || meta.type !== "body") return;
     const { x, y } = meta;
-
     const { row, column_names, config } = await getCellConfig(this, y, x);
-
     viewer.dispatchEvent(
         new CustomEvent<PerspectiveClickDetail>("perspective-click", {
             bubbles: true,

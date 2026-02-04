@@ -10,12 +10,12 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import { CellMetadata } from "regular-table/dist/esm/types.js";
+import { CellMetadataBody } from "regular-table/dist/esm/types.js";
 import type { DatagridModel, ColorRecord } from "../../types.js";
 
 export function style_cell_flash(
     this: DatagridModel,
-    metadata: CellMetadata,
+    metadata: CellMetadataBody,
     td: HTMLElement,
     [, , , , , pos_s, pos_e]: ColorRecord,
     [, , , , , neg_s, neg_e]: ColorRecord,

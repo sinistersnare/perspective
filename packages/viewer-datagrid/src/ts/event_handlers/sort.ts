@@ -55,7 +55,7 @@ export async function sortHandler(
             : override_sort;
 
     const abs = event.shiftKey;
-    const sort = sort_method.call(this, column_name, abs);
+    const sort = sort_method.call(this, `${column_name}`, abs);
     await viewer.restore({ sort });
 }
 

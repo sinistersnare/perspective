@@ -13,16 +13,13 @@
 import { CellMetadata } from "regular-table/dist/esm/types.js";
 import type { DatagridModel, ColumnConfig, ColorRecord } from "../../types.js";
 
-interface CellMetaWithFlags extends CellMetadata {
-    _is_hidden_by_aggregate_depth?: boolean;
-}
-
 export function cell_style_boolean(
     this: DatagridModel,
     _plugin: ColumnConfig | undefined,
     td: HTMLElement,
-    metadata: CellMetaWithFlags,
+    metadata: CellMetadata,
 ): void {
+    // @ts-ignore
     if (metadata._is_hidden_by_aggregate_depth) {
         td.style.backgroundColor = "";
         td.style.color = "";

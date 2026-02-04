@@ -23,7 +23,21 @@ import { CellMetadata, DataResponse } from "regular-table/dist/esm/types";
 
 // Re-export types from regular-table for use throughout the codebase
 export type { RegularTableElement as RegularTable };
-export type { CellMetadata as CellMeta };
+
+export function get_psp_type(
+    model: DatagridModel,
+    metadata: CellMetadata,
+): ColumnType {
+    if (
+        metadata.type === "body" ||
+        metadata.type === "column_header" ||
+        metadata.type === "corner"
+    ) {
+        return model._column_types[metadata.x];
+    } else {
+        return model._row_header_types[(metadata.row_header_x ?? 0) - 1];
+    }
+}
 
 // Edit mode for the datagrid
 export type EditMode =

@@ -76,7 +76,7 @@ const moveSelection = lock(async function (
     dy: number,
 ): Promise<void> {
     const meta = table.getMeta(active_cell);
-    if (!meta) return;
+    if (!meta || meta.type !== "body") return;
     const num_columns = this._column_paths.length;
     const num_rows = this._num_rows;
     const selected_position = selected_position_map.get(table);
@@ -118,7 +118,7 @@ function isLastCell(
     target: HTMLElement,
 ): boolean {
     const meta = table.getMeta(target);
-    return meta !== undefined && meta.y === model._num_rows - 1;
+    return meta?.type === "body" && meta.y === model._num_rows - 1;
 }
 
 export function keydownListener(

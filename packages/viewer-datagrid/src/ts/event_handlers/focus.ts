@@ -52,7 +52,7 @@ export function focusinListener(
 ): void {
     const target = event.target as HTMLElement;
     const meta = table.getMeta(target);
-    if (meta) {
+    if (meta?.type === "body") {
         const new_state: SelectedPosition = {
             x: meta.x,
             y: meta.y,

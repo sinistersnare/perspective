@@ -49,6 +49,7 @@ export default async function getCellConfig(
         column_names: [],
         config: { filter: [] },
     };
+
     let column_filters: Filter[] = [];
     if (column_paths) {
         const split_by_values = column_paths.split("|");

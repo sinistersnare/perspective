@@ -19,16 +19,17 @@ import type {
     View,
     ViewConfig,
 } from "@perspective-dev/client";
-import type {
-    DatagridModel,
-    DatagridPluginElement,
-    RegularTable,
-    Schema,
-    CellMeta,
-    ElemFactory,
-    EditMode,
-    PerspectiveViewerElement,
+import {
+    type DatagridModel,
+    type DatagridPluginElement,
+    type RegularTable,
+    type Schema,
+    type ElemFactory,
+    type EditMode,
+    type PerspectiveViewerElement,
+    get_psp_type,
 } from "../types.js";
+import { CellMetadata } from "regular-table/dist/esm/types.js";
 
 function get_rule(regular: HTMLElement, tag: string, def: string): string {
     const color = window.getComputedStyle(regular).getPropertyValue(tag).trim();
@@ -61,14 +62,6 @@ class ElemFactoryImpl implements ElemFactory {
         const elem = this._elements[this._index];
         this._index += 1;
         return elem;
-    }
-}
-
-function get_psp_type(this: DatagridModel, metadata: CellMeta): ColumnType {
-    if (metadata.x !== undefined && metadata.x >= 0) {
-        return this._column_types[metadata.x];
-    } else {
-        return this._row_header_types[metadata.row_header_x! - 1];
     }
 }
 
@@ -222,7 +215,7 @@ export async function createModel(
         }),
         _series_color_map: new Map<string, string>(),
         _series_color_seed: new Map<string, number>(),
-        get_psp_type,
+        // get_psp_type,
         _div_factory: extend._div_factory || new ElemFactoryImpl("div"),
     }) as DatagridModel;
 

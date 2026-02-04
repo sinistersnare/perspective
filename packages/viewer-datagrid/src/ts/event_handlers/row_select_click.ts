@@ -28,21 +28,22 @@ export async function selectionListener(
     selected_rows_map: SelectedRowsMap,
     event: HandledMouseEvent,
 ): Promise<void> {
-    const meta = regularTable.getMeta(event.target as Element);
+    const meta = regularTable.getMeta(event.target as HTMLElement);
     if (!viewer.hasAttribute("selectable")) return;
     if (event.handled) return;
     if (event.shiftKey) return;
     if (event.button !== 0) {
         return;
     }
+
     event.stopImmediatePropagation();
 
     if (!meta) {
         return;
     }
 
-    const id = this._ids?.[meta.y - meta.y0];
-    if (meta && meta.y >= 0) {
+    if ((meta.type === "body" || meta.type === "row_header") && meta.y >= 0) {
+        const id = this._ids?.[meta.y - meta.y0];
         const selected = selected_rows_map.get(regularTable);
         const key_match =
             !!selected &&
@@ -56,10 +57,11 @@ export async function selectionListener(
             row: {},
             config: { filter: [] },
         };
+
         const { row, column_names, config } = await getCellConfig(
             this,
             meta.y,
-            meta.x,
+            meta.type === "body" ? meta.x : 0,
         );
 
         if (is_deselect) {
