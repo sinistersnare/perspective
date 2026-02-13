@@ -10,14 +10,20 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-pub(crate) mod generic_sql_model;
-mod server_async;
-mod server_sync;
-pub(crate) mod session_async;
-pub(crate) mod session_sync;
-pub(crate) mod virtual_server_sync;
+// This is just a file server, the implementation is in `src/index.ts`.
 
-pub use server_async::*;
-pub use server_sync::*;
-pub use session_async::PyAsyncSession;
-pub use session_sync::PySession;
+import http from "http";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+import { cwd_static_file_handler } from "@perspective-dev/client";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Create HTTP server for serving static files
+const httpServer = http.createServer((req, res) =>
+    cwd_static_file_handler(req, res, [`${__dirname}/dist`, __dirname]),
+);
+
+httpServer.listen(8080, () => {
+    console.log("Server listening on http://localhost:8080");
+});

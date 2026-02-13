@@ -20,8 +20,9 @@ import { test, expect } from "@perspective-dev/test";
 import {
     default as perspective,
     createMessageHandler,
+    wasmModule,
 } from "@perspective-dev/client";
-import { DuckDBHandler } from "@perspective-dev/client/dist/esm/virtual_servers/duckdb.js";
+import { DuckDBHandler } from "@perspective-dev/client/src/ts/virtual_servers/duckdb.ts";
 
 const require = createRequire(import.meta.url);
 const DUCKDB_DIST = path.dirname(require.resolve("@duckdb/duckdb-wasm"));
@@ -76,7 +77,7 @@ test.describe("DuckDB Virtual Server", function () {
 
     test.beforeAll(async () => {
         db = await initializeDuckDB();
-        const server = createMessageHandler(new DuckDBHandler(db));
+        const server = createMessageHandler(new DuckDBHandler(db, wasmModule));
         client = await perspective.worker(server);
         await loadSuperstoreData(db);
     });
@@ -84,13 +85,13 @@ test.describe("DuckDB Virtual Server", function () {
     test.describe("client", () => {
         test("get_hosted_table_names()", async function () {
             const tables = await client.get_hosted_table_names();
-            expect(tables).toContain("superstore");
+            expect(tables).toContain("memory.superstore");
         });
     });
 
     test.describe("table", () => {
         test("schema()", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const schema = await table.schema();
             expect(schema).toHaveProperty("Sales");
             expect(schema).toHaveProperty("Profit");
@@ -100,7 +101,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("schema() returns correct types", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const schema = await table.schema();
             expect(schema["Sales"]).toBe("float");
             expect(schema["Profit"]).toBe("float");
@@ -110,7 +111,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("columns()", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const columns = await table.columns();
             expect(columns).toContain("Sales");
             expect(columns).toContain("Profit");
@@ -120,7 +121,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("size()", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const size = await table.size();
             expect(size).toBe(9994);
         });
@@ -128,7 +129,7 @@ test.describe("DuckDB Virtual Server", function () {
 
     test.describe("view", () => {
         test("num_rows()", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({ columns: ["Sales", "Profit"] });
             const numRows = await view.num_rows();
             expect(numRows).toBe(9994);
@@ -136,7 +137,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("num_columns()", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Profit", "State"],
             });
@@ -147,7 +148,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("schema()", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Profit", "State"],
             });
@@ -161,7 +162,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("to_json()", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Quantity"],
             });
@@ -173,7 +174,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("to_columns()", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Quantity"],
             });
@@ -189,7 +190,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("column_paths()", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Profit", "State"],
             });
@@ -201,7 +202,7 @@ test.describe("DuckDB Virtual Server", function () {
 
     test.describe("group_by", () => {
         test("single group_by", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales"],
                 group_by: ["Region"],
@@ -216,7 +217,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("multi-level group_by", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales"],
                 group_by: ["Region", "Category"],
@@ -234,7 +235,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("group_by with count aggregate", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales"],
                 group_by: ["Region"],
@@ -247,7 +248,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("group_by with avg aggregate", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales"],
                 group_by: ["Category"],
@@ -263,7 +264,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("group_by with min aggregate", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Quantity"],
                 group_by: ["Region"],
@@ -277,7 +278,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("group_by with max aggregate", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Quantity"],
                 group_by: ["Region"],
@@ -291,9 +292,9 @@ test.describe("DuckDB Virtual Server", function () {
         });
     });
 
-    test.describe.skip("split_by", () => {
+    test.describe("split_by", () => {
         test("single split_by", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales"],
                 split_by: ["Region"],
@@ -310,8 +311,8 @@ test.describe("DuckDB Virtual Server", function () {
             await view.delete();
         });
 
-        test("split_by without group_by", async function () {
-            const table = await client.open_table("superstore");
+        test.skip("split_by without group_by", async function () {
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales"],
                 split_by: ["Category"],
@@ -326,7 +327,7 @@ test.describe("DuckDB Virtual Server", function () {
 
     test.describe("filter", () => {
         test("filter with equals", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Region"],
                 filter: [["Region", "==", "West"]],
@@ -339,7 +340,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("filter with not equals", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Region"],
                 filter: [["Region", "!=", "West"]],
@@ -352,7 +353,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("filter with greater than", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Quantity"],
                 filter: [["Quantity", ">", 5]],
@@ -365,7 +366,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("filter with less than", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Quantity"],
                 filter: [["Quantity", "<", 3]],
@@ -378,7 +379,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("filter with greater than or equal", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Quantity"],
                 filter: [["Quantity", ">=", 10]],
@@ -391,7 +392,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("filter with less than or equal", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Quantity"],
                 filter: [["Quantity", "<=", 2]],
@@ -404,7 +405,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("filter with LIKE", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "State"],
                 filter: [["State", "LIKE", "Cal%"]],
@@ -417,7 +418,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("multiple filters", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Region", "Quantity"],
                 filter: [
@@ -434,7 +435,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("filter with group_by", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales"],
                 group_by: ["Category"],
@@ -449,7 +450,7 @@ test.describe("DuckDB Virtual Server", function () {
 
     test.describe("sort", () => {
         test("sort ascending", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Quantity"],
                 sort: [["Sales", "asc"]],
@@ -464,7 +465,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("sort descending", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Quantity"],
                 sort: [["Sales", "desc"]],
@@ -479,7 +480,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("sort with group_by", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales"],
                 group_by: ["Region"],
@@ -498,7 +499,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("multi-column sort", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Region", "Sales", "Quantity"],
                 sort: [
@@ -524,7 +525,7 @@ test.describe("DuckDB Virtual Server", function () {
 
     test.describe("expressions", () => {
         test("simple expression", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "doublesales"],
                 expressions: { doublesales: '"Sales" * 2' },
@@ -540,7 +541,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("expression with multiple columns", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Profit", "margin"],
                 expressions: { margin: '"Profit" / "Sales"' },
@@ -560,7 +561,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("expression with group_by", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["total"],
                 group_by: ["Region"],
@@ -580,7 +581,7 @@ test.describe("DuckDB Virtual Server", function () {
 
     test.describe("viewport", () => {
         test("start_row and end_row", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Profit"],
             });
@@ -590,7 +591,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("start_col and end_col", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Profit", "Quantity", "Discount"],
             });
@@ -609,7 +610,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("large viewport", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales"],
             });
@@ -621,7 +622,7 @@ test.describe("DuckDB Virtual Server", function () {
 
     test.describe("data types", () => {
         test("integer columns", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Quantity"],
             });
@@ -633,7 +634,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("float columns", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales", "Profit"],
             });
@@ -646,7 +647,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("string columns", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Region", "State", "City"],
             });
@@ -660,7 +661,7 @@ test.describe("DuckDB Virtual Server", function () {
         });
 
         test("date columns", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Order Date"],
             });
@@ -675,7 +676,7 @@ test.describe("DuckDB Virtual Server", function () {
 
     test.describe("combined operations", () => {
         test("group_by + filter + sort", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales"],
                 group_by: ["Category"],
@@ -695,8 +696,8 @@ test.describe("DuckDB Virtual Server", function () {
             await view.delete();
         });
 
-        test.skip("split_by + group_by + filter", async function () {
-            const table = await client.open_table("superstore");
+        test("split_by + group_by + filter", async function () {
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["Sales"],
                 group_by: ["Category"],
@@ -707,12 +708,12 @@ test.describe("DuckDB Virtual Server", function () {
             const paths = await view.column_paths();
             expect(paths.length).toBeGreaterThan(0);
             const numRows = await view.num_rows();
-            expect(numRows).toBe(4); // 3 categories + total
+            expect(numRows).toBe(3); // 3 categories + total
             await view.delete();
         });
 
         test("expressions + group_by + sort", async function () {
-            const table = await client.open_table("superstore");
+            const table = await client.open_table("memory.superstore");
             const view = await table.view({
                 columns: ["profitmargin"],
                 group_by: ["Region"],

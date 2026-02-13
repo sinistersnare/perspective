@@ -71,13 +71,6 @@ const BUILD = [
     //     "Bundler friendly": true,
     // },
     {
-        entryPoints: ["src/ts/virtual_servers/duckdb.ts"],
-        format: "esm",
-        target: "es2022",
-        plugins: [PerspectiveEsbuildPlugin()],
-        outfile: "dist/esm/virtual_servers/duckdb.js",
-    },
-    {
         entryPoints: ["src/ts/perspective.browser.ts"],
         format: "esm",
         target: "es2022",
@@ -100,6 +93,21 @@ const BUILD = [
         plugins: [PerspectiveEsbuildPlugin(), NodeModulesExternal()],
         loader: { ".wasm": "binary" },
         outdir: "dist/esm",
+    },
+
+    {
+        entryPoints: ["src/ts/virtual_servers/duckdb.ts"],
+        format: "esm",
+        target: "es2022",
+        plugins: [PerspectiveEsbuildPlugin()],
+        outfile: "dist/esm/virtual_servers/duckdb.js",
+    },
+    {
+        entryPoints: ["src/ts/virtual_servers/clickhouse.ts"],
+        format: "esm",
+        target: "es2022",
+        plugins: [PerspectiveEsbuildPlugin()],
+        outfile: "dist/esm/virtual_servers/clickhouse.js",
     },
 ];
 

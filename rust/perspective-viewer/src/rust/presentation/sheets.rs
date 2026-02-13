@@ -46,7 +46,10 @@ fn fill_rule_theme_names(
                 if property == "--theme-name" {
                     let name = style.get_property_value("--theme-name")?;
                     let trimmed = name.trim();
-                    themes.push(trimmed[1..trimmed.len() - 1].to_owned());
+                    let theme = &trimmed[1..trimmed.len() - 1];
+                    if themes.iter().find(|x| x == &theme).is_none() {
+                        themes.push(theme.to_owned());
+                    }
                 }
             }
         }

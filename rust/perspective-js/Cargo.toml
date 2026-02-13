@@ -63,7 +63,7 @@ anyhow = "1.0.66"
 wasm-bindgen-test = "0.3.13"
 
 [dependencies]
-perspective-client = { version = "4.1.1" }
+perspective-client = { version = "4.1.1", features = ["sendable"] }
 bytes = "1.10.1"
 chrono = "0.4"
 derivative = "2.2.0"
@@ -91,7 +91,7 @@ version = "11.0.1"
 features = ["serde-json-impl", "no-serde-warnings", "import-esm"]
 
 [dependencies.wasm-bindgen]
-version = "=0.2.105"
+version = "=0.2.106"
 features = ["serde-serialize", "enable-interning"]
 
 [dependencies.web-sys]

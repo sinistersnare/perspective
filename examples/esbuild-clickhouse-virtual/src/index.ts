@@ -10,14 +10,38 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-pub(crate) mod generic_sql_model;
-mod server_async;
-mod server_sync;
-pub(crate) mod session_async;
-pub(crate) mod session_sync;
-pub(crate) mod virtual_server_sync;
+import perspective from "@perspective-dev/client";
+import perspective_viewer from "@perspective-dev/viewer";
+import "@perspective-dev/viewer-datagrid";
+import "@perspective-dev/viewer-d3fc";
 
-pub use server_async::*;
-pub use server_sync::*;
-pub use session_async::PyAsyncSession;
-pub use session_sync::PySession;
+import "@perspective-dev/viewer/dist/css/dracula.css";
+import "@perspective-dev/viewer/dist/css/themes.css";
+
+// @ts-ignore
+import SERVER_WASM from "@perspective-dev/server/dist/wasm/perspective-server.wasm";
+
+// @ts-ignore
+import CLIENT_WASM from "@perspective-dev/viewer/dist/wasm/perspective-viewer.wasm";
+
+import { ClickhouseHandler } from "@perspective-dev/client/src/ts/virtual_servers/clickhouse.ts";
+import { createClient } from "@clickhouse/client-web";
+
+await Promise.all([
+    perspective.init_server(fetch(SERVER_WASM)),
+    perspective_viewer.init_client(fetch(CLIENT_WASM)),
+]);
+
+const db = createClient({
+    url: "http://localhost:8123",
+    username: "default",
+    password: "",
+    database: "default",
+    session_id: Math.random() + "",
+});
+
+await perspective.init_client(fetch(CLIENT_WASM));
+const server = perspective.createMessageHandler(new ClickhouseHandler(db));
+const client = await perspective.worker(server);
+const viewer = document.querySelector("perspective-viewer")!;
+viewer.load(client);

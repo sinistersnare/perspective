@@ -60,6 +60,7 @@ fn prost_build() -> Result<()> {
             .field_attribute("ViewToArrowResp.arrow", "#[serde(skip)]")
             .field_attribute("from_arrow", "#[serde(skip)]")
             .type_attribute(".", "#[derive(serde::Serialize)]")
+            .type_attribute("ViewPort", "#[derive(serde::Deserialize)]")
             .type_attribute("ViewDimensionsResp", "#[derive(serde::Deserialize)]")
             .type_attribute("TableValidateExprResp", "#[derive(serde::Deserialize)]")
             .type_attribute(

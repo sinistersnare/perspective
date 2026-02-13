@@ -25,7 +25,7 @@ import type * as perspective from "@perspective-dev/client";
 import type { ColumnType } from "@perspective-dev/client/dist/esm/ts-rs/ColumnType.d.ts";
 import type { ViewConfig } from "@perspective-dev/client/dist/esm/ts-rs/ViewConfig.d.ts";
 import type { ViewWindow } from "@perspective-dev/client/dist/esm/ts-rs/ViewWindow.d.ts";
-import type * as duckdb from "@duckdb/duckdb-wasm";
+import type * as clickhouse from "@clickhouse/client-web";
 
 const NUMBER_AGGS = [
     "sum",
@@ -76,38 +76,28 @@ const FILTER_OPS = [
 ];
 
 function duckdbTypeToPsp(name: string): ColumnType {
-    if (name === "VARCHAR" || name == "Utf8") {
+    if (name.startsWith("Nullable")) {
+        name = name.match(/Nullable\((.+?)\)/)![1];
+    }
+
+    if (name.startsWith("Array")) {
         return "string";
     }
 
-    if (
-        name === "DOUBLE" ||
-        name === "BIGINT" ||
-        name === "HUGEINT" ||
-        name === "Float64" ||
-        name.startsWith("Decimal")
-    ) {
+    if (name === "Int64" || name === "UInt64" || name === "Float64") {
         return "float";
     }
 
-    if (name.startsWith("Int") || name == "INTEGER") {
-        return "integer";
+    if (name === "String") {
+        return "string";
     }
 
-    if (name === "INTEGER") {
-        return "integer";
-    }
-
-    if (name === "DATE" || name.startsWith("Date")) {
-        return "date";
-    }
-
-    if (name === "BOOLEAN" || name === "Bool") {
-        return "boolean";
-    }
-
-    if (name === "TIMESTAMP" || name.startsWith("Timestamp")) {
+    if (name === "DateTime") {
         return "datetime";
+    }
+
+    if (name === "Date") {
+        return "date";
     }
 
     throw new Error(`Unknown type '${name}'`);
@@ -132,10 +122,30 @@ function convertDecimalToNumber(value: any, dtypeString: string) {
     }
 }
 
+class Lock {
+    lockPromise: Promise<void>;
+    constructor() {
+        this.lockPromise = Promise.resolve();
+    }
+
+    acquire() {
+        let releaseLock: (value: void) => void;
+        const newLockPromise: Promise<void> = new Promise((resolve) => {
+            releaseLock = resolve;
+        });
+
+        const acquirePromise = this.lockPromise.then(() => releaseLock);
+        this.lockPromise = newLockPromise;
+        return acquirePromise;
+    }
+}
+
+const LOCK = new Lock();
+
 async function runQuery(
-    db: duckdb.AsyncDuckDBConnection,
+    db: clickhouse.ClickHouseClient,
     query: string,
-    options: { columns: true },
+    options: { columns?: true; execute?: boolean },
 ): Promise<{
     rows: any[];
     columns: string[];
@@ -143,42 +153,50 @@ async function runQuery(
 }>;
 
 async function runQuery(
-    db: duckdb.AsyncDuckDBConnection,
+    db: clickhouse.ClickHouseClient,
     query: string,
-    options?: { columns: false },
+    options?: { columns?: false; execute?: boolean },
 ): Promise<any[]>;
 
 async function runQuery(
-    db: duckdb.AsyncDuckDBConnection,
+    db: clickhouse.ClickHouseClient,
     query: string,
-    options: { columns?: boolean } = {},
+    options: { columns?: boolean; execute?: boolean } = {},
 ) {
     query = query.replace(/\s+/g, " ").trim();
+    const release = await LOCK.acquire();
     try {
-        const result = await db.query(query);
-        if (options.columns) {
-            return {
-                rows: result.toArray(),
-                columns: result.schema.fields.map((f) => f.name),
-                dtypes: result.schema.fields.map((f) => f.type.toString()),
-            };
-        }
+        const result = await db.query({ query });
+        if (!options.execute) {
+            const { data, meta } =
+                (await result.json()) as clickhouse.ResponseJSON<unknown>;
 
-        return result.toArray();
+            if (options.columns) {
+                return {
+                    rows: data,
+                    columns: meta!.map((f) => f.name),
+                    dtypes: meta!.map((f) => f.type),
+                };
+            }
+
+            return data;
+        }
     } catch (error) {
         console.error("Query error:", error);
         console.error("Query:", query);
         throw error;
+    } finally {
+        release();
     }
 }
 
 /**
  * An implementation of Perspective's Virtual Server for `@duckdb/duckdb-wasm`.
  */
-export class DuckDBHandler implements perspective.VirtualServerHandler {
-    private db: duckdb.AsyncDuckDBConnection;
+export class ClickhouseHandler implements perspective.VirtualServerHandler {
+    private db: clickhouse.ClickHouseClient;
     private sqlBuilder: perspective.GenericSQLVirtualServerModel;
-    constructor(db: duckdb.AsyncDuckDBConnection, mod?: typeof perspective) {
+    constructor(db: clickhouse.ClickHouseClient, mod?: typeof perspective) {
         if (!mod) {
             if (customElements) {
                 const viewer_class: any =
@@ -193,13 +211,16 @@ export class DuckDBHandler implements perspective.VirtualServerHandler {
         }
 
         this.db = db;
-        this.sqlBuilder = new mod!.GenericSQLVirtualServerModel();
+        this.sqlBuilder = new mod!.GenericSQLVirtualServerModel({
+            create_entity: "VIEW",
+            grouping_fn: "GROUPING",
+        });
     }
 
     getFeatures() {
         return {
             group_by: true,
-            split_by: true,
+            split_by: false,
             sort: true,
             expressions: true,
             filter_ops: {
@@ -222,11 +243,10 @@ export class DuckDBHandler implements perspective.VirtualServerHandler {
     }
 
     async getHostedTables() {
-        const query = this.sqlBuilder.getHostedTables();
+        const query = "SHOW TABLES";
         const results = await runQuery(this.db, query);
         return results.map((row) => {
-            const json = row.toJSON();
-            return `${json.database || "memory"}.${json.name}`;
+            return `${row.name}`;
         });
     }
 
@@ -235,12 +255,9 @@ export class DuckDBHandler implements perspective.VirtualServerHandler {
         const results = await runQuery(this.db, query);
         const schema = {} as Record<string, ColumnType>;
         for (const result of results) {
-            const res = result.toJSON();
-            const colName = res.column_name;
+            const colName = result.name;
             if (!colName.startsWith("__")) {
-                schema[colName] = duckdbTypeToPsp(
-                    res.column_type,
-                ) as ColumnType;
+                schema[colName] = duckdbTypeToPsp(result.type) as ColumnType;
             }
         }
 
@@ -248,10 +265,11 @@ export class DuckDBHandler implements perspective.VirtualServerHandler {
     }
 
     async viewColumnSize(viewId: string, config: ViewConfig) {
-        const query = this.sqlBuilder.viewColumnSize(viewId);
+        const query = `SELECT COUNT() FROM system.columns WHERE table = '${viewId}'`;
         const results = await runQuery(this.db, query);
         const gs = config.group_by?.length || 0;
-        const count = Number(Object.values(results[0].toJSON())[0]);
+        const count = Number(results[0]["COUNT()"]);
+        console.log(count);
         return (
             count -
             (gs === 0 ? 0 : gs + (config.split_by?.length === 0 ? 1 : 0))
@@ -261,12 +279,12 @@ export class DuckDBHandler implements perspective.VirtualServerHandler {
     async tableSize(tableId: string) {
         const query = this.sqlBuilder.tableSize(tableId);
         const results = await runQuery(this.db, query);
-        return Number(results[0].toJSON()["count_star()"]);
+        return Number(results[0]["COUNT()"]);
     }
 
     async tableMakeView(tableId: string, viewId: string, config: ViewConfig) {
         const query = this.sqlBuilder.tableMakeView(tableId, viewId, config);
-        await runQuery(this.db, query);
+        await runQuery(this.db, query, { execute: true });
     }
 
     async tableValidateExpression(tableId: string, expression: string) {
@@ -275,14 +293,12 @@ export class DuckDBHandler implements perspective.VirtualServerHandler {
             expression,
         );
         const results = await runQuery(this.db, query);
-        return duckdbTypeToPsp(
-            results[0].toJSON()["column_type"],
-        ) as ColumnType;
+        return duckdbTypeToPsp(results[0]["type"]) as ColumnType;
     }
 
     async viewDelete(viewId: string) {
         const query = this.sqlBuilder.viewDelete(viewId);
-        await runQuery(this.db, query);
+        await runQuery(this.db, query, { execute: true });
     }
 
     async viewGetData(
@@ -320,15 +336,23 @@ export class DuckDBHandler implements perspective.VirtualServerHandler {
 
             const isDecimal = dtypes[cidx].startsWith("Decimal");
             for (let ridx = 0; ridx < rows.length; ridx++) {
-                const rowArray = rows[ridx].toArray();
-                const grouping_id = Number(rowArray[0]);
-                let value = rowArray[cidx];
+                const row = rows[ridx];
+                const grouping_id = row["__GROUPING_ID__"];
+                let value = row[columns[cidx]];
                 if (isDecimal) {
                     value = convertDecimalToNumber(value, dtypes[cidx]);
                 }
 
                 if (typeof value === "bigint") {
                     value = Number(value);
+                }
+
+                if (dtype === "datetime" && typeof value === "string") {
+                    value = +new Date(value);
+                }
+
+                if (dtype === "string" && typeof value !== "string") {
+                    value = `${value}`;
                 }
 
                 dataSlice.setCol(dtype, col, ridx, value, grouping_id);

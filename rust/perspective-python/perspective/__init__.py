@@ -21,6 +21,7 @@ __all__ = [
     "ProxySession",
     "AsyncClient",
     "AsyncServer",
+    "GenericSQLVirtualServerModel",
     "VirtualServer",
     "num_cpus",
     "set_num_cpus",
@@ -353,6 +354,7 @@ from .perspective import (
     AsyncServer,
     AsyncClient,
     VirtualServer,
+    GenericSQLVirtualServerModel,
     # NOTE: these are classes without constructors,
     # so we import them just for type hinting
     Table,  # noqa: F401

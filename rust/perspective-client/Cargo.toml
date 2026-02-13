@@ -33,6 +33,10 @@ include = [
 [features]
 default = []
 
+# Removes the `Send` restriction from core `Future` traits, allowing easier
+# integration with wasm while respecting compat with rust-analyzer and metadata.
+sendable = []
+
 # Should the project build the `proto.rs` via protoc from source or assume it
 # already exists?
 generate-proto = []
