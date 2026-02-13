@@ -20,21 +20,16 @@ use std::sync::{Arc, Mutex};
 use indexmap::IndexMap;
 use js_sys::{Array, Date, Object, Reflect};
 use perspective_client::proto::{ColumnType, HostedTable};
-use perspective_client::virtual_server::{
-    Features, ResultExt, VirtualDataSlice, VirtualServer, VirtualServerHandler,
-};
+use perspective_client::virtual_server;
+use perspective_client::virtual_server::{Features, ResultExt, VirtualServerHandler};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
+use crate::JsViewConfig;
 use crate::utils::{ApiError, ApiFuture, *};
 
-// Conditional type alias matching the trait definition
-#[cfg(target_arch = "wasm32")]
 type HandlerFuture<T> = Pin<Box<dyn Future<Output = T>>>;
-
-#[cfg(not(target_arch = "wasm32"))]
-type HandlerFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
 #[derive(Debug)]
 pub struct JsError(JsValue);
@@ -65,15 +60,7 @@ impl From<serde_wasm_bindgen::Error> for JsError {
     }
 }
 
-// SAFETY: In WASM, we're always single-threaded, so JsError can safely be Send
-// + Sync
-unsafe impl Send for JsError {}
-unsafe impl Sync for JsError {}
-
 pub struct JsServerHandler(Object);
-
-unsafe impl Send for JsServerHandler {}
-unsafe impl Sync for JsServerHandler {}
 
 impl JsServerHandler {
     fn call_method_js(&self, method: &str, args: &Array) -> Result<JsValue, JsError> {
@@ -90,7 +77,7 @@ impl JsServerHandler {
         // Check if result is a Promise
         if result.is_instance_of::<js_sys::Promise>() {
             let promise = js_sys::Promise::from(result);
-            JsFuture::from(promise).await.map_err(|e| JsError(e))
+            JsFuture::from(promise).await.map_err(JsError)
         } else {
             Ok(result)
         }
@@ -293,11 +280,7 @@ impl VirtualServerHandler for JsServerHandler {
 
         let handler = self.0.clone();
         let view_id = view_id.to_string();
-        let config_value = if has_view_schema {
-            serde_wasm_bindgen::to_value(config).ok()
-        } else {
-            None
-        };
+        let config_value = JsValue::from_serde_ext(config).ok();
 
         Box::pin(async move {
             let this = JsServerHandler(handler);
@@ -446,7 +429,6 @@ impl VirtualServerHandler for JsServerHandler {
 
         let handler = self.0.clone();
         let table_id = table_id.to_string();
-
         use perspective_client::proto::make_table_data::Data;
         let data_value = match &data.data {
             Some(Data::FromCsv(csv)) => JsValue::from_str(csv),
@@ -474,22 +456,25 @@ impl VirtualServerHandler for JsServerHandler {
         &self,
         view_id: &str,
         config: &perspective_client::config::ViewConfig,
+        schema: &IndexMap<String, ColumnType>,
         viewport: &perspective_client::proto::ViewPort,
-    ) -> HandlerFuture<Result<VirtualDataSlice, Self::Error>> {
+    ) -> HandlerFuture<Result<virtual_server::VirtualDataSlice, Self::Error>> {
         let handler = self.0.clone();
         let view_id = view_id.to_string();
         let window: JsViewPort = viewport.clone().into();
         let config_value = serde_wasm_bindgen::to_value(config).unwrap();
         let window_value = serde_wasm_bindgen::to_value(&window).unwrap();
+        let schema_value = JsValue::from_serde_ext(&schema).unwrap();
 
         Box::pin(async move {
             let this = JsServerHandler(handler);
-            let data = JsVirtualDataSlice::default();
+            let data = VirtualDataSlice::new(config_value.clone().unchecked_into());
 
             {
                 let args = Array::new();
                 args.push(&JsValue::from_str(&view_id));
                 args.push(&config_value);
+                args.push(&schema_value);
                 args.push(&window_value);
                 args.push(&JsValue::from(data.clone()));
                 this.call_method_js_async("viewGetData", &args).await?;
@@ -497,8 +482,8 @@ impl VirtualServerHandler for JsServerHandler {
 
             // Lock the mutex and take ownership of the inner data
             // We can't unwrap the Arc because the JsValue might still hold a reference
-            let JsVirtualDataSlice(_obj, arc) = data;
-            let slice = std::mem::take(&mut *arc.lock().unwrap());
+            let VirtualDataSlice(_obj, arc) = data;
+            let slice = std::mem::take(&mut *arc.lock().unwrap()).unwrap();
             Ok(slice)
         })
     }
@@ -530,24 +515,20 @@ impl From<perspective_client::proto::ViewPort> for JsViewPort {
     }
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = "VirtualDataSlice")]
 #[derive(Clone)]
-pub struct JsVirtualDataSlice(Object, Arc<Mutex<VirtualDataSlice>>);
-
-impl Default for JsVirtualDataSlice {
-    fn default() -> Self {
-        JsVirtualDataSlice(
-            Object::new(),
-            Arc::new(Mutex::new(VirtualDataSlice::default())),
-        )
-    }
-}
+pub struct VirtualDataSlice(Object, Arc<Mutex<Option<virtual_server::VirtualDataSlice>>>);
 
 #[wasm_bindgen]
-impl JsVirtualDataSlice {
+impl VirtualDataSlice {
     #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(config: JsViewConfig) -> Self {
+        VirtualDataSlice(
+            Object::new(),
+            Arc::new(Mutex::new(Some(virtual_server::VirtualDataSlice::new(
+                config.into_serde_ext().unwrap(),
+            )))),
+        )
     }
 
     #[wasm_bindgen(js_name = "setCol")]
@@ -582,11 +563,15 @@ impl JsVirtualDataSlice {
             self.1
                 .lock()
                 .unwrap()
+                .as_mut()
+                .unwrap()
                 .set_col(name, group_by_index, index as usize, None as Option<String>)
                 .unwrap();
         } else if let Some(s) = val.as_string() {
             self.1
                 .lock()
+                .unwrap()
+                .as_mut()
                 .unwrap()
                 .set_col(name, group_by_index, index as usize, Some(s))
                 .unwrap();
@@ -608,11 +593,15 @@ impl JsVirtualDataSlice {
             self.1
                 .lock()
                 .unwrap()
+                .as_mut()
+                .unwrap()
                 .set_col(name, group_by_index, index as usize, None as Option<i32>)
                 .unwrap();
         } else if let Some(n) = val.as_f64() {
             self.1
                 .lock()
+                .unwrap()
+                .as_mut()
                 .unwrap()
                 .set_col(name, group_by_index, index as usize, Some(n as i32))
                 .unwrap();
@@ -634,11 +623,15 @@ impl JsVirtualDataSlice {
             self.1
                 .lock()
                 .unwrap()
+                .as_mut()
+                .unwrap()
                 .set_col(name, group_by_index, index as usize, None as Option<f64>)
                 .unwrap();
         } else if let Some(n) = val.as_f64() {
             self.1
                 .lock()
+                .unwrap()
+                .as_mut()
                 .unwrap()
                 .set_col(name, group_by_index, index as usize, Some(n))
                 .unwrap();
@@ -660,11 +653,15 @@ impl JsVirtualDataSlice {
             self.1
                 .lock()
                 .unwrap()
+                .as_mut()
+                .unwrap()
                 .set_col(name, group_by_index, index as usize, None as Option<bool>)
                 .unwrap();
         } else if let Some(b) = val.as_bool() {
             self.1
                 .lock()
+                .unwrap()
+                .as_mut()
                 .unwrap()
                 .set_col(name, group_by_index, index as usize, Some(b))
                 .unwrap();
@@ -686,6 +683,8 @@ impl JsVirtualDataSlice {
             self.1
                 .lock()
                 .unwrap()
+                .as_mut()
+                .unwrap()
                 .set_col(name, group_by_index, index as usize, None as Option<i64>)
                 .unwrap();
         } else if let Some(date) = val.dyn_ref::<Date>() {
@@ -693,30 +692,35 @@ impl JsVirtualDataSlice {
             self.1
                 .lock()
                 .unwrap()
+                .as_mut()
+                .unwrap()
                 .set_col(name, group_by_index, index as usize, Some(timestamp))
                 .unwrap();
         } else if let Some(n) = val.as_f64() {
             self.1
                 .lock()
                 .unwrap()
+                .as_mut()
+                .unwrap()
                 .set_col(name, group_by_index, index as usize, Some(n as i64))
                 .unwrap();
         } else {
             tracing::error!("Unhandled datetime value");
         }
+
         Ok(())
     }
 }
 
 #[wasm_bindgen]
-pub struct JsVirtualServer(Rc<UnsafeCell<VirtualServer<JsServerHandler>>>);
+pub struct VirtualServer(Rc<UnsafeCell<virtual_server::VirtualServer<JsServerHandler>>>);
 
 #[wasm_bindgen]
-impl JsVirtualServer {
+impl VirtualServer {
     #[wasm_bindgen(constructor)]
-    pub fn new(handler: Object) -> Result<JsVirtualServer, JsValue> {
-        Ok(JsVirtualServer(Rc::new(UnsafeCell::new(
-            VirtualServer::new(JsServerHandler(handler)),
+    pub fn new(handler: Object) -> Result<VirtualServer, JsValue> {
+        Ok(VirtualServer(Rc::new(UnsafeCell::new(
+            virtual_server::VirtualServer::new(JsServerHandler(handler)),
         ))))
     }
 

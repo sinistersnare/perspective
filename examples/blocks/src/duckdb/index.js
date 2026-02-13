@@ -90,7 +90,7 @@ await loadSampleData(db);
 const viewer = document.querySelector("#query");
 viewer.load(client);
 viewer.restore({
-    table: "data_source_one",
+    table: "memory.data_source_one",
     group_by: ["Region", "State", "City"],
     columns: ["Sales", "Profit", "Quantity", "Discount"],
     plugin: "Datagrid",

@@ -13,12 +13,22 @@
 export type * from "../../dist/wasm/perspective-js.d.ts";
 import type * as psp from "../../dist/wasm/perspective-js.d.ts";
 export type * from "./virtual_server.ts";
-
 import * as psp_virtual from "./virtual_server.ts";
-
 import * as wasm_module from "../../dist/wasm/perspective-js.js";
 import * as api from "./wasm/browser.ts";
 import { load_wasm_stage_0 } from "./wasm/decompress.ts";
+
+export {
+    GenericSQLVirtualServerModel,
+    VirtualDataSlice,
+    VirtualServer,
+} from "../../dist/wasm/perspective-js.js";
+
+import {
+    GenericSQLVirtualServerModel,
+    VirtualDataSlice,
+    VirtualServer,
+} from "../../dist/wasm/perspective-js.js";
 
 let GLOBAL_SERVER_WASM: Promise<ArrayBuffer | WebAssembly.Module>;
 
@@ -144,4 +154,7 @@ export default {
     init_client,
     init_server,
     createMessageHandler,
+    GenericSQLVirtualServerModel,
+    VirtualDataSlice,
+    VirtualServer,
 };

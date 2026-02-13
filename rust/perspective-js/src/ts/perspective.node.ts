@@ -29,8 +29,19 @@ import * as engine from "./wasm/engine.ts";
 import { compile_perspective } from "./wasm/emscripten_api.ts";
 import * as psp_websocket from "./websocket.ts";
 import * as api from "./wasm/browser.ts";
-
 import * as virtual_server from "./virtual_server.ts";
+
+export {
+    GenericSQLVirtualServerModel,
+    VirtualDataSlice,
+    VirtualServer,
+} from "../../dist/wasm/perspective-js.js";
+
+import {
+    GenericSQLVirtualServerModel,
+    VirtualDataSlice,
+    VirtualServer,
+} from "../../dist/wasm/perspective-js.js";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
@@ -337,6 +348,12 @@ export function createMessageHandler(
     return virtual_server.createMessageHandler(perspective_client, handler);
 }
 
+/**
+ * The initialized WASM module. Use this when you need to pass the module
+ * to components that require it, such as `DuckDBHandler`.
+ */
+export { perspective_client as wasmModule };
+
 export default {
     table,
     websocket,
@@ -347,4 +364,7 @@ export default {
     on_error,
     system_info,
     WebSocketServer,
+    GenericSQLVirtualServerModel,
+    VirtualDataSlice,
+    VirtualServer,
 };

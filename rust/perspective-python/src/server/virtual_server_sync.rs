@@ -272,21 +272,25 @@ impl VirtualServerHandler for PyServerHandler {
         &self,
         view_id: &str,
         config: &perspective_client::config::ViewConfig,
+        schema: &IndexMap<String, ColumnType>,
         viewport: &perspective_client::proto::ViewPort,
     ) -> VirtualServerFuture<'_, Result<VirtualDataSlice, Self::Error>> {
         let handler = Python::with_gil(|py| self.0.clone_ref(py));
         let view_id = view_id.to_string();
         let config = config.clone();
+        let schema = schema.clone();
         let window: PyViewPort = viewport.clone().into();
         Box::pin(async move {
             Python::with_gil(|py| {
-                let data = PyVirtualDataSlice::default();
+                let data =
+                    PyVirtualDataSlice(Arc::new(Mutex::new(VirtualDataSlice::new(config.clone()))));
                 let _ = handler.call_method1(
                     py,
                     pyo3::intern!(py, "view_get_data"),
                     (
                         &view_id,
                         pythonize::pythonize(py, &config)?,
+                        pythonize::pythonize(py, &schema)?,
                         pythonize::pythonize(py, &window)?,
                         data.clone(),
                     ),
@@ -324,46 +328,46 @@ impl From<perspective_client::proto::ViewPort> for PyViewPort {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 #[pyclass(name = "VirtualDataSlice")]
 pub struct PyVirtualDataSlice(Arc<Mutex<VirtualDataSlice>>);
 
 #[pymethods]
 impl PyVirtualDataSlice {
-    #[pyo3(signature=(dtype, name, index, val, group_by_index = None))]
+    #[pyo3(signature=(dtype, name, index, val, grouping_id = None))]
     pub fn set_col(
         &self,
         dtype: &str,
         name: &str,
         index: u32,
         val: Py<PyAny>,
-        group_by_index: Option<usize>,
+        grouping_id: Option<usize>,
     ) -> PyResult<()> {
         match dtype {
-            "string" => self.set_string_col(name, index, val, group_by_index),
-            "integer" => self.set_integer_col(name, index, val, group_by_index),
-            "float" => self.set_float_col(name, index, val, group_by_index),
-            "date" => self.set_datetime_col(name, index, val, group_by_index),
-            "datetime" => self.set_datetime_col(name, index, val, group_by_index),
-            "boolean" => self.set_boolean_col(name, index, val, group_by_index),
+            "string" => self.set_string_col(name, index, val, grouping_id),
+            "integer" => self.set_integer_col(name, index, val, grouping_id),
+            "float" => self.set_float_col(name, index, val, grouping_id),
+            "date" => self.set_datetime_col(name, index, val, grouping_id),
+            "datetime" => self.set_datetime_col(name, index, val, grouping_id),
+            "boolean" => self.set_boolean_col(name, index, val, grouping_id),
             _ => Err(PyValueError::new_err("Unknown type")),
         }
     }
 
-    #[pyo3(signature=(name, index, val, group_by_index = None))]
+    #[pyo3(signature=(name, index, val, grouping_id = None))]
     pub fn set_string_col(
         &self,
         name: &str,
         index: u32,
         val: Py<PyAny>,
-        group_by_index: Option<usize>,
+        grouping_id: Option<usize>,
     ) -> PyResult<()> {
         Python::with_gil(|py| {
             if val.is_none(py) {
                 self.0
                     .lock()
                     .unwrap()
-                    .set_col(name, group_by_index, index as usize, None as Option<String>)
+                    .set_col(name, grouping_id, index as usize, None as Option<String>)
                     .unwrap();
             } else if let Ok(val) = val.downcast_bound::<PyString>(py) {
                 self.0
@@ -371,7 +375,7 @@ impl PyVirtualDataSlice {
                     .unwrap()
                     .set_col(
                         name,
-                        group_by_index,
+                        grouping_id,
                         index as usize,
                         val.extract::<String>().ok(),
                     )
@@ -384,26 +388,26 @@ impl PyVirtualDataSlice {
         })
     }
 
-    #[pyo3(signature=(name, index, val, group_by_index = None))]
+    #[pyo3(signature=(name, index, val, grouping_id = None))]
     pub fn set_integer_col(
         &self,
         name: &str,
         index: u32,
         val: Py<PyAny>,
-        group_by_index: Option<usize>,
+        grouping_id: Option<usize>,
     ) -> PyResult<()> {
         Python::with_gil(|py| {
             if val.is_none(py) {
                 self.0
                     .lock()
                     .unwrap()
-                    .set_col(name, group_by_index, index as usize, None as Option<i32>)
+                    .set_col(name, grouping_id, index as usize, None as Option<i32>)
                     .unwrap();
             } else if let Ok(val) = val.extract::<i32>(py) {
                 self.0
                     .lock()
                     .unwrap()
-                    .set_col(name, group_by_index, index as usize, Some(val))
+                    .set_col(name, grouping_id, index as usize, Some(val))
                     .unwrap();
             } else {
                 tracing::error!("Unhandled")
@@ -413,26 +417,26 @@ impl PyVirtualDataSlice {
         })
     }
 
-    #[pyo3(signature=(name, index, val, group_by_index = None))]
+    #[pyo3(signature=(name, index, val, grouping_id = None))]
     pub fn set_float_col(
         &self,
         name: &str,
         index: u32,
         val: Py<PyAny>,
-        group_by_index: Option<usize>,
+        grouping_id: Option<usize>,
     ) -> PyResult<()> {
         Python::with_gil(|py| {
             if val.is_none(py) {
                 self.0
                     .lock()
                     .unwrap()
-                    .set_col(name, group_by_index, index as usize, None as Option<f64>)
+                    .set_col(name, grouping_id, index as usize, None as Option<f64>)
                     .unwrap();
             } else if let Ok(val) = val.extract::<f64>(py) {
                 self.0
                     .lock()
                     .unwrap()
-                    .set_col(name, group_by_index, index as usize, Some(val))
+                    .set_col(name, grouping_id, index as usize, Some(val))
                     .unwrap();
             } else {
                 tracing::error!("Unhandled")
@@ -442,26 +446,26 @@ impl PyVirtualDataSlice {
         })
     }
 
-    #[pyo3(signature=(name, index, val, group_by_index = None))]
+    #[pyo3(signature=(name, index, val, grouping_id = None))]
     pub fn set_boolean_col(
         &self,
         name: &str,
         index: u32,
         val: Py<PyAny>,
-        group_by_index: Option<usize>,
+        grouping_id: Option<usize>,
     ) -> PyResult<()> {
         Python::with_gil(|py| {
             if val.is_none(py) {
                 self.0
                     .lock()
                     .unwrap()
-                    .set_col(name, group_by_index, index as usize, None as Option<bool>)
+                    .set_col(name, grouping_id, index as usize, None as Option<bool>)
                     .unwrap();
             } else if let Ok(val) = val.extract::<bool>(py) {
                 self.0
                     .lock()
                     .unwrap()
-                    .set_col(name, group_by_index, index as usize, Some(val))
+                    .set_col(name, grouping_id, index as usize, Some(val))
                     .unwrap();
             } else {
                 tracing::error!("Unhandled")
@@ -471,20 +475,20 @@ impl PyVirtualDataSlice {
         })
     }
 
-    #[pyo3(signature=(name, index, val, group_by_index = None))]
+    #[pyo3(signature=(name, index, val, grouping_id = None))]
     pub fn set_datetime_col(
         &self,
         name: &str,
         index: u32,
         val: Py<PyAny>,
-        group_by_index: Option<usize>,
+        grouping_id: Option<usize>,
     ) -> PyResult<()> {
         Python::with_gil(|py| {
             if val.is_none(py) {
                 self.0
                     .lock()
                     .unwrap()
-                    .set_col(name, group_by_index, index as usize, None as Option<i64>)
+                    .set_col(name, grouping_id, index as usize, None as Option<i64>)
                     .unwrap();
             } else if let Ok(val) = val.downcast_bound::<PyDate>(py) {
                 let dt: DateTime<Utc> = Utc
@@ -501,13 +505,13 @@ impl PyVirtualDataSlice {
                 self.0
                     .lock()
                     .unwrap()
-                    .set_col(name, group_by_index, index as usize, Some(timestamp))
+                    .set_col(name, grouping_id, index as usize, Some(timestamp))
                     .unwrap();
             } else if let Ok(val) = val.extract::<i64>(py) {
                 self.0
                     .lock()
                     .unwrap()
-                    .set_col(name, group_by_index, index as usize, Some(val))
+                    .set_col(name, grouping_id, index as usize, Some(val))
                     .unwrap();
             } else {
                 tracing::error!("Unhandled")

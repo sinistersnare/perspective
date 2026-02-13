@@ -10,7 +10,6 @@
 #  ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 #  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import duckdb
 import perspective
 
 from datetime import datetime
@@ -24,10 +23,6 @@ NUMBER_AGGS = [
     "count",
     "any_value",
     "arbitrary",
-    # "arg_max",
-    # "arg_max_null",
-    # "arg_min",
-    # "arg_min_null",
     "array_agg",
     "avg",
     "bit_and",
@@ -40,19 +35,13 @@ NUMBER_AGGS = [
     "favg",
     "fsum",
     "geomean",
-    # "histogram",
-    # "histogram_values",
     "kahan_sum",
     "last",
-    # "list"
     "max",
-    # "max_by"
     "min",
-    # "min_by"
     "product",
     "string_agg",
     "sumkahan",
-    # "weighted_avg",
 ]
 
 STRING_AGGS = [
@@ -78,36 +67,38 @@ FILTER_OPS = [
 ]
 
 
-class DuckDBVirtualSession:
+class ClickhouseVirtualSession:
     def __init__(self, callback, db):
-        self.session = perspective.VirtualServer(DuckDBVirtualSessionModel(db))
+        self.session = perspective.VirtualServer(ClickhouseVirtualSessionModel(db))
         self.callback = callback
 
     def handle_request(self, msg):
         self.callback(self.session.handle_request(msg))
 
 
-class DuckDBVirtualServer:
+class ClickhouseVirtualServer:
     def __init__(self, db):
         self.db = db
 
     def new_session(self, callback):
-        return DuckDBVirtualSession(callback, self.db)
+        return ClickhouseVirtualSession(callback, self.db)
 
 
-class DuckDBVirtualSessionModel(VirtualSessionModel):
+class ClickhouseVirtualSessionModel(VirtualSessionModel):
     """
-    An implementation of a `perspective.VirtualSessionModel` for DuckDB.
+    An implementation of a `perspective.VirtualSessionModel` for ClickHouse.
     """
 
     def __init__(self, db):
         self.db = db
-        self.sql_builder = perspective.GenericSQLVirtualServerModel()
+        self.sql_builder = perspective.GenericSQLVirtualServerModel(
+            {"create_entity": "VIEW", "grouping_fn": "GROUPING"}
+        )
 
     def get_features(self):
         return {
             "group_by": True,
-            "split_by": True,
+            "split_by": False,
             "sort": True,
             "expressions": True,
             "filter_ops": {
@@ -129,9 +120,9 @@ class DuckDBVirtualSessionModel(VirtualSessionModel):
         }
 
     def get_hosted_tables(self):
-        query = self.sql_builder.get_hosted_tables()
+        query = "SHOW TABLES"
         results = run_query(self.db, query)
-        return [result[2] for result in results]
+        return [result[0] for result in results]
 
     def table_schema(self, table_name, config=None):
         query = self.sql_builder.table_schema(table_name)
@@ -140,12 +131,12 @@ class DuckDBVirtualSessionModel(VirtualSessionModel):
         for result in results:
             col_name = result[0]
             if not col_name.startswith("__"):
-                schema[col_name] = duckdb_type_to_psp(result[1])
+                schema[col_name] = clickhouse_type_to_psp(result[1])
 
         return schema
 
-    def view_column_size(self, table_name, config):
-        query = self.sql_builder.view_column_size(table_name)
+    def view_column_size(self, view_name, config):
+        query = f"SELECT COUNT() FROM system.columns WHERE table = '{view_name}'"
         results = run_query(self.db, query)
         gs = len(config["group_by"])
         return results[0][0] - (
@@ -164,7 +155,7 @@ class DuckDBVirtualSessionModel(VirtualSessionModel):
     def table_validate_expression(self, view_name, expression):
         query = self.sql_builder.table_validate_expression(view_name, expression)
         results = run_query(self.db, query)
-        return duckdb_type_to_psp(results[0][1])
+        return clickhouse_type_to_psp(results[0][1])
 
     def view_delete(self, view_name):
         query = self.sql_builder.view_delete(view_name)
@@ -182,33 +173,47 @@ class DuckDBVirtualSessionModel(VirtualSessionModel):
             if len(split_by) > 0 and not col.startswith("__ROW_PATH_"):
                 col = col.replace("_", "|")
 
-            dtype = duckdb_type_to_psp(str(dtypes[cidx]))
+            # print(
+            #     dtypes[cidx], type(dtypes[cidx]), dir(dtypes[cidx]), dtypes[cidx].name
+            # )
+
+            dtype = clickhouse_type_to_psp(str(dtypes[cidx]))
             for ridx, row in enumerate(results):
                 grouping_id = (
                     row[0] if len(group_by) > 0 and len(split_by) == 0 else None
                 )
-                data.set_col(dtype, col, ridx, row[cidx], grouping_id)
+
+                value = row[cidx]
+                if dtype == "string" and not isinstance(value, str):
+                    value = str(value)
+
+                data.set_col(dtype, col, ridx, value, grouping_id)
 
 
 ################################################################################
 #
-# DuckDB Utils
+# ClickHouse Utils
 
 
-def duckdb_type_to_psp(name):
-    """Convert a DuckDB `dtype` to a Perspective `ColumnType`."""
-    if name == "VARCHAR":
+def clickhouse_type_to_psp(name):
+    """Convert a ClickHouse `dtype` to a Perspective `ColumnType`."""
+    if name.startswith("Nullable(") and name.endswith(")"):
+        name = name[9:-1]
+
+    if name.startswith("Array"):
         return "string"
-    if name in ("DOUBLE", "BIGINT", "HUGEINT"):
+
+    if name in ("Int64", "UInt64", "Float64"):
         return "float"
-    if name == "INTEGER":
-        return "integer"
-    if name == "DATE":
-        return "date"
-    if name == "BOOLEAN":
-        return "boolean"
-    if name == "TIMESTAMP":
+
+    if name == "String":
+        return "string"
+
+    if name == "DateTime":
         return "datetime"
+
+    if name == "Date":
+        return "date"
 
     msg = f"Unknown type '{name}'"
     raise ValueError(msg)
@@ -220,17 +225,21 @@ def run_query(db, query, execute=False, columns=False):
     result = None
     try:
         if execute:
-            db.execute(query)
+            db.command(query)
         else:
-            req = db.sql(query)
-            result = req.fetchall()
-    except (duckdb.ParserException, duckdb.BinderException) as e:
+            req = db.query(query)
+            result = req.result_rows
+    except Exception as e:
         logger.error(e)
         logger.error(f"{query}")
         raise e
     else:
         logger.debug(f"{datetime.now() - start} {query}")
         if columns:
-            return (result, req.columns, req.dtypes)
+            return (
+                result,
+                req.column_names,
+                [(x.name if hasattr(x, "name") else str(x)) for x in req.column_types],
+            )
         else:
             return result

@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Perspective + ClickHouse</title>
+        <script type="module" src="index.js"></script>
+        <style>
+            perspective-viewer {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+            }
+
+            body {
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body>
+        <perspective-viewer id="query"></perspective-viewer>
+    </body>
+</html>

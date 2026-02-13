@@ -53,6 +53,7 @@
         "@perspective-dev/esbuild-plugin": "workspace:",
         "@perspective-dev/metadata": "workspace:",
         "@perspective-dev/test": "workspace:",
+        "@clickhouse/client-web": "catalog:",
         "@duckdb/duckdb-wasm": "catalog:",
         "@playwright/experimental-ct-react": "catalog:",
         "@playwright/test": "catalog:",

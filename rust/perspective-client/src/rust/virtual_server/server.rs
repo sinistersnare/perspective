@@ -22,8 +22,8 @@ use crate::config::{ViewConfig, ViewConfigUpdate};
 use crate::proto::response::ClientResp;
 use crate::proto::table_validate_expr_resp::ExprValidationError;
 use crate::proto::{
-    GetFeaturesResp, GetHostedTablesResp, MakeTableResp, Request, Response, ServerError,
-    TableMakePortResp, TableMakeViewResp, TableOnDeleteResp, TableRemoveDeleteResp,
+    ColumnType, GetFeaturesResp, GetHostedTablesResp, MakeTableResp, Request, Response,
+    ServerError, TableMakePortResp, TableMakeViewResp, TableOnDeleteResp, TableRemoveDeleteResp,
     TableSchemaResp, TableSizeResp, TableValidateExprResp, ViewColumnPathsResp, ViewDeleteResp,
     ViewDimensionsResp, ViewExpressionSchemaResp, ViewGetConfigResp, ViewOnDeleteResp,
     ViewOnUpdateResp, ViewRemoveDeleteResp, ViewRemoveOnUpdateResp, ViewSchemaResp,
@@ -56,6 +56,7 @@ pub struct VirtualServer<T: VirtualServerHandler> {
     handler: T,
     view_to_table: IndexMap<String, String>,
     view_configs: IndexMap<String, ViewConfig>,
+    view_schemas: IndexMap<String, IndexMap<String, ColumnType>>,
 }
 
 impl<T: VirtualServerHandler> VirtualServer<T> {
@@ -65,6 +66,7 @@ impl<T: VirtualServerHandler> VirtualServer<T> {
             handler,
             view_configs: IndexMap::default(),
             view_to_table: IndexMap::default(),
+            view_schemas: IndexMap::default(),
         }
     }
 
@@ -85,10 +87,45 @@ impl<T: VirtualServerHandler> VirtualServer<T> {
 
         match self.internal_handle_request(msg.clone()).await {
             Ok(resp) => Ok(resp),
-            Err(err) => Ok(respond!(msg, ServerError {
-                message: err.to_string(),
-                status_code: 1
-            })),
+            Err(err) => {
+                tracing::error!("{}", err);
+                Ok(respond!(msg, ServerError {
+                    message: err.to_string(),
+                    status_code: 1
+                }))
+            },
+        }
+    }
+
+    async fn get_cached_view_schema(
+        &mut self,
+        entity_id: &str,
+        to_psp_format: bool,
+    ) -> Result<IndexMap<String, ColumnType>, VirtualServerError<T::Error>> {
+        if !self.view_schemas.contains_key(entity_id) {
+            self.view_schemas.insert(
+                entity_id.to_string(),
+                self.handler
+                    .view_schema(entity_id, self.view_configs.get(entity_id).unwrap())
+                    .await?,
+            );
+        }
+
+        if to_psp_format {
+            Ok(self
+                .view_schemas
+                .get(entity_id)
+                .unwrap()
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        k.split("_").collect::<Vec<_>>().last().unwrap().to_string(),
+                        *v,
+                    )
+                })
+                .collect())
+        } else {
+            Ok(self.view_schemas.get(entity_id).cloned().unwrap())
         }
     }
 
@@ -109,20 +146,18 @@ impl<T: VirtualServerHandler> VirtualServer<T> {
             },
             TableSchemaReq(_) => {
                 respond!(msg, TableSchemaResp {
-                    schema: self
-                        .handler
-                        .table_schema(msg.entity_id.as_str())
-                        .await
-                        .ok()
-                        .map(|value| crate::proto::Schema {
-                            schema: value
-                                .iter()
-                                .map(|x| crate::proto::schema::KeyTypePair {
-                                    name: x.0.to_string(),
-                                    r#type: *x.1 as i32,
-                                })
-                                .collect(),
-                        })
+                    schema: Some(crate::proto::Schema {
+                        schema: self
+                            .handler
+                            .table_schema(msg.entity_id.as_str())
+                            .await?
+                            .iter()
+                            .map(|x| crate::proto::schema::KeyTypePair {
+                                name: x.0.to_string(),
+                                r#type: *x.1 as i32,
+                            })
+                            .collect()
+                    })
                 })
             },
             TableMakePortReq(req) => {
@@ -183,14 +218,10 @@ impl<T: VirtualServerHandler> VirtualServer<T> {
             ViewSchemaReq(_) => {
                 respond!(msg, ViewSchemaResp {
                     schema: self
-                        .handler
-                        .view_schema(
-                            msg.entity_id.as_str(),
-                            self.view_configs.get(&msg.entity_id).unwrap()
-                        )
+                        .get_cached_view_schema(&msg.entity_id, true)
                         .await?
                         .into_iter()
-                        .map(|(x, y)| (x, y as i32))
+                        .map(|(x, y)| (x.to_string(), y as i32))
                         .collect()
                 })
             },
@@ -268,10 +299,11 @@ impl<T: VirtualServerHandler> VirtualServer<T> {
             },
             ViewToRowsStringReq(view_to_rows_string_req) => {
                 let viewport = view_to_rows_string_req.viewport.unwrap();
+                let schema = self.get_cached_view_schema(&msg.entity_id, false).await?;
                 let config = self.view_configs.get(&msg.entity_id).unwrap();
                 let cols = self
                     .handler
-                    .view_get_data(msg.entity_id.as_str(), config, &viewport)
+                    .view_get_data(msg.entity_id.as_str(), config, &schema, &viewport)
                     .await?;
 
                 let rows = cols.to_rows();
@@ -282,10 +314,11 @@ impl<T: VirtualServerHandler> VirtualServer<T> {
             },
             ViewToColumnsStringReq(view_to_columns_string_req) => {
                 let viewport = view_to_columns_string_req.viewport.unwrap();
+                let schema = self.get_cached_view_schema(&msg.entity_id, false).await?;
                 let config = self.view_configs.get(&msg.entity_id).unwrap();
                 let cols = self
                     .handler
-                    .view_get_data(msg.entity_id.as_str(), config, &viewport)
+                    .view_get_data(msg.entity_id.as_str(), config, &schema, &viewport)
                     .await?;
 
                 let json_string = serde_json::to_string(&cols)

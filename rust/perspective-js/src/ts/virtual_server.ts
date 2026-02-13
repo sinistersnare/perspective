@@ -55,8 +55,9 @@ export interface VirtualServerHandler {
     viewGetData(
         viewId: string,
         config: ViewConfig,
+        schema: Record<string, ColumnType>,
         viewport: ViewWindow,
-        dataSlice: perspective.JsVirtualDataSlice,
+        dataSlice: perspective.VirtualDataSlice,
     ): void | Promise<void>;
     viewSchema?(
         viewId: string,
@@ -78,11 +79,11 @@ export function createMessageHandler(
     mod: typeof perspective,
     handler: VirtualServerHandler,
 ) {
-    let virtualServer: perspective.JsVirtualServer;
+    let virtualServer: perspective.VirtualServer;
     async function postMessage(port: MessagePort, msg: MessageEvent) {
         if (msg.data.cmd === "init") {
             try {
-                virtualServer = new mod.JsVirtualServer(handler);
+                virtualServer = new mod.VirtualServer(handler);
                 if (msg.data.id !== undefined) {
                     port.postMessage({ id: msg.data.id });
                 } else {
@@ -113,14 +114,3 @@ export function createMessageHandler(
 
     return channel.port2;
 }
-
-/**
- * Re-export the WASM VirtualServer and VirtualDataSlice classes with better names.
- *
- * VirtualServer: Handles Perspective protocol messages using your custom handler
- * VirtualDataSlice: Used to fill data in viewGetData callbacks
- */
-export {
-    JsVirtualServer as VirtualServer,
-    JsVirtualDataSlice as VirtualDataSlice,
-} from "../../dist/wasm/perspective-js.js";

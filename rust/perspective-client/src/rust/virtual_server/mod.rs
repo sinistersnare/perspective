@@ -18,11 +18,16 @@
 mod data;
 mod error;
 mod features;
+mod generic_sql_model;
 mod handler;
 mod server;
 
 pub use data::{SetVirtualDataColumn, VirtualDataCell, VirtualDataColumn, VirtualDataSlice};
 pub use error::{ResultExt, VirtualServerError};
 pub use features::{AggSpec, Features};
+pub use generic_sql_model::{
+    GenericSQLError, GenericSQLResult, GenericSQLVirtualServerModel,
+    GenericSQLVirtualServerModelArgs,
+};
 pub use handler::{VirtualServerFuture, VirtualServerHandler};
 pub use server::VirtualServer;

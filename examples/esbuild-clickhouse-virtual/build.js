@@ -10,14 +10,34 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-pub(crate) mod generic_sql_model;
-mod server_async;
-mod server_sync;
-pub(crate) mod session_async;
-pub(crate) mod session_sync;
-pub(crate) mod virtual_server_sync;
+import esbuild from "esbuild";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+import "zx/globals";
 
-pub use server_async::*;
-pub use server_sync::*;
-pub use session_async::PyAsyncSession;
-pub use session_sync::PySession;
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+async function build() {
+    await esbuild.build({
+        entryPoints: ["src/index.ts"],
+        outdir: "dist",
+        format: "esm",
+        bundle: true,
+        sourcemap: "inline",
+        target: "es2022",
+        loader: {
+            ".ttf": "file",
+            ".wasm": "file",
+        },
+        assetNames: "[name]",
+    });
+
+    fs.writeFileSync(
+        path.join(__dirname, "dist/index.html"),
+        fs.readFileSync(path.join(__dirname, "src/index.html")).toString(),
+    );
+}
+
+await build();

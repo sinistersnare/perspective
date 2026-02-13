@@ -20,7 +20,7 @@ use super::features::Features;
 use crate::config::{ViewConfig, ViewConfigUpdate};
 use crate::proto::{ColumnType, HostedTable, TableMakePortReq, ViewPort};
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(feature = "sendable")]
 pub type VirtualServerFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
 /// A boxed future that conditionally implements `Send` based on the target
@@ -28,7 +28,7 @@ pub type VirtualServerFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 ///
 /// This only compiles on wasm, except for `rust-analyzer` and `metadata`
 /// generation, so this type exists to tryck the compiler
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "sendable"))]
 pub type VirtualServerFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// Handler trait for implementing virtual server backends.
@@ -41,7 +41,11 @@ pub trait VirtualServerHandler {
     // Required
 
     /// The error type returned by handler methods.
+    #[cfg(not(feature = "sendable"))]
     type Error: std::error::Error + Send + Sync + 'static;
+
+    #[cfg(feature = "sendable")]
+    type Error: std::error::Error + 'static;
 
     /// Returns a list of all tables hosted by this handler.
     fn get_hosted_tables(&self) -> VirtualServerFuture<'_, Result<Vec<HostedTable>, Self::Error>>;
@@ -74,6 +78,7 @@ pub trait VirtualServerHandler {
         &self,
         view_id: &str,
         config: &ViewConfig,
+        schema: &IndexMap<String, ColumnType>,
         viewport: &ViewPort,
     ) -> VirtualServerFuture<'_, Result<VirtualDataSlice, Self::Error>>;
 
