@@ -22,8 +22,8 @@ for i in range(10):
 
 The `name` provided is important, as it enables Perspective in JavaScript to
 look up a `Table` and get a handle to it over the network. Otherwise, `name`
-will be assigned randomlu and the `Client` must look this up with
-`CLient.get_hosted_table_names()`
+will be assigned randomly and the `Client` must look this up with
+`Client.get_hosted_table_names()`
 
 ## Client/Server Replicated Mode
 
@@ -46,7 +46,7 @@ _*server.py*_
 
 ```python
 from perspective import Server
-from perspective.hadnlers.tornado import PerspectiveTornadoHandler
+from perspective.handlers.tornado import PerspectiveTornadoHandler
 
 # Create an instance of Server, and host a Table
 SERVER = Server()
@@ -113,7 +113,7 @@ The server setup is identical to
 instead of creating a `View`, the client calls `load(server_table)`: In Python,
 use `Server` and `PerspectiveTornadoHandler` to create a websocket server that
 exposes a `Table`. In this example, `table` is a proxy for the `Table` we
-created on the server. All API methods are available on _proxies_, the.g.us
+created on the server. All API methods are available on _proxies_, e.g.
 calling `view()`, `schema()`, `update()` on `table` will pass those operations
 to the Python `Table`, execute the commands, and return the result back to
 Javascript.

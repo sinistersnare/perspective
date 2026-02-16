@@ -13,7 +13,7 @@
         "build": "node ./build.mjs",
         "clean": "node ./clean.mjs",
         "test": "node test.mjs",
-        "docs": "pdoc perspective/__init__.py perspective/handlers/aiohttp.py, perspective/handlers/starlette.py perspective/handlers/tornado.py perspective/widget/__init__.py -o ../../docs/static/python && node docs.mjs"
+        "docs": "node docs.mjs"
     },
     "devDependencies": {
         "@perspective-dev/scripts": "workspace:*",

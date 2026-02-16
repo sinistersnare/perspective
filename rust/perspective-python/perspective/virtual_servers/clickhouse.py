@@ -15,7 +15,7 @@ import perspective
 from datetime import datetime
 from loguru import logger
 
-from perspective.virtual_servers import VirtualSessionModel
+from perspective.virtual_servers import VirtualServerHandler
 
 
 NUMBER_AGGS = [
@@ -69,7 +69,7 @@ FILTER_OPS = [
 
 class ClickhouseVirtualSession:
     def __init__(self, callback, db):
-        self.session = perspective.VirtualServer(ClickhouseVirtualSessionModel(db))
+        self.session = perspective.VirtualServer(ClickhouseVirtualServerHandler(db))
         self.callback = callback
 
     def handle_request(self, msg):
@@ -84,9 +84,9 @@ class ClickhouseVirtualServer:
         return ClickhouseVirtualSession(callback, self.db)
 
 
-class ClickhouseVirtualSessionModel(VirtualSessionModel):
+class ClickhouseVirtualServerHandler(VirtualServerHandler):
     """
-    An implementation of a `perspective.VirtualSessionModel` for ClickHouse.
+    An implementation of a `perspective.VirtualServerHandler` for ClickHouse.
     """
 
     def __init__(self, db):

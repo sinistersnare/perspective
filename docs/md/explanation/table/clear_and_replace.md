@@ -19,3 +19,5 @@ table.replace(json);
 table.clear()
 table.replace(df)
 ```
+
+</div>

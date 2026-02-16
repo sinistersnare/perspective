@@ -19,7 +19,7 @@ performance on the client is very good and identical to client-only
 architecture. Updates and edits are seamlessly synchonized across clients via
 their virtual server counterparts using websockets and Apache Arrow.
 
-#### Python and Tornado server
+## Python and Tornado server
 
 ```python
 from perspective import Server, PerspectiveTornadoHandler
@@ -39,9 +39,9 @@ loop = tornado.ioloop.IOLoop.current()
 loop.start()
 ```
 
-#### Javascript client
+## Javascript client
 
-Perspective's websocket client interfaces with the Python server. then
+Perspective's websocket client interfaces with the Python server, then
 _replicates_ the server-side Table.
 
 ```javascript

@@ -107,7 +107,7 @@ function generate_readme() {
                     .join("")}</tr><tr>${row
                     .map(
                         (y) =>
-                            `<td><a href="${y.url}"><img height="125" src="${y.img}"></img></a></td>`,
+                            `<td><a href="${y.url}"><img height="125" src="${y.img}" /></a></td>`,
                     )
                     .join("")}</tr>`,
         )

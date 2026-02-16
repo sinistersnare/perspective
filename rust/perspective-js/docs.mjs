@@ -12,5 +12,6 @@
 
 import "zx/globals";
 
+await $`typedoc --tsconfig tsconfig.virtual_servers.json --out ../../docs/static/browser/virtual_servers`;
 await $`typedoc --tsconfig tsconfig.browser.json --out ../../docs/static/browser`;
 await $`typedoc --tsconfig tsconfig.node.json --out ../../docs/static/node`;

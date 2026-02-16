@@ -39,7 +39,7 @@ are available on GitHub.
 
 The `perspective` module exports several tools:
 
-- `Server` the constructor for a new isntance of the Perspective data engine.
+- `Server` the constructor for a new instance of the Perspective data engine.
 - The `perspective.widget` module exports `PerspectiveWidget`, the JupyterLab
   widget for interactive visualization in a notebook cell.
 - The `perspective.handlers` modules exports web frameworks handlers that
@@ -55,7 +55,7 @@ The `perspective` module exports several tools:
 ### Virtual UI server
 
 As `<perspective-viewer>` or any other Perspective `Client` will only consume
-the data necessary to render the current screen (or wahtever else was requested
+the data necessary to render the current screen (or whatever else was requested
 via the API), this runtime mode allows large datasets without the need to copy
 them entirely to the Browser, at the expense of network latency on UI
 interaction/API calls.

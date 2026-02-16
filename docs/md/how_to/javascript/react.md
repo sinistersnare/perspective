@@ -6,14 +6,52 @@ using the perspective-viewer web component in the context of React.
 Before trying this example, please take a look at
 [how to bootstrap perspective](./importing.md).
 
-A simple example:
+## `PerspectiveViewer`
+
+A simple example using the `PerspectiveViewer` component:
 
 ```typescript
-{{#include ../../../../examples/react-example/src/index.tsx:63:}}
+import React, { useCallback, useEffect, useRef } from "react";
+import {
+    PerspectiveViewer,
+} from "@perspective-dev/react";
+import perspective from "@perspective-dev/client";
+
+function App() {
+    const worker = useRef(null);
+
+    useEffect(() => {
+        (async () => {
+            worker.current = await perspective.worker();
+            const resp = await fetch("data.arrow");
+            const arrow = await resp.arrayBuffer();
+            await worker.current.table(arrow, { name: "my_table" });
+        })();
+    }, []);
+
+    return (
+            <PerspectiveViewer
+                client={worker.current}
+                config={{group_by: ["State"], columns: ["Sales"]}}
+            />
+    );
+}
 ```
 
-This adds a perspective table to the provider at the root of the app and allows
-us to create viewers referencing those tables anywhere within that context. Any
-views or viewers associated with the React component are automatically cleaned
-up as part of the lifecycle of the component, but tables are still the
-responsibility of the caller to cleanup currently.
+## `PerspectiveWorkspace`
+
+For multi-viewer layouts, use `PerspectiveWorkspace`:
+
+```typescript
+import { PerspectiveWorkspace } from "@perspective-dev/react";
+
+const WORKSPACE_CONFIG =  // ...
+
+function Dashboard() {
+    return (
+        <PerspectiveWorkspace
+            client={perspective.worker()}
+            config={WORKSPACE_CONFIG} />
+    );
+}
+```

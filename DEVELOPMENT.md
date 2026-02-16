@@ -1,3 +1,5 @@
+# Developer Guide (How to build Perspective from this repo)
+
 This guide will teach you everything you need to know to get started hacking on
 the Perspective codebase. Please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for
 contribution guidelines.
@@ -13,9 +15,9 @@ Perspective is organized as a
 and uses [lerna](https://lernajs.io/) to manage dependencies.
 
 This guide provides instructions for both the JavaScript and Python libraries.
-To switch your development toolchain between the two, use `yarn setup`. Once the
-setup script has been run, common commands like `yarn build` and `yarn test`
-automatically call the correct build and test tools.
+To switch your development toolchain between the two, use `pnpm run setup`. Once
+the setup script has been run, common commands like `pnpm run build` and
+`pnpm run test` automatically call the correct build and test tools.
 
 ### System Dependencies
 
@@ -64,7 +66,7 @@ required.
 
 `Perspective.js` specifies its Emscripten version dependency in `package.json`,
 and the correct version of Emscripten will be installed with other JS
-dependencies by running `yarn`.
+dependencies by running `pnpm install`.
 
 #### Building via local EMSDK
 
@@ -93,14 +95,14 @@ To install a specific version of Emscripten (e.g. `2.0.6`):
 ## `perspective-python`
 
 To build the Python library, first configure your project to build Python via
-`yarn setup`. Then, install the requirements corresponding to your version of
-python, e.g.
+`pnpm run setup`. Then, install the requirements corresponding to your version
+of python, e.g.
 
 ```bash
 pip install -r rust/perspective-python/requirements.txt
 ```
 
-`perspective-python` supports Python 3.8 and upwards.
+`perspective-python` supports Python 3.11 and upwards.
 
 ### `perspective-jupyterlab`
 
@@ -150,10 +152,10 @@ PATH=$(brew --prefix llvm@17)/bin:$PATH
 building if you have `brew`-installed versions of libraries, such as
 `flatbuffers`.
 
-### Windows 10
+### Windows 10+
 
 You need to use bash in order to build Perspective packages. To successfully
-build on Windows 10, enable
+build on Windows 10+, enable
 [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
 (WSL) and install the Linux distribution of your choice.
 

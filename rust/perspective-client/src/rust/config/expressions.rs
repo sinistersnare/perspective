@@ -61,8 +61,8 @@
 //!
 //! #### Expression Column Name
 //!
-//! Expressions can be _named_ by providing a comment as the first line of the
-//! expression. This name will be used in the `<perspective-viewer>` UI when
+//! Expressions are named by their key in the `ViewConfig::expressions`
+//! `HashMap`. This name will be used in the `<perspective-viewer>` UI when
 //! referring to the column, but will also be used in the API when specifying
 //! e.g. `group_by` or `sort` fields. When creating a new column via
 //! `<oerspective-viewer>`'s expression editor, new columns will get a default

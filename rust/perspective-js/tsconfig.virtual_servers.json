@@ -13,10 +13,7 @@
         "resolveJsonModule": true
     },
     "include": [
-        "./src/ts/perspective.node.ts",
-        "./src/ts/perspective.cdn.ts",
         "./src/ts/virtual_servers/duckdb.ts",
         "./src/ts/virtual_servers/clickhouse.ts",
-        "./test/js/*.ts"
     ]
 }

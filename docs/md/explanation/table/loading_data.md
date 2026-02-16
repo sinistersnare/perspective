@@ -18,12 +18,11 @@ constructed with a _schema_. Next, call `Table::update` with the JSON input -
 Perspective's JSON reader may _coerce_ a `date` or `datetime` from these native
 JSON types:
 
--   `integer` as milliseconds-since-epoch.
--   `string` as a any of Perspective's built-in date format formats.
--   JavaScript `Date` and Python `datetime.date` and `datetime.datetime` are
-    _not_ supported directly. However, in JavaScript `Date` types are
-    automatically coerced to correct `integer` timestamps by default when
-    converted to JSON.
+- `integer` as milliseconds-since-epoch.
+- `string` as a any of Perspective's built-in date format formats.
+- JavaScript `Date` and Python `datetime.date` and `datetime.datetime` are _not_
+  supported directly. However, in JavaScript `Date` types are automatically
+  coerced to correct `integer` timestamps by default when converted to JSON.
 
 ## Apache Arrow
 
@@ -33,7 +32,7 @@ JavaScript:
 
 ```javascript
 const resp = await fetch(
-    "https://cdn.jsdelivr.net/npm/superstore-arrow/superstore.lz4.arrow"
+    "https://cdn.jsdelivr.net/npm/superstore-arrow/superstore.lz4.arrow",
 );
 
 const arrow = await resp.arrayBuffer();
@@ -76,7 +75,10 @@ in the row.
 
 ## NDJSON
 
-[NDJSON](https://github.com/ndjson/ndjson-spec) is a format.
+[NDJSON](https://github.com/ndjson/ndjson-spec) (sometimes also referred to as
+JSONL) is a streaming-friendly format where each line is a valid JSON object,
+separated by newlines. It is commonly used in data streaming and messaging
+queues.
 
 ```json
 { "a": 86, "b": false, "c": "words" }

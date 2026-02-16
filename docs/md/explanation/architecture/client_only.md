@@ -27,7 +27,7 @@ As the client-only design starts with creating a client-side Perspective
 `Table`, data can be provided by any standard web service in any Perspective
 compatible format (JSON, CSV or Apache Arrow).
 
-#### Javascript client
+## Javascript client
 
 ```javascript
 const worker = await perspective.worker();

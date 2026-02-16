@@ -16,7 +16,7 @@ import perspective
 from datetime import datetime
 from loguru import logger
 
-from perspective.virtual_servers import VirtualSessionModel
+from perspective.virtual_servers import VirtualServerHandler
 
 
 NUMBER_AGGS = [
@@ -80,7 +80,7 @@ FILTER_OPS = [
 
 class DuckDBVirtualSession:
     def __init__(self, callback, db):
-        self.session = perspective.VirtualServer(DuckDBVirtualSessionModel(db))
+        self.session = perspective.VirtualServer(DuckDBVirtualServerHandler(db))
         self.callback = callback
 
     def handle_request(self, msg):
@@ -95,9 +95,9 @@ class DuckDBVirtualServer:
         return DuckDBVirtualSession(callback, self.db)
 
 
-class DuckDBVirtualSessionModel(VirtualSessionModel):
+class DuckDBVirtualServerHandler(VirtualServerHandler):
     """
-    An implementation of a `perspective.VirtualSessionModel` for DuckDB.
+    An implementation of a `perspective.VirtualServerHandler` for DuckDB.
     """
 
     def __init__(self, db):
