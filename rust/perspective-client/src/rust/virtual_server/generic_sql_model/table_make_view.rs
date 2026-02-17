@@ -137,7 +137,8 @@ impl<'a> ViewQueryContext<'a> {
 
                 format!(
                     "SELECT * EXCLUDE (__ROW_NUM__) FROM (PIVOT (SELECT {}, {}, ROW_NUMBER() OVER \
-                     () as __ROW_NUM__ FROM {}{}) ON {} USING {} GROUP BY __ROW_NUM__)",
+                     (ORDER BY rowid) as __ROW_NUM__ FROM {}{}) ON {} USING {} GROUP BY \
+                     __ROW_NUM__)",
                     select.join(", "),
                     split_cols,
                     self.table,
@@ -205,6 +206,14 @@ impl<'a> ViewQueryContext<'a> {
 
         if !order_by.is_empty() {
             query = format!("{} ORDER BY {}", query, order_by.join(", "));
+        } else if self.config.group_by.is_empty() {
+            let default_order = if self.config.split_by.is_empty() {
+                "rowid"
+            } else {
+                "__ROW_NUM__"
+            };
+
+            query = format!("{} ORDER BY {}", query, default_order);
         }
 
         query

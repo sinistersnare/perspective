@@ -656,6 +656,17 @@ impl View {
         self.0.num_rows().py_block_on(py)
     }
 
+    /// The number of aggregated columns in this [`View`]. This is affected by
+    /// the "split_by" configuration parameter supplied to this view's
+    /// contructor.
+    ///
+    /// # Returns
+    ///
+    /// The number of aggregated columns.
+    pub fn num_columns(&self, py: Python<'_>) -> PyResult<u32> {
+        self.0.num_columns().py_block_on(py)
+    }
+
     /// The schema of this [`View`].
     ///
     /// The [`View`] schema differs from the `schema` returned by

@@ -1838,10 +1838,10 @@ class TestViewExpression(object):
             source = results["a"][i]
             idx = results["b"][i]
             assert results["w"][i] == "abcdef-hijk"
-            assert results["x"][i] == re.sub(r"[0-9]{4}$", idx, source, 1)
+            assert results["x"][i] == re.sub(r"[0-9]{4}$", idx, source, count=1)
             assert results["y"][i] == source
             assert results["z"][i] == re.sub(
-                r"^[0-9]{4}", "long string, very cool!", source, 1
+                r"^[0-9]{4}", "long string, very cool!", source, count=1
             )
 
     def test_view_replace_invalid(self):

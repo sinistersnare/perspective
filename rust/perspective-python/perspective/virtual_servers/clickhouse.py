@@ -13,10 +13,11 @@
 import perspective
 
 from datetime import datetime
-from loguru import logger
+import logging
 
 from perspective.virtual_servers import VirtualServerHandler
 
+logger = logging.getLogger(__name__)
 
 NUMBER_AGGS = [
     "sum",
