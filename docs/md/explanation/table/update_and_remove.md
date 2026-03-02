@@ -64,7 +64,7 @@ table.update([{ x: 3, y: null }]); // `z` missing
 <div class="python">
 
 ```python
-table.update([{"x": 3, "y": None}]) // `z` missing
+table.update([{"x": 3, "y": None}])  # `z` missing
 ```
 
 </div>
@@ -82,8 +82,6 @@ indexed_table.remove([1, 4]);
 <div class="python">
 
 ```python
-// Python
-
 indexed_table.remove([1, 4])
 ```
 

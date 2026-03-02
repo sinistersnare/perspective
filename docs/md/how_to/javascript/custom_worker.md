@@ -1,28 +1,37 @@
-# Using a custom WebWorker
+# Customizing `perspective.worker()`
 
-The `Client.worker` constructor by default creates a dedicated `Worker` bound to
-the page context. Alternatively, `Client.worker` can take a `Worker`,
-`SharedWorker` or `ServiceWorker` instance as a first argument, which load the
-worker script disted at
+`perspective.worker()` creates a `Client` that connects to a Perspective data
+engine. By default it spins up a dedicated `Worker` running the built-in
+WebAssembly engine, but you can pass an argument to change this behavior:
+
+-   A **`Worker`**, **`SharedWorker`**, or **`ServiceWorker`** — runs the
+    built-in engine in a different worker context.
+-   A **`MessagePort`** from `createMessageHandler()` — connects to a
+    [Virtual Server](virtual_server/custom.md) instead of the built-in engine.
+
+## Built-in engine with a custom Worker
+
+Pass a `Worker`, `SharedWorker`, or `ServiceWorker` that loads the worker script
+distributed at
 `"@perspective-dev/client/dist/cdn/perspective-server.worker.js"`.
 
 <span class="warning">`SharedWorker` and `ServiceWorker` have more complicated
 behavior compared to a dedicated `Worker`, and will need special consideration
 to integrate (or debug).</span>
 
-## Dedicated `Worker`
+### Dedicated `Worker`
 
 ```javascript
 const worker = await perspective.worker(new Worker(url));
 ```
 
-## `SharedWorker`
+### `SharedWorker`
 
 ```javascript
 const worker = await perspective.worker(new SharedWorker(url));
 ```
 
-## `ServiceWorker`
+### `ServiceWorker`
 
 ```javascript
 const registration = await navigator.serviceWorker.register(url, {
@@ -31,3 +40,34 @@ const registration = await navigator.serviceWorker.register(url, {
 
 const worker = await perspective.worker(registration.active);
 ```
+
+## Virtual Server
+
+Instead of the built-in WebAssembly engine, `perspective.worker()` can connect
+to a Virtual Server — an adapter that translates Perspective queries into
+operations on an external data source such as
+[DuckDB](virtual_server/duckdb.md) or
+[ClickHouse](virtual_server/clickhouse.md).
+
+Use `perspective.createMessageHandler()` with a `VirtualServerHandler` to create
+a `MessagePort`, then pass it to `worker()`:
+
+```javascript
+import perspective from "@perspective-dev/client";
+
+const handler = {
+    /* VirtualServerHandler implementation */
+};
+
+const server = perspective.createMessageHandler(handler);
+const client = await perspective.worker(server);
+const table = await client.open_table("my_table");
+```
+
+The returned `Client` works identically to one backed by the built-in engine —
+you can pass it to `<perspective-viewer>.load()`, call `open_table()`, etc. The
+difference is that queries are fulfilled by your handler rather than the WASM
+engine.
+
+For the full `VirtualServerHandler` interface and a worked example, see
+[Implementing a custom Virtual Server](virtual_server/custom.md).

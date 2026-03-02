@@ -1,6 +1,17 @@
 # JavaScript - Importing with or without a bundler
 
+Perspective requires the browser to have access to Perspective's `.wasm`
+binaries _in addition_ to the bundled `.js` files, and as a result the build
+process requires a few extra steps. Perspective's NPM releases come with
+multiple prebuilt configurations.
+
 ## ESM builds with a bundler
+
+The recommended builds for production use are packaged as ES Modules and require
+a _bootstrapping_ step in order to acquire the `.wasm` binaries and initialize
+Perspective's JavaScript with them. Because they have no hard-coded dependencies
+on the `.wasm` paths, they are ideal for use with JavaScript bundlers such as
+ESBuild, Rollup, Vite or Webpack.
 
 ESM builds must be _bootstrapped_ with their `.wasm` binaries to initialize. The
 `wasm` binaries can be found in their respective `dist/wasm` directories.
@@ -108,20 +119,30 @@ Webpack config:
 }
 ```
 
-## Inline builds with a bundler <!-- How to -->
+## Inline builds with a bundler
+
+<span class="warning">Inline builds are deprecated and will be removed in a
+future release.</span>
+
+Perspective's _Inline_ Builds work by _inlining_ WebAssembly binary content as
+a base64-encoded string. While inline builds work with most bundlers and _do
+not_ require bootstrapping, there is an inherent file-size and boot-performance
+penalty. Prefer your bundler's inlining features and Perspective ESM builds
+where possible.
 
 ```javascript
 import "@perspective-dev/viewer/dist/esm/perspective-viewer.inline.js";
 import psp from "@perspective-dev/client/dist/esm/perspective.inline.js";
 ```
 
-## CDN builds <!-- How to -->
+## CDN builds
 
-Perspective CDN builds are in ES Module format, thus to include them via a CDN
-they must be imported from a `<script type="module">`. While this will work fine
-downloading Perspective's assets directly as a `src` attribute, as you'll
-generally want to _do_ something with the library its best to use an `import`
-statement:
+Perspective's CDN builds are good for non-bundled scenarios, such as importing
+directly from a `<script>` tag. CDN builds _do not_ require _bootstrapping_ the
+WebAssembly binaries, but they also generally _do not_ work with bundlers.
+
+CDN builds are in ES Module format, thus to include them via a CDN they must be
+imported from a `<script type="module">`:
 
 ```html
 <script type="module">

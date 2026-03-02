@@ -11,7 +11,7 @@
 #  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 
-class VirtualSessionModel:
+class VirtualServerHandler:
     """
     An interface for implementing a Perspective `VirtualServer`. It operates
     thusly:

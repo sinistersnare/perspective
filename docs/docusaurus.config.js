@@ -81,23 +81,6 @@ const config = {
             /** @type {import('@docusaurus/preset-classic').Options} */
             ({
                 docs: false,
-                // docs: {
-                //     //  sidebarPath: require.resolve("./sidebars.js"),
-                //     docItemComponent: require.resolve(
-                //         "./src/components/DocItem"
-                //     ),
-                //     // Please change this to your repo.
-                //     // Remove this to remove the "edit this page" links.
-                //     // editUrl:
-                //     //     "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/",
-                // },
-                // blog: {
-                //     showReadingTime: true,
-                //     // Please change this to your repo.
-                //     // Remove this to remove the "edit this page" links.
-                //     editUrl:
-                //         "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/",
-                // },
                 theme: {
                     customCss: require.resolve("./src/css/custom.css"),
                 },
@@ -112,106 +95,15 @@ const config = {
                 defaultMode: "dark",
             },
             navbar: {
-                // title: "Perspective",
                 logo: {
                     alt: "Perspective",
                     src: "svg/perspective-logo-light.svg",
                 },
                 items: [
                     {
-                        type: "dropdown",
+                        type: "html",
+                        value: `<a class="navbar__item navbar__link" href="/guide/">Docs</a>`,
                         position: "right",
-                        label: "Docs",
-                        items: [
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" style="font-size:16px;padding:0.25rem 0rem" href="/guide/">User Guide</a>`,
-                            },
-                            {
-                                type: "html",
-                                value: '<span style="user-select:none">Python API</span>',
-                            },
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" href="/python/"><code>perspective</code></a>`,
-                            },
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" href="/python/perspective/widget.html"><code>perspective.widget</code></a>`,
-                            },
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" href="/python/perspective/handlers/aiohttp.html"><code>perspective.handlers.aiohttp</code></a>`,
-                            },
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" href="/python/perspective/handlers/starlette.html"><code>perspective.handlers.starlette</code></a>`,
-                            },
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" href="/python/perspective/handlers/tornado.html"><code>perspective.handlers.tornado</code></a>`,
-                            },
-                            {
-                                type: "html",
-                                value: '<span style="user-select:none">JavaScript API</span>',
-                            },
-                            {
-                                type: "html",
-                                value: link(
-                                    "<code>@perspective-dev/client</code> Browser",
-                                    "/browser/modules/src_ts_perspective.browser.ts.html",
-                                ),
-                            },
-                            {
-                                type: "html",
-                                value: link(
-                                    "<code>@perspective-dev/client</code> Node.js",
-                                    "/node/modules/src_ts_perspective.node.ts.html",
-                                ),
-                            },
-                            {
-                                type: "html",
-                                value: link(
-                                    "<code>@perspective-dev/viewer</code>",
-                                    "/viewer/modules/perspective-viewer.html",
-                                ),
-                            },
-                            {
-                                type: "html",
-                                value: link(
-                                    "<code>@perspective-dev/react</code>",
-                                    "/react/index.html",
-                                ),
-                            },
-                            {
-                                type: "html",
-                                value: '<span style="user-select:none">Rust API</span>',
-                            },
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" href="https://docs.rs/perspective/latest/perspective/"><code>perspective</code></a>`,
-                            },
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" href="https://docs.rs/perspective-client/latest/perspective_client/"><code>perspective-client</code></a>`,
-                            },
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" href="https://docs.rs/perspective-server/latest/perspective_server/"><code>perspective-server</code></a>`,
-                            },
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" href="https://docs.rs/perspective-js/latest/perspective_js/"><code>perspective-js</code></a>`,
-                            },
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" href="https://docs.rs/perspective-python/latest/perspective_python/"><code>perspective-python</code></a>`,
-                            },
-                            {
-                                type: "html",
-                                value: `<a class="dropdown__link" href="https://docs.rs/perspective-viewer/latest/perspective_viewer/"><code>perspective-viewer</code></a>`,
-                            },
-                        ],
                     },
                     {
                         to: "/examples",
@@ -226,134 +118,7 @@ const config = {
                 ],
             },
             footer: {
-                links: [
-                    // {
-                    //     title: "Docs",
-                    //     items: [
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" style="font-size:16px;padding:0.25rem 0rem" href="/guide/">User Guide</a>`,
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: '<span style="user-select:none">Python API</span>',
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" href="/python/"><code>perspective</code></a>`,
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" href="/python/perspective/widget.html"><code>perspective.widget</code></a>`,
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" href="/python/perspective/handlers/aiohttp.html"><code>perspective.handlers.aiohttp</code></a>`,
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" href="/python/perspective/handlers/starlette.html"><code>perspective.handlers.starlette</code></a>`,
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" href="/python/perspective/handlers/tornado.html"><code>perspective.handlers.tornado</code></a>`,
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: '<span style="user-select:none">JavaScript API</span>',
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: link(
-                    //                 "<code>@perspective-dev/client</code> Browser",
-                    //                 "/browser/modules/src_ts_perspective.browser.ts.html",
-                    //             ),
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: link(
-                    //                 "<code>@perspective-dev/client</code> Node.js",
-                    //                 "/node/modules/src_ts_perspective.node.ts.html",
-                    //             ),
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: link(
-                    //                 "<code>@perspective-dev/viewer</code>",
-                    //                 "/viewer/modules/perspective-viewer.html",
-                    //             ),
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: link(
-                    //                 "<code>@perspective-dev/react</code>",
-                    //                 "/react/index.html",
-                    //             ),
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: '<span style="user-select:none">Rust API</span>',
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" href="https://docs.rs/perspective/latest/perspective/"><code>perspective</code></a>`,
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" href="https://docs.rs/perspective-client/latest/perspective_client/"><code>perspective-client</code></a>`,
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" href="https://docs.rs/perspective-server/latest/perspective_server/"><code>perspective-server</code></a>`,
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" href="https://docs.rs/perspective-js/latest/perspective_js/"><code>perspective-js</code></a>`,
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" href="https://docs.rs/perspective-python/latest/perspective_python/"><code>perspective-python</code></a>`,
-                    //         },
-                    //         {
-                    //             type: "html",
-                    //             html: `<a class="dropdown__link" href="https://docs.rs/perspective-viewer/latest/perspective_viewer/"><code>perspective-viewer</code></a>`,
-                    //         },
-                    //     ],
-                    // },
-                    // {
-                    //     title: "OpenJS Foundation",
-                    //     items: [
-                    //         {
-                    //             label: "Foundation",
-                    //             href: "https://openjsf.org/",
-                    //         },
-                    //         {
-                    //             label: "Terms of Use",
-                    //             href: "https://terms-of-use.openjsf.org/",
-                    //         },
-                    //         {
-                    //             label: "Privacy Policy",
-                    //             href: "https://privacy-policy.openjsf.org/",
-                    //         },
-                    //         {
-                    //             label: "Bylaws",
-                    //             href: "https://bylaws.openjsf.org/",
-                    //         },
-                    //         {
-                    //             label: "Trademark Policy",
-                    //             href: "https://trademark-policy.openjsf.org/",
-                    //         },
-                    //         {
-                    //             label: "Trademark List",
-                    //             href: "https://trademark-list.openjsf.org/",
-                    //         },
-                    //         {
-                    //             label: "Cookie Policy",
-                    //             href: "https://www.linuxfoundation.org/cookies/",
-                    //         },
-                    //     ],
-                    // },
-                ],
+                links: [],
                 logo: {
                     alt: "OpenJS Foundation Logo",
                     src: "img/openjs_foundation-logo-horizontal-black.png",
