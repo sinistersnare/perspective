@@ -9,7 +9,7 @@
         "rootDir": "./src",
         "moduleResolution": "bundler",
         "skipLibCheck": true,
-        "jsx": "react-jsx",
+        "jsx": "preserve",
     },
     "files": [
         "src/index.tsx"

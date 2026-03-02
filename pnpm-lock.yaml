@@ -46,10 +46,10 @@ catalogs:
       specifier: '>=22'
       version: 24.9.1
     '@types/react':
-      specifier: ^18
-      version: 18.3.26
+      specifier: '>17 <20'
+      version: 19.2.2
     '@types/react-dom':
-      specifier: ^18
+      specifier: '>17 <20'
       version: 18.3.7
     '@types/stoppable':
       specifier: '>=1'
@@ -151,10 +151,10 @@ catalogs:
       specifier: '>=24'
       version: 24.26.1
     react:
-      specifier: ^18
+      specifier: '>17 <20'
       version: 18.3.1
     react-dom:
-      specifier: ^18
+      specifier: '>17 <20'
       version: 18.3.1
     regular-table:
       specifier: '=0.8.1'
@@ -609,10 +609,10 @@ importers:
     devDependencies:
       '@types/react':
         specifier: 'catalog:'
-        version: 18.3.26
+        version: 19.2.2
       '@types/react-dom':
         specifier: 'catalog:'
-        version: 18.3.7(@types/react@18.3.26)
+        version: 18.3.7(@types/react@19.2.2)
       esbuild:
         specifier: 'catalog:'
         version: 0.25.11
@@ -781,7 +781,7 @@ importers:
         version: link:../workspace
       '@types/react':
         specifier: 'catalog:'
-        version: 18.3.26
+        version: 19.2.2
       react:
         specifier: 'catalog:'
         version: 18.3.1
@@ -979,6 +979,9 @@ importers:
       '@types/lodash':
         specifier: 'catalog:'
         version: 4.17.20
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.2
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -1120,7 +1123,10 @@ importers:
         version: 0.1.18
       '@types/react':
         specifier: 'catalog:'
-        version: 18.3.26
+        version: 19.2.2
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 18.3.7(@types/react@19.2.2)
       prettier:
         specifier: 'catalog:'
         version: 3.6.2
@@ -13039,9 +13045,9 @@ snapshots:
 
   '@types/range-parser@1.2.7': {}
 
-  '@types/react-dom@18.3.7(@types/react@18.3.26)':
+  '@types/react-dom@18.3.7(@types/react@19.2.2)':
     dependencies:
-      '@types/react': 18.3.26
+      '@types/react': 19.2.2
 
   '@types/react-router-config@5.0.11':
     dependencies:

@@ -13,7 +13,6 @@
 import * as url from "url";
 import * as dotenv from "dotenv";
 import { lint_js, lint_python } from "./lint.mjs";
-import * as cppLint from "./lint_cpp.mjs";
 
 if (import.meta.url.startsWith("file:")) {
     if (process.argv[1] === url.fileURLToPath(import.meta.url)) {
@@ -23,6 +22,5 @@ if (import.meta.url.startsWith("file:")) {
         dotenv.config({ path: "./.perspectiverc", quiet: true });
         await lint_js(true);
         lint_python(true);
-        cppLint.fixFormatting();
     }
 }
