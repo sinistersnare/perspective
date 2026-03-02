@@ -49,6 +49,7 @@
         "@perspective-dev/esbuild-plugin": "workspace:",
         "@perspective-dev/test": "workspace:",
         "@types/lodash": "catalog:",
+        "@types/react": "catalog:",
         "typescript": "catalog:",
         "zx": "catalog:"
     }

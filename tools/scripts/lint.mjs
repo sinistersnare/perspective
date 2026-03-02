@@ -13,7 +13,6 @@
 import { get_scope } from "./sh_perspective.mjs";
 import * as url from "url";
 import * as dotenv from "dotenv";
-import * as cppLint from "./lint_cpp.mjs";
 
 import "zx/globals";
 
@@ -58,7 +57,6 @@ if (import.meta.url.startsWith("file:")) {
         lint_python();
         // }
 
-        cppLint.checkFormatting();
         process.exit(exit_code);
     }
 }

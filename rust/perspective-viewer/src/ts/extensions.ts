@@ -48,12 +48,49 @@ export type PerspectiveSelectEventDetail = {
 
 type ReactPerspectiveViewerAttributes<T> = React.HTMLAttributes<T>;
 
-type JsxPerspectiveViewerElement = { class?: string } & React.DetailedHTMLProps<
+type JsxPerspectiveViewerElement = {
+    class?: string;
+} & React.DetailedHTMLProps<
     ReactPerspectiveViewerAttributes<HTMLPerspectiveViewerElement>,
     HTMLPerspectiveViewerElement
 >;
 
+// React <19
+
 declare global {
+    namespace JSX {
+        interface IntrinsicElements {
+            "perspective-viewer": JsxPerspectiveViewerElement;
+        }
+    }
+}
+
+// React >=19
+
+// Why are these `ts-ignore`? React 19 makes choice of JSX runtime in `tsconfig`
+// the determination of which runtime this needs to be, but this is chosen
+// by the user ... so I'm not sure what the React authors want from me here
+// exactly. Divination?
+
+// @ts-ignore
+declare module "react/jsx-runtime" {
+    namespace JSX {
+        interface IntrinsicElements {
+            "perspective-viewer": JsxPerspectiveViewerElement;
+        }
+    }
+}
+
+// @ts-ignore
+declare module "react/jsx-dev-runtime" {
+    namespace JSX {
+        interface IntrinsicElements {
+            "perspective-viewer": JsxPerspectiveViewerElement;
+        }
+    }
+}
+
+declare module "react" {
     namespace JSX {
         interface IntrinsicElements {
             "perspective-viewer": JsxPerspectiveViewerElement;

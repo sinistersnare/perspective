@@ -10,7 +10,8 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-import { HTMLPerspectiveWorkspaceElement } from "./perspective-workspace";
+import type { HTMLPerspectiveWorkspaceElement } from "./perspective-workspace";
+import type * as React from "react";
 
 type ReactPerspectiveWorkspaceAttributes<T> = React.HTMLAttributes<T>;
 
@@ -21,7 +22,37 @@ type JsxPerspectiveWorkspaceElement = {
     HTMLPerspectiveWorkspaceElement
 >;
 
+// React <19
+
 declare global {
+    namespace JSX {
+        interface IntrinsicElements {
+            "perspective-workspace": JsxPerspectiveWorkspaceElement;
+        }
+    }
+}
+
+// React >=19
+
+// @ts-ignore
+declare module "react/jsx-runtime" {
+    namespace JSX {
+        interface IntrinsicElements {
+            "perspective-workspace": JsxPerspectiveWorkspaceElement;
+        }
+    }
+}
+
+// @ts-ignore
+declare module "react/jsx-dev-runtime" {
+    namespace JSX {
+        interface IntrinsicElements {
+            "perspective-workspace": JsxPerspectiveWorkspaceElement;
+        }
+    }
+}
+
+declare module "react" {
     namespace JSX {
         interface IntrinsicElements {
             "perspective-workspace": JsxPerspectiveWorkspaceElement;
