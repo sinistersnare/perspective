@@ -14,10 +14,11 @@ import duckdb
 import perspective
 
 from datetime import datetime
-from loguru import logger
+import logging
 
 from perspective.virtual_servers import VirtualServerHandler
 
+logger = logging.getLogger(__name__)
 
 NUMBER_AGGS = [
     "sum",
@@ -102,7 +103,7 @@ class DuckDBVirtualServerHandler(VirtualServerHandler):
 
     def __init__(self, db):
         self.db = db
-        self.sql_builder = perspective.GenericSQLVirtualServerModel()
+        self.sql_builder = perspective.GenericSQLVirtualServerModel({})
 
     def get_features(self):
         return {
@@ -131,7 +132,7 @@ class DuckDBVirtualServerHandler(VirtualServerHandler):
     def get_hosted_tables(self):
         query = self.sql_builder.get_hosted_tables()
         results = run_query(self.db, query)
-        return [result[2] for result in results]
+        return [f"{result[0]}.{result[2]}" for result in results]
 
     def table_schema(self, table_name, config=None):
         query = self.sql_builder.table_schema(table_name)
@@ -173,20 +174,20 @@ class DuckDBVirtualServerHandler(VirtualServerHandler):
     def view_get_data(self, view_name, config, schema, viewport, data):
         group_by = config["group_by"]
         split_by = config["split_by"]
+        is_group_by = len(group_by) > 0
+        is_split_by = len(split_by) > 0
         query = self.sql_builder.view_get_data(view_name, config, viewport, schema)
         results, columns, dtypes = run_query(self.db, query, columns=True)
         for cidx, col in enumerate(columns):
-            if cidx == 0 and len(group_by) > 0 and len(split_by) == 0:
+            if cidx == 0 and is_group_by:
                 continue
 
-            if len(split_by) > 0 and not col.startswith("__ROW_PATH_"):
+            if is_split_by and not col.startswith("__"):
                 col = col.replace("_", "|")
 
             dtype = duckdb_type_to_psp(str(dtypes[cidx]))
             for ridx, row in enumerate(results):
-                grouping_id = (
-                    row[0] if len(group_by) > 0 and len(split_by) == 0 else None
-                )
+                grouping_id = row[0] if is_group_by else None
                 data.set_col(dtype, col, ridx, row[cidx], grouping_id)
 
 

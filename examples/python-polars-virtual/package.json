@@ -1,0 +1,22 @@
+{
+    "name": "python-polars-virtual",
+    "private": true,
+    "version": "4.2.0",
+    "description": "An example of a Polars-backed Perspective virtual server.",
+    "scripts": {
+        "start": "PYTHONPATH=../../python/perspective python3 server.py"
+    },
+    "keywords": [],
+    "license": "Apache-2.0",
+    "dependencies": {
+        "@perspective-dev/client": "workspace:^",
+        "@perspective-dev/viewer": "workspace:^",
+        "@perspective-dev/viewer-d3fc": "workspace:^",
+        "@perspective-dev/viewer-datagrid": "workspace:^",
+        "@perspective-dev/workspace": "workspace:^",
+        "superstore-arrow": "catalog:"
+    },
+    "devDependencies": {
+        "npm-run-all": "catalog:"
+    }
+}

@@ -56,6 +56,7 @@
 - [Virtual Servers](./how_to/python/virtual_server.md)
     - [DuckDB](./how_to/python/virtual_server/duckdb.md)
     - [ClickHouse](./how_to/python/virtual_server/clickhouse.md)
+    - [Polars](./how_to/python/virtual_server/polars.md)
     - [Custom](./how_to/python/virtual_server/custom.md)
 
 # Rust

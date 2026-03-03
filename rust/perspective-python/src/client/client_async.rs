@@ -724,6 +724,18 @@ impl AsyncView {
         self.view.num_rows().await.into_pyerr()
     }
 
+    /// The number of aggregated columns in this [`View`]. This is affected by
+    /// the "split_by" configuration parameter supplied to this view's
+    /// contructor.
+    ///
+    /// # Returns
+    ///
+    /// The number of aggregated columns.
+    pub async fn num_columns(&self) -> PyResult<u32> {
+        let dim = self.view.dimensions().await.into_pyerr()?;
+        Ok(dim.num_view_columns)
+    }
+
     /// The schema of this [`View`].
     ///
     /// The [`View`] schema differs from the `schema` returned by

@@ -13,19 +13,15 @@
 import logging
 from pathlib import Path
 
-import clickhouse_connect
+import polars as pl
 import perspective
 import perspective.handlers.tornado
-import perspective.virtual_servers.clickhouse
-import pyarrow.parquet as pq
+import perspective.virtual_servers.polars
 import tornado.ioloop
 import tornado.web
+import tornado.websocket
 
 from tornado.web import StaticFileHandler
-
-logging.basicConfig(
-    level=logging.DEBUG,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -37,49 +33,11 @@ INPUT_FILE = (
 )
 
 
-def arrow_type_to_clickhouse(arrow_type):
-    t = str(arrow_type)
-    if t.startswith("int") or t.startswith("uint"):
-        return "Int64"
-
-    if t in ("float", "double", "halffloat"):
-        return "Float64"
-
-    if t.startswith("timestamp"):
-        return "DateTime"
-
-    if t.startswith("date"):
-        return "Date"
-
-    return "String"
-
-
 if __name__ == "__main__":
-    client = clickhouse_connect.get_client(host="localhost")
+    df = pl.read_parquet(INPUT_FILE)
+    tables = {"data_source_one": df}
 
-    # Load superstore parquet data into ClickHouse
-    arrow_table = pq.read_table(str(INPUT_FILE))
-    client.command("DROP TABLE IF EXISTS data_source_one")
-    cols = []
-    for field in arrow_table.schema:
-        ch_type = arrow_type_to_clickhouse(field.type)
-        if field.nullable:
-            ch_type = f"Nullable({ch_type})"
-
-        cols.append(f"`{field.name}` {ch_type}")
-
-    client.command(
-        f"CREATE TABLE data_source_one ({', '.join(cols)})"
-        " ENGINE = MergeTree() ORDER BY tuple()"
-    )
-
-    client.insert_arrow("data_source_one", arrow_table)
-    logger.info("Loaded superstore data into ClickHouse")
-
-    virtual_server = perspective.virtual_servers.clickhouse.ClickhouseVirtualServer(
-        client
-    )
-
+    virtual_server = perspective.virtual_servers.polars.PolarsVirtualServer(tables)
     app = tornado.web.Application(
         [
             (
